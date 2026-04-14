@@ -1,6 +1,7 @@
 # Hermes Portable - .gitignore
 
-# Portable runtime (downloaded during setup)
+# Portable runtime (downloaded during build)
+dist/
 portable/uv
 portable/uv.exe
 portable/python/
