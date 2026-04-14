@@ -1,0 +1,27 @@
+# Hermes Portable - .gitignore
+
+# Portable runtime (downloaded during setup)
+portable/uv
+portable/uv.exe
+portable/python/
+portable/venv/
+portable/hermes-agent/
+
+# User data (private)
+data/.env
+data/auth.json
+data/sessions/
+data/logs/
+data/memories/
+data/audio_cache/
+data/image_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.pyc
+__pycache__/
+portable/uv_archive

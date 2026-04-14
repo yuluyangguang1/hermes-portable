@@ -1,0 +1,58 @@
+# Hermes Portable - Configuration Template
+# Copy this file to config.yaml and customize
+
+# Model configuration
+model:
+  default: "openrouter/anthropic/claude-sonnet-4"
+  provider: "openrouter"
+  # base_url: ""          # For custom endpoints
+  # api_key: ""           # Prefer .env instead
+  context_length: 200000
+
+# Agent behavior
+agent:
+  max_turns: 90
+  tool_use_enforcement: true
+
+# Terminal settings
+terminal:
+  backend: "local"
+  timeout: 180
+
+# Context compression
+compression:
+  enabled: true
+  threshold: 0.50
+  target_ratio: 0.20
+
+# Display preferences
+display:
+  skin: "default"
+  tool_progress: true
+  show_reasoning: false
+  show_cost: true
+
+# Speech-to-text
+stt:
+  enabled: false
+  provider: "local"
+  local:
+    model: "base"
+
+# Text-to-speech
+tts:
+  provider: "edge"
+
+# Memory
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  # provider: "built-in"  # built-in, honcho, mem0
+
+# Security
+security:
+  tirith_enabled: false
+
+# Delegation
+delegation:
+  max_iterations: 50
