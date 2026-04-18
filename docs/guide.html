@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Portable — 使用说明</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #041c1c;
+    color: #ffe6cb;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+  a { color: #00ffc8; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Header ── */
+  .hero {
+    text-align: center;
+    padding: 80px 20px 60px;
+    background: linear-gradient(180deg, #0a3030 0%, #041c1c 100%);
+    border-bottom: 1px solid rgba(0,255,200,0.08);
+  }
+  .hero .logo {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 16px;
+    filter: drop-shadow(0 0 16px rgba(255,230,203,0.15));
+  }
+  .hero h1 {
+    font-size: 42px;
+    font-weight: 300;
+    letter-spacing: 6px;
+    margin-bottom: 12px;
+  }
+  .hero .tagline {
+    font-size: 16px;
+    color: #8aaa9a;
+    letter-spacing: 3px;
+  }
+  .hero .version {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 4px 16px;
+    border: 1px solid rgba(0,255,200,0.2);
+    border-radius: 20px;
+    font-size: 12px;
+    color: #6ccfb0;
+    letter-spacing: 2px;
+  }
+
+  /* ── Layout ── */
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── Section ── */
+  section {
+    padding: 48px 0;
+    border-bottom: 1px solid rgba(0,255,200,0.05);
+  }
+  section:last-child { border-bottom: none; }
+  h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    color: #ffe6cb;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .icon { font-size: 24px; }
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffe6cb;
+    margin: 24px 0 12px;
+  }
+  p, li { color: #b8c8c0; font-size: 15px; }
+  ul, ol { padding-left: 24px; margin: 12px 0; }
+  li { margin-bottom: 8px; }
+
+  /* ── Cards ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .card {
+    background: #062424;
+    border: 1px solid rgba(0,255,200,0.08);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .card h4 {
+    font-size: 15px;
+    color: #ffe6cb;
+    margin-bottom: 8px;
+  }
+  .card p {
+    font-size: 13px;
+    color: #8aaa9a;
+    line-height: 1.6;
+  }
+  .card .tag {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 2px 10px;
+    border: 1px solid rgba(0,255,200,0.15);
+    border-radius: 12px;
+    font-size: 11px;
+    color: #6ccfb0;
+  }
+
+  /* ── Steps ── */
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding: 0;
+  }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 48px;
+    margin-bottom: 24px;
+    min-height: 32px;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 32px;
+    height: 32px;
+    background: rgba(0,255,200,0.1);
+    border: 1px solid rgba(0,255,200,0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #00ffc8;
+  }
+
+  /* ── Code blocks ── */
+  code {
+    background: rgba(0,255,200,0.08);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    color: #00ffc8;
+  }
+  pre {
+    background: #062424;
+    border: 1px solid rgba(0,255,200,0.08);
+    border-radius: 8px;
+    padding: 20px;
+    overflow-x: auto;
+    margin: 16px 0;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    font-size: 13px;
+    line-height: 1.8;
+    color: #b8c8c0;
+  }
+  .cmd { color: #00ffc8; }
+  .comment { color: #4a7a6a; }
+
+  /* ── Table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+  }
+  th, td {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0,255,200,0.06);
+    font-size: 14px;
+  }
+  th {
+    color: #8aaa9a;
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  td { color: #b8c8c0; }
+  td:first-child { color: #ffe6cb; font-weight: 500; }
+
+  /* ── Callout ── */
+  .callout {
+    background: rgba(0,255,200,0.04);
+    border-left: 3px solid rgba(0,255,200,0.3);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    margin: 20px 0;
+  }
+  .callout.warn {
+    background: rgba(255,200,0,0.04);
+    border-left-color: rgba(255,200,0,0.3);
+  }
+  .callout p { font-size: 14px; margin: 0; }
+  .callout strong { color: #ffe6cb; }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 40px 20px;
+    font-size: 12px;
+    color: #4a7a6a;
+    letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════ HERO ════════════════════ -->
+<div class="hero">
+  <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <g fill="#ffe6cb">
+      <path d="M 28 22 Q 28 4, 50 4 Q 72 4, 72 22"/>
+      <ellipse cx="50" cy="22" rx="34" ry="7"/>
+      <path d="M 36 12 Q 36 6, 50 6 Q 56 6, 58 10 L 52 14 Z" fill="#041c1c" opacity="0.15"/>
+      <path d="M 22 22 C 12 12, 2 14, 4 22 C 5 28, 12 30, 18 28 C 14 30, 8 28, 8 24 C 8 20, 14 18, 22 22 Z"/>
+      <path d="M 78 22 C 88 12, 98 14, 96 22 C 95 28, 88 30, 82 28 C 86 30, 92 28, 92 24 C 92 20, 86 18, 78 22 Z"/>
+      <path d="M 20 20 C 14 14, 6 16, 8 22 L 14 22 Z" fill="#041c1c" opacity="0.12"/>
+      <path d="M 80 20 C 86 14, 94 16, 92 22 L 86 22 Z" fill="#041c1c" opacity="0.12"/>
+      <ellipse cx="50" cy="50" rx="22" ry="24"/>
+      <ellipse cx="41" cy="46" rx="6" ry="7" fill="#041c1c"/>
+      <circle cx="42" cy="46" r="3.5" fill="#ffe6cb"/>
+      <circle cx="43" cy="44" r="1.3" fill="#041c1c"/>
+      <circle cx="40" cy="47" r="0.6" fill="#041c1c" opacity="0.4"/>
+      <ellipse cx="59" cy="46" rx="6" ry="7" fill="#041c1c"/>
+      <circle cx="58" cy="46" r="3.5" fill="#ffe6cb"/>
+      <circle cx="59" cy="44" r="1.3" fill="#041c1c"/>
+      <circle cx="56" cy="47" r="0.6" fill="#041c1c" opacity="0.4"/>
+      <path d="M 34 38 Q 41 34, 48 38" fill="none" stroke="#041c1c" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M 52 38 Q 59 34, 66 38" fill="none" stroke="#041c1c" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M 50 50 L 48 56" fill="none" stroke="#041c1c" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
+      <path d="M 43 62 Q 50 67, 57 62" fill="none" stroke="#041c1c" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M 46 62 L 54 62" fill="none" stroke="#041c1c" stroke-width="0.6" opacity="0.3"/>
+      <ellipse cx="35" cy="56" rx="4" ry="2.5" fill="#041c1c" opacity="0.06"/>
+      <ellipse cx="65" cy="56" rx="4" ry="2.5" fill="#041c1c" opacity="0.06"/>
+      <ellipse cx="56" cy="38" rx="7" ry="12" fill="#041c1c" opacity="0.08"/>
+      <line x1="68" y1="54" x2="72" y2="62" stroke="#ffe6cb" stroke-width="2"/>
+      <rect x="68" y="62" width="8" height="10" rx="1.5"/>
+      <rect x="70" y="58" width="4" height="6" rx="1"/>
+      <rect x="69" y="63" width="2" height="7" rx="1" fill="#041c1c" opacity="0.35"/>
+    </g>
+  </svg>
+  <h1>Hermes Portable</h1>
+  <p class="tagline">插上 U 盘，打开即用的 AI Agent</p>
+  <span class="version">v0.9.0 · 零安装 · 跨平台</span>
+</div>
+
+<div class="container">
+
+<!-- ════════════════════ 快速开始 ════════════════════ -->
+<section>
+  <h2><span class="icon">🚀</span> 快速开始</h2>
+
+  <ol class="steps">
+    <li>
+      <strong>插上 U 盘</strong>
+      <p>将 <code>HermesPortable</code> 文件夹复制到 U 盘根目录（或任意位置）。</p>
+    </li>
+    <li>
+      <strong>双击启动</strong>
+      <p>根据你的系统，双击对应的启动器：</p>
+    </li>
+  </ol>
+
+  <table>
+    <thead>
+      <tr><th>操作系统</th><th>启动器</th><th>说明</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>macOS</td>
+        <td><code>Hermes.command</code></td>
+        <td>双击即可，macOS 10.15+</td>
+      </tr>
+      <tr>
+        <td>Windows</td>
+        <td><code>Hermes.bat</code></td>
+        <td>双击即可，原生支持，无需 WSL</td>
+      </tr>
+      <tr>
+        <td>Linux</td>
+        <td><code>Hermes.sh</code></td>
+        <td>终端运行 <code>./Hermes.sh</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <ol class="steps" style="counter-reset: step 2;">
+    <li>
+      <strong>配置 API Key</strong>
+      <p>首次启动会自动打开配置面板（<code>http://127.0.0.1:17520</code>），在页面中选择提供商、填入 Key、测试连接、选择模型，然后点击「启动」。</p>
+    </li>
+    <li>
+      <strong>开始使用</strong>
+      <p>配置完成后，终端中即可与 Hermes 对话。所有数据存储在 U 盘的 <code>data/</code> 目录中。</p>
+    </li>
+  </ol>
+</section>
+
+<!-- ════════════════════ 支持的 AI 提供商 ════════════════════ -->
+<section>
+  <h2><span class="icon">🤖</span> 支持的 AI 提供商</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4>OpenRouter</h4>
+      <p>聚合平台，一个 Key 用所有模型</p>
+      <span class="tag">推荐</span>
+    </div>
+    <div class="card">
+      <h4>Anthropic</h4>
+      <p>Claude 系列模型</p>
+      <span class="tag">高质量</span>
+    </div>
+    <div class="card">
+      <h4>OpenAI</h4>
+      <p>GPT-4o / GPT-4.1 系列</p>
+      <span class="tag">通用</span>
+    </div>
+    <div class="card">
+      <h4>DeepSeek</h4>
+      <p>高性价比，中文优秀</p>
+      <span class="tag">便宜</span>
+    </div>
+    <div class="card">
+      <h4>Google</h4>
+      <p>Gemini 系列模型</p>
+      <span class="tag">多模态</span>
+    </div>
+    <div class="card">
+      <h4>其他</h4>
+      <p>Mistral、xAI、Nous、Ollama（本地）</p>
+      <span class="tag">更多</span>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════ 配置面板 ════════════════════ -->
+<section>
+  <h2><span class="icon">⚙️</span> 配置面板</h2>
+
+  <p>配置面板是一个 Web 界面，用于管理 Hermes 的所有设置：</p>
+  <ul>
+    <li>访问地址：<code>http://127.0.0.1:17520</code></li>
+    <li>启动方式：双击 <code>Hermes-Config.bat</code>（Windows）或启动时自动打开</li>
+  </ul>
+
+  <h3>面板功能</h3>
+  <table>
+    <thead>
+      <tr><th>标签页</th><th>功能</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>提供商</td><td>选择 AI 提供商，填入 API Key，测试连接</td></tr>
+      <tr><td>模型</td><td>选择要使用的 AI 模型</td></tr>
+      <tr><td>设置</td><td>终端配置、显示选项、版本更新</td></tr>
+      <tr><td>Chat</td><td>查看聊天记录</td></tr>
+      <tr><td>Skills</td><td>查看已安装的技能</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ════════════════════ 目录结构 ════════════════════ -->
+<section>
+  <h2><span class="icon">📁</span> 目录结构</h2>
+
+  <pre><code>HermesPortable/
+├── <span class="cmd">Hermes.command</span>      <span class="comment"># macOS 启动器（双击）</span>
+├── <span class="cmd">Hermes.bat</span>          <span class="comment"># Windows 启动器（双击）</span>
+├── <span class="cmd">Hermes.sh</span>           <span class="comment"># Linux 启动器</span>
+├── <span class="cmd">Hermes-Config.bat</span>   <span class="comment"># Windows 配置面板入口</span>
+├── <span class="cmd">README.txt</span>          <span class="comment"># 用户指南</span>
+├── <span class="cmd">python/</span>             <span class="comment"># Python 独立运行时（勿删）</span>
+├── <span class="cmd">venv/</span>               <span class="comment"># 虚拟环境 + 依赖（勿删）</span>
+├── <span class="cmd">hermes-agent/</span>        <span class="comment"># Hermes 源码（勿删）</span>
+├── <span class="cmd">config_server.py</span>    <span class="comment"># 配置面板服务</span>
+├── <span class="cmd">update.py</span>           <span class="comment"># 自动更新模块</span>
+├── <span class="cmd">build_windows.py</span>    <span class="comment"># Windows 构建脚本</span>
+└── <span class="cmd">data/</span>               <span class="comment"># 用户数据（重要！记得备份）</span>
+    ├── <span class="cmd">.env</span>            <span class="comment"># API Keys ← 唯一需要编辑的文件</span>
+    ├── <span class="cmd">config.yaml</span>     <span class="comment"># 配置文件</span>
+    ├── <span class="cmd">sessions/</span>       <span class="comment"># 对话历史</span>
+    ├── <span class="cmd">skills/</span>         <span class="comment"># 技能</span>
+    ├── <span class="cmd">memories/</span>       <span class="comment"># 记忆</span>
+    └── <span class="cmd">cron/</span>           <span class="comment"># 定时任务</span></code></pre>
+
+  <div class="callout">
+    <p><strong>💡 提示：</strong><code>python/</code>、<code>venv/</code>、<code>hermes-agent/</code> 是运行环境，不要手动修改。<code>data/</code> 是你的数据，建议定期备份。</p>
+  </div>
+</section>
+
+<!-- ════════════════════ Windows 构建 ════════════════════ -->
+<section>
+  <h2><span class="icon">🪟</span> Windows 原生支持</h2>
+
+  <p>Hermes Portable 支持 Windows 原生运行，<strong>无需安装 WSL</strong>。</p>
+
+  <h3>在 Windows 上构建</h3>
+  <pre><code><span class="comment"># 1. 克隆或下载项目</span>
+git clone &lt;项目地址&gt;
+cd HermesPortable
+
+<span class="comment"># 2. 运行 Windows 专用构建脚本</span>
+python build_windows.py
+
+<span class="comment"># 输出到 dist/HermesPortable/</span>
+<span class="comment"># 双击 Hermes.bat 即可启动</span></code></pre>
+
+  <h3>在 macOS / Linux 上构建</h3>
+  <pre><code>python3 build.py                    <span class="comment"># 输出到 dist/HermesPortable/</span>
+python3 build.py /Volumes/MyUSB     <span class="comment"># 直接输出到U盘</span></code></pre>
+
+  <div class="callout warn">
+    <p><strong>⚠️ 注意：</strong>Python 虚拟环境和依赖是平台特定的。macOS 构建的产物只能在 macOS 上运行。Windows 用户需要在 Windows 机器上运行 <code>build_windows.py</code>。</p>
+  </div>
+</section>
+
+<!-- ════════════════════ 备份与更新 ════════════════════ -->
+<section>
+  <h2><span class="icon">🔄</span> 备份与更新</h2>
+
+  <h3>备份</h3>
+  <p>只需要备份 <code>data/</code> 目录，里面包含了所有个人数据：</p>
+  <ul>
+    <li>API Keys（<code>.env</code>）</li>
+    <li>配置（<code>config.yaml</code>）</li>
+    <li>对话历史（<code>sessions/</code>）</li>
+    <li>技能和记忆（<code>skills/</code>、<code>memories/</code>）</li>
+  </ul>
+
+  <h3>更新</h3>
+  <p>两种方式：</p>
+  <ul>
+    <li><strong>自动更新</strong>：在配置面板的「设置」标签页，点击「检查更新」</li>
+    <li><strong>手动更新</strong>：
+      <pre><code>cd hermes-agent
+git pull
+cd ..
+venv/bin/pip install -e hermes-agent[all]</code></pre>
+    </li>
+  </ul>
+</section>
+
+<!-- ════════════════════ 常见问题 ════════════════════ -->
+<section>
+  <h2><span class="icon">❓</span> 常见问题</h2>
+
+  <h3>Q: 启动后提示找不到 Python？</h3>
+  <p>确保 <code>python/</code> 目录存在且包含 Python 可执行文件。如果损坏，删除 <code>python/</code> 和 <code>venv/</code> 目录，重新运行构建脚本。</p>
+
+  <h3>Q: 配置面板打不开？</h3>
+  <p>检查端口 <code>17520</code> 是否被占用。配置面板只在本地运行（<code>127.0.0.1</code>），不会暴露到外网。</p>
+
+  <h3>Q: API Key 测试失败？</h3>
+  <ul>
+    <li>检查 Key 是否正确（不要有多余空格）</li>
+    <li>检查网络连接（某些提供商需要代理）</li>
+    <li>检查账户余额是否充足</li>
+  </ul>
+
+  <h3>Q: Windows 上双击 .bat 没反应？</h3>
+  <p>右键 <code>Hermes.bat</code> → 以管理员身份运行。如果仍然没反应，打开 CMD，手动运行 <code>Hermes.bat</code> 查看错误信息。</p>
+
+  <h3>Q: 如何更换模型？</h3>
+  <p>打开配置面板（<code>http://127.0.0.1:17520</code>），在「模型」标签页选择新模型，或直接编辑 <code>data/config.yaml</code> 中的 <code>model.default</code> 字段。</p>
+
+  <h3>Q: 数据安全吗？</h3>
+  <p>所有数据存储在 U 盘的 <code>data/</code> 目录中，不写入宿主机。拔掉 U 盘后，宿主机上不会留下任何痕迹。建议定期备份 <code>data/</code> 目录。</p>
+</section>
+
+<!-- ════════════════════ 技术栈 ════════════════════ -->
+<section>
+  <h2><span class="icon">🛠️</span> 技术栈</h2>
+
+  <table>
+    <thead>
+      <tr><th>组件</th><th>技术</th><th>说明</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>AI 引擎</td><td>hermes-agent v0.9.0</td><td>Nous Research 开源 AI Agent</td></tr>
+      <tr><td>Python</td><td>CPython 3.12</td><td>独立运行时，不依赖系统</td></tr>
+      <tr><td>包管理</td><td>uv</td><td>快速 Python 包安装器</td></tr>
+      <tr><td>配置面板</td><td>Python HTTP Server</td><td>轻量级 Web 界面</td></tr>
+      <tr><td>数据存储</td><td>SQLite + YAML</td><td>本地存储，无需数据库</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</div>
+
+<!-- ════════════════════ FOOTER ════════════════════ -->
+<footer>
+  HERMES PORTABLE · v0.9.0 · 构建一次，到处使用
+</footer>
+
+</body>
+</html>
