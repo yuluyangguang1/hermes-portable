@@ -2,42 +2,49 @@
 
 **构建一次，到处使用** — 一个完全自包含的 AI Agent，插上U盘直接运行。
 
-## 概念
+## 支持平台
 
-```
- 开发者/构建机                        用户U盘
-┌──────────────┐    build.py     ┌─────────────────────┐
-│  Python 3.12  │  ──────────►   │  HermesPortable/    │
-│  git          │                │  ├── Hermes.bat     │  ← 双击启动
-│  curl         │                │  ├── Hermes.command │  ← macOS 双击
-│               │                │  ├── Hermes.sh      │  ← Linux 终端
-└──────────────┘                │  ├── python/        │  ← 独立 Python
-                                │  ├── venv/          │  ← 全部依赖
-                                │  ├── hermes-agent/  │  ← 源码
-                                │  └── data/          │  ← 用户数据
-                                └─────────────────────┘
-                                      ↑ 复制到U盘即可
-```
+| 平台 | 启动器 | 要求 |
+|------|--------|------|
+| **macOS** | `Hermes.command` 双击 | macOS 10.15+ |
+| **Linux** | `./Hermes.sh` 终端运行 | glibc 2.17+ |
+| **Windows** | `Hermes.bat` 双击 | **原生支持，无需 WSL** ✅ |
 
-## 构建（在你自己的机器上执行一次）
+## 构建
+
+### macOS / Linux（在 Mac 或 Linux 上构建）
 
 ```bash
 python3 build.py                    # 输出到 dist/HermesPortable/
 python3 build.py /Volumes/MyUSB     # 直接输出到U盘
 ```
 
-**构建环境要求：** macOS/Linux，有 `python3`、`git`、`curl`
+### Windows（在 Windows 上构建）
+
+```powershell
+# 1. 克隆或下载本项目
+git clone https://github.com/your-repo/HermesPortable.git
+cd HermesPortable
+
+# 2. 运行 Windows 专用构建脚本
+python build_windows.py
+
+# 输出到 dist/HermesPortable/
+# 双击 Hermes.bat 即可启动
+```
+
+**构建环境要求：** Python 3.8+、git、curl
 
 **构建产物：** ~500MB 的完全自包含文件夹
 
 ## 使用（拿到U盘后直接用）
 
 1. 插上U盘
-2. 编辑 `data/.env` 填入 API Key（首次）
-3. 双击启动：
+2. 双击启动：
    - **macOS** → `Hermes.command`
-   - **Windows** → `Hermes.bat`
+   - **Windows** → `Hermes.bat`（无需 WSL！）
    - **Linux** → `./Hermes.sh`
+3. 首次使用会自动打开配置面板，填入 API Key 即可
 
 **零安装，零依赖，不碰宿主机系统。**
 
@@ -46,12 +53,15 @@ python3 build.py /Volumes/MyUSB     # 直接输出到U盘
 ```
 HermesPortable/
 ├── Hermes.command     # macOS 启动器 (双击)
-├── Hermes.bat         # Windows 启动器 (双击)
+├── Hermes.bat         # Windows 启动器 (双击) ← 原生支持
 ├── Hermes.sh          # Linux 启动器
+├── Hermes-Config.bat  # Windows 配置面板专用入口
 ├── README.txt         # 用户指南
-├── python/            # Python 3.12 独立运行时
-├── venv/              # 虚拟环境 + 所有依赖
+├── python/            # Python 独立运行时（平台特定）
+├── venv/              # 虚拟环境 + 所有依赖（平台特定）
 ├── hermes-agent/      # Hermes 源代码
+├── config_server.py   # Web 配置面板
+├── update.py          # 自动更新模块
 └── data/              # 用户数据 (配置/会话/技能/记忆)
     ├── .env           # API Keys ← 唯一需要编辑的文件
     ├── config.yaml    # 配置
@@ -67,14 +77,12 @@ HermesPortable/
 - **数据隔离**：启动脚本设置 `HERMES_HOME=data/`，所有数据存U盘
 - **跨平台启动器**：
   - `.command` = macOS Finder 可双击的 shell 脚本
-  - `.bat` = Windows CMD 启动器
+  - `.bat` = Windows CMD 原生启动器（**无需 WSL**）
   - `.sh` = Linux 终端启动器
 
 ## 备份与更新
 
 - **备份**：只复制 `data/` 目录
 - **更新 Hermes**：
-  ```bash
-  cd hermes-agent && git pull
-  venv/bin/pip install -e .[all]
-  ```
+  - 双击 `Hermes-Config.bat`（Windows）或启动配置面板
+  - 点击「检查更新」按钮

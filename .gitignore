@@ -1,7 +1,9 @@
 # Hermes Portable - .gitignore
 
-# Portable runtime (downloaded during build)
+# Build output
 dist/
+
+# Portable runtime (downloaded during build)
 portable/uv
 portable/uv.exe
 portable/python/
@@ -22,7 +24,18 @@ data/image_cache/
 Thumbs.db
 desktop.ini
 
-# Temporary files
+# Python
 *.pyc
 __pycache__/
-portable/uv_archive
+*.egg-info/
+
+# Preview / temp files (regenerated as needed)
+preview*.html
+preview*.png
+preview*.jpg
+config_panel_v2.html
+
+# Generated PNGs from SVGs (keep SVG sources only)
+logo/*.png
+logo/_drafts/
+favicon_*.png

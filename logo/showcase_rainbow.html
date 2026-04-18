@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Hermes Portable — 彩虹渐变</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#000; padding:48px; }
+  h1 { text-align:center; color:#f5f5f7; font-family:-apple-system,sans-serif; font-size:32px; font-weight:300; letter-spacing:6px; margin-bottom:8px; }
+  .sub { text-align:center; color:#666; font-size:13px; letter-spacing:3px; margin-bottom:40px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; max-width:840px; margin:0 auto; }
+  .card { text-align:center; padding:20px; }
+  .card svg { width:140px; height:140px; transition:transform 0.3s; }
+  .card:hover svg { transform:scale(1.08); }
+  .card p { color:#888; font-family:-apple-system,sans-serif; font-size:13px; margin-top:14px; }
+  .card .num { color:#555; font-size:11px; display:block; margin-bottom:4px; }
+  .footer { text-align:center; color:#333; font-size:10px; letter-spacing:3px; margin-top:40px; }
+</style>
+</head>
+<body>
+<h1>Hermes Portable</h1>
+<p class="sub">彩虹渐变 · 经典苹果风格 · 选一个</p>
+<div class="grid">
+  <div class="card">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g1" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#FF3B30"/><stop offset="20%" stop-color="#FF9500"/>
+          <stop offset="40%" stop-color="#FFCC00"/><stop offset="60%" stop-color="#34C759"/>
+          <stop offset="80%" stop-color="#007AFF"/><stop offset="100%" stop-color="#AF52DE"/>
+        </linearGradient>
+        <linearGradient id="s1" x1="0.3" y1="0" x2="0.7" y2="1">
+          <stop offset="0%" stop-color="white" stop-opacity="0.3"/>
+          <stop offset="50%" stop-color="white" stop-opacity="0"/>
+          <stop offset="100%" stop-color="black" stop-opacity="0.15"/>
+        </linearGradient>
+      </defs>
+      <rect x="32" y="28" width="36" height="48" rx="6" fill="url(#g1)"/>
+      <rect x="40" y="16" width="20" height="16" rx="4" fill="url(#g1)"/>
+      <rect x="32" y="28" width="36" height="48" rx="6" fill="url(#s1)"/>
+      <rect x="40" y="16" width="20" height="16" rx="4" fill="url(#s1)"/>
+    </svg>
+    <p><span class="num">01</span>USB 剪影</p>
+  </div>
+  <div class="card">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g2" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#FF3B30"/><stop offset="20%" stop-color="#FF9500"/>
+          <stop offset="40%" stop-color="#FFCC00"/><stop offset="60%" stop-color="#34C759"/>
+          <stop offset="80%" stop-color="#007AFF"/><stop offset="100%" stop-color="#AF52DE"/>
+        </linearGradient>
+        <linearGradient id="s2" x1="0.3" y1="0" x2="0.7" y2="1">
+          <stop offset="0%" stop-color="white" stop-opacity="0.3"/>
+          <stop offset="50%" stop-color="white" stop-opacity="0"/>
+          <stop offset="100%" stop-color="black" stop-opacity="0.15"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="36" fill="url(#g2)"/>
+      <circle cx="50" cy="50" r="36" fill="url(#s2)"/>
+      <g fill="#000"><rect x="42" y="38" width="16" height="24" rx="3"/><rect x="46" y="28" width="8" height="14" rx="2"/></g>
+    </svg>
+    <p><span class="num">02</span>圆中 USB</p>
+  </div>
+  <div class="card">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g3" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#FF3B30"/><stop offset="20%" stop-color="#FF9500"/>
+          <stop offset="40%" stop-color="#FFCC00"/><stop offset="60%" stop-color="#34C759"/>
+          <stop offset="80%" stop-color="#007AFF"/><stop offset="100%" stop-color="#AF52DE"/>
+        </linearGradient>
+        <linearGradient id="s3" x1="0.3" y1="0" x2="0.7" y2="1">
+          <stop offset="0%" stop-color="white" stop-opacity="0.3"/>
+          <stop offset="50%" stop-color="white" stop-opacity="0"/>
+          <stop offset="100%" stop-color="black" stop-opacity="0.15"/>
+        </linearGradient>
+      </defs>
+      <rect x="18" y="18" width="64" height="64" rx="16" fill="url(#g3)"/>
+      <rect x="18" y="18" width="64" height="64" rx="16" fill="url(#s3)"/>
+      <g fill="#000"><rect x="32" y="34" width="10" height="32" rx="3"/><rect x="58" y="34" width="10" height="32" rx="3"/><rect x="32" y="46" width="36" height="10" rx="3"/></g>
+    </svg>
+    <p><span class="num">03</span>方块 H</p>
+  </div>
+  <div class="card">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g4" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#FF3B30"/><stop offset="20%" stop-color="#FF9500"/>
+          <stop offset="40%" stop-color="#FFCC00"/><stop offset="60%" stop-color="#34C759"/>
+          <stop offset="80%" stop-color="#007AFF"/><stop offset="100%" stop-color="#AF52DE"/>
+        </linearGradient>
+        <linearGradient id="s4" x1="0.3" y1="0" x2="0.7" y2="1">
+          <stop offset="0%" stop-color="white" stop-opacity="0.3"/>
+          <stop offset="50%" stop-color="white" stop-opacity="0"/>
+          <stop offset="100%" stop-color="black" stop-opacity="0.15"/>
+        </linearGradient>
+      </defs>
+      <path d="M 50 50 C 30 26, 6 26, 6 50 C 6 74, 30 74, 50 50 C 70 26, 94 26, 94 50 C 94 74, 70 74, 50 50" fill="url(#g4)"/>
+      <path d="M 50 50 C 30 26, 6 26, 6 50 C 6 74, 30 74, 50 50 C 70 26, 94 26, 94 50 C 94 74, 70 74, 50 50" fill="url(#s4)"/>
+      <g fill="#000"><rect x="44" y="42" width="12" height="16" rx="2.5"/><rect x="47" y="36" width="6" height="8" rx="1.5"/></g>
+    </svg>
+    <p><span class="num">04</span>无限 USB</p>
+  </div>
+  <div class="card">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g5" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#FF3B30"/><stop offset="20%" stop-color="#FF9500"/>
+          <stop offset="40%" stop-color="#FFCC00"/><stop offset="60%" stop-color="#34C759"/>
+          <stop offset="80%" stop-color="#007AFF"/><stop offset="100%" stop-color="#AF52DE"/>
+        </linearGradient>
+        <linearGradient id="s5" x1="0.3" y1="0" x2="0.7" y2="1">
+          <stop offset="0%" stop-color="white" stop-opacity="0.3"/>
+          <stop offset="50%" stop-color="white" stop-opacity="0"/>
+          <stop offset="100%" stop-color="black" stop-opacity="0.15"/>
+        </linearGradient>
+      </defs>
+      <path d="M 35 72 L 35 42 Q 35 34, 43 34 L 57 34 Q 65 34, 65 42 L 65 72 Q 65 78, 50 78 Q 35 78, 35 72 Z" fill="url(#g5)"/>
+      <path d="M 35 72 L 35 42 Q 35 34, 43 34 L 57 34 Q 65 34, 65 42 L 65 72 Q 65 78, 50 78 Q 35 78, 35 72 Z" fill="url(#s5)"/>
+      <path d="M 35 42 C 22 30, 8 32, 10 46 C 11 54, 20 56, 30 52 C 24 56, 16 54, 16 48 C 16 42, 24 38, 35 42 Z" fill="url(#g5)"/>
+      <path d="M 35 42 C 22 30, 8 32, 10 46 C 11 54, 20 56, 30 52 C 24 56, 16 54, 16 48 C 16 42, 24 38, 35 42 Z" fill="url(#s5)"/>
+      <path d="M 65 42 C 78 30, 92 32, 90 46 C 89 54, 80 56, 70 52 C 76 56, 84 54, 84 48 C 84 42, 76 38, 65 42 Z" fill="url(#g5)"/>
+      <path d="M 65 42 C 78 30, 92 32, 90 46 C 89 54, 80 56, 70 52 C 76 56, 84 54, 84 48 C 84 42, 76 38, 65 42 Z" fill="url(#s5)"/>
+    </svg>
+    <p><span class="num">05</span>飞翼凉鞋</p>
+  </div>
+  <div class="card">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g6" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#FF3B30"/><stop offset="20%" stop-color="#FF9500"/>
+          <stop offset="40%" stop-color="#FFCC00"/><stop offset="60%" stop-color="#34C759"/>
+          <stop offset="80%" stop-color="#007AFF"/><stop offset="100%" stop-color="#AF52DE"/>
+        </linearGradient>
+        <linearGradient id="s6" x1="0.3" y1="0" x2="0.7" y2="1">
+          <stop offset="0%" stop-color="white" stop-opacity="0.3"/>
+          <stop offset="50%" stop-color="white" stop-opacity="0"/>
+          <stop offset="100%" stop-color="black" stop-opacity="0.15"/>
+        </linearGradient>
+      </defs>
+      <rect x="44" y="34" width="12" height="44" rx="4" fill="url(#g6)"/>
+      <rect x="44" y="34" width="12" height="44" rx="4" fill="url(#s6)"/>
+      <rect x="47" y="22" width="6" height="16" rx="2" fill="url(#g6)"/>
+      <rect x="47" y="22" width="6" height="16" rx="2" fill="url(#s6)"/>
+      <path d="M 44 40 C 30 28, 12 30, 14 44 C 15 52, 26 54, 36 50 C 28 54, 20 52, 20 46 C 20 40, 30 36, 42 40 Z" fill="url(#g6)"/>
+      <path d="M 44 40 C 30 28, 12 30, 14 44 C 15 52, 26 54, 36 50 C 28 54, 20 52, 20 46 C 20 40, 30 36, 42 40 Z" fill="url(#s6)"/>
+      <path d="M 56 40 C 70 28, 88 30, 86 44 C 85 52, 74 54, 64 50 C 72 54, 80 52, 80 46 C 80 40, 70 36, 58 40 Z" fill="url(#g6)"/>
+      <path d="M 56 40 C 70 28, 88 30, 86 44 C 85 52, 74 54, 64 50 C 72 54, 80 52, 80 46 C 80 40, 70 36, 58 40 Z" fill="url(#s6)"/>
+    </svg>
+    <p><span class="num">06</span>飞翼 USB</p>
+  </div>
+</div>
+<div class="footer">HERMES PORTABLE · RAINBOW EDITION</div>
+</body>
+</html>
