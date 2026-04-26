@@ -443,7 +443,7 @@ def step_cleanup(ROOT):
 def step_readme(ROOT):
     (ROOT / "README.txt").write_text(
         "╔══════════════════════════════════════════╗\n"
-        "║         HERMES  PORTABLE  v0.9           ║\n"
+        "║         HERMES  PORTABLE  v0.11.0           ║\n"
         "║       插上U盘，打开即用的 AI Agent       ║\n"
         "╚══════════════════════════════════════════╝\n"
         "\n"
