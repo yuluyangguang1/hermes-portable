@@ -2,7 +2,7 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export HERMES_HOME="$HERE/data"
-export PATH="$HERE/venv/bin:$HERE/python:$PATH"
+export PATH="$HERE/venv/bin:$HERE/node/bin:$HERE/python:$PATH"
 cd "$HERE"
 
 # Check if API key is configured
@@ -29,6 +29,19 @@ if [ "$HAS_KEY" = false ]; then
         xdg-open "http://127.0.0.1:17520"
     fi
     exec "$HERE/venv/bin/python" "$HERE/config_server.py"
+fi
+
+# Start hermes-web-ui in background (if installed)
+if command -v hermes-web-ui &>/dev/null; then
+    echo "  启动 Web UI..."
+    hermes-web-ui start --port 8648 &>/dev/null &
+    WEBUI_PID=$!
+    sleep 1
+    if command -v open &>/dev/null; then
+        open "http://127.0.0.1:8648"
+    elif command -v xdg-open &>/dev/null; then
+        xdg-open "http://127.0.0.1:8648"
+    fi
 fi
 
 exec "$HERE/venv/bin/hermes" "$@"

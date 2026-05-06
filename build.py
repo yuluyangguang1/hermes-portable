@@ -291,6 +291,79 @@ def step_data(ROOT):
     ok("data/ ready")
 
 
+NODE_VERSION = "23.11.0"
+
+def step_nodejs(ROOT):
+    """Download Node.js binary for hermes-web-ui."""
+    node_dir = ROOT / "node"
+    if node_dir.exists() and any(node_dir.rglob("node" if platform.system() != "Windows" else "node.exe")):
+        ok("Node.js already present"); return
+
+    system, arch = detect_platform()
+    if system == "Darwin":
+        url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-darwin-{arch}.tar.gz"
+    elif system == "Linux":
+        url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-linux-{arch}.tar.gz"
+    else:
+        url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-win-x64.zip"
+
+    archive = ROOT / "_node_tmp"
+    info(f"Downloading Node.js v{NODE_VERSION} …")
+    download(url, archive)
+
+    node_dir.mkdir(parents=True, exist_ok=True)
+    if system == "Windows":
+        with zipfile.ZipFile(archive) as z:
+            z.extractall(node_dir)
+        # Move contents from nested dir
+        nested = node_dir / f"node-v{NODE_VERSION}-win-x64"
+        if nested.exists():
+            for item in nested.iterdir():
+                shutil.move(str(item), str(node_dir / item.name))
+            nested.rmdir()
+    else:
+        with tarfile.open(archive, "r:gz") as t:
+            t.extractall(node_dir)
+        nested = node_dir / f"node-v{NODE_VERSION}-{system.lower()}-{arch}"
+        if nested.exists():
+            for item in nested.iterdir():
+                shutil.move(str(item), str(node_dir / item.name))
+            nested.rmdir()
+
+    archive.unlink(missing_ok=True)
+    if system != "Windows":
+        for f in (node_dir / "bin").iterdir():
+            f.chmod(0o755)
+    ok(f"Node.js v{NODE_VERSION} ready")
+
+
+def step_webui(ROOT):
+    """Install hermes-web-ui via npm."""
+    system = platform.system()
+    if system == "Windows":
+        npm = ROOT / "node" / "npm.cmd"
+        node = ROOT / "node" / "node.exe"
+    else:
+        npm = ROOT / "node" / "bin" / "npm"
+        node = ROOT / "node" / "bin" / "node"
+
+    if not npm.exists():
+        warn("npm not found, skipping hermes-web-ui install"); return
+
+    # Check if already installed
+    webui_bin = ROOT / "node" / "bin" / "hermes-web-ui" if system != "Windows" else ROOT / "node" / "hermes-web-ui.cmd"
+    if webui_bin.exists():
+        ok("hermes-web-ui already installed"); return
+
+    info("Installing hermes-web-ui …")
+    env = os.environ.copy()
+    env["PATH"] = str(ROOT / "node" / "bin") + os.pathsep + env.get("PATH", "")
+    # Use npm prefix to install into portable node dir
+    run([str(npm), "install", "-g", "hermes-web-ui",
+         "--prefix", str(ROOT / "node")], env=env)
+    ok("hermes-web-ui installed")
+
+
 def step_launchers(ROOT):
     """Write launcher scripts that set HERMES_HOME and go."""
     # Copy helper scripts and Windows build script
@@ -512,6 +585,8 @@ def main():
         ("Cloning hermes-agent",                   step_hermes),
         ("Creating venv & installing deps",        step_venv),
         ("Setting up data directory",              step_data),
+        ("Downloading Node.js",                    step_nodejs),
+        ("Installing hermes-web-ui",               step_webui),
         ("Writing launcher scripts",               step_launchers),
         ("Writing README",                         step_readme),
         ("Cleaning build artifacts",               step_cleanup),
