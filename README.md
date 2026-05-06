@@ -127,10 +127,19 @@ Hermes Portable 自动集成 [hermes-web-ui](https://github.com/EKKOLearnAI/herm
 
 ## 相关链接
 
-- **GitHub 仓库**：https://github.com/yuluyangguang1/hermes-portable
-- **上游项目**：https://github.com/NousResearch/hermes-agent
-- **官方文档**：https://hermes-agent.nousresearch.com/docs
-- **Web UI**：https://github.com/EKKOLearnAI/hermes-web-ui
+| 项目 | 说明 |
+|------|------|
+| [hermes-portable](https://github.com/yuluyangguang1/hermes-portable) | 本项目 — 便携版 Hermes |
+| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 上游项目 — Nous Research 出品的自进化 AI Agent |
+| [hermes-web-ui](https://github.com/EKKOLearnAI/hermes-web-ui) | Web 管理界面 — 聊天/会话/定时任务/用量统计/通道配置 |
+| [官方文档](https://hermes-agent.nousresearch.com/docs) | Hermes Agent 官方文档 |
+
+## 致谢
+
+- [Nous Research](https://nousresearch.com) — Hermes Agent 核心开发
+- [EKKOLearnAI](https://github.com/EKKOLearnAI) — hermes-web-ui Web 管理界面
+- [astral-sh](https://github.com/astral-sh/uv) — uv 包管理器
+- [Node.js](https://nodejs.org) — hermes-web-ui 运行时
 
 ---
 
