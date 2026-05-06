@@ -2,19 +2,19 @@
 
 **构建一次，到处使用** — 一个完全自包含的 AI Agent，插上U盘直接运行。
 
+> 基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent)（Nous Research）打造的便携版本。
+
 ## 支持平台
 
 | 平台 | 启动器 | 要求 |
 |------|--------|------|
 | **macOS** | `Hermes.command` 双击 | macOS 10.15+ |
 | **Linux** | `./Hermes.sh` 终端运行 | glibc 2.17+ |
-| **Windows** | `Hermes.bat` 双击 | **需要 WSL**（Windows Subsystem for Linux） |
+| **Windows** | `Hermes.bat` 双击 | **需要 WSL2** |
 
-> ⚠️ **Windows 用户注意**：当前版本的 Windows 启动器依赖 WSL。请先安装 WSL：
-> 1. 以管理员身份打开 PowerShell
-> 2. 运行：`wsl --install`
-> 3. 重启电脑
-> 4. 详情：https://learn.microsoft.com/wsl/install
+> ⚠️ **Windows 用户**：Hermes Agent 官方不支持原生 Windows，必须通过 WSL2 运行。
+> 安装方法：以管理员身份打开 PowerShell → 运行 `wsl --install` → 重启电脑。
+> 详见 [微软官方指南](https://learn.microsoft.com/windows/wsl/install)。
 
 ## 构建
 
@@ -25,18 +25,18 @@ python3 build.py                    # 输出到 dist/HermesPortable/
 python3 build.py /Volumes/MyUSB     # 直接输出到U盘
 ```
 
-### Windows（在 Windows 上构建）
+### Windows（在 WSL2 中构建）
 
-```powershell
+```bash
 # 1. 克隆或下载本项目
 git clone https://github.com/yuluyangguang1/hermes-portable.git
 cd hermes-portable
 
-# 2. 运行 Windows 专用构建脚本
-python build_windows.py
+# 2. 运行构建脚本（在 WSL2 终端中）
+python3 build.py
 
 # 输出到 dist/HermesPortable/
-# 双击 Hermes.bat 即可启动（需要 WSL）
+# 在 Windows 资源管理器中双击 Hermes.bat 即可启动
 ```
 
 **构建环境要求：** Python 3.8+、git、curl
@@ -48,7 +48,7 @@ python build_windows.py
 1. 插上U盘
 2. 双击启动：
    - **macOS** → `Hermes.command`
-   - **Windows** → `Hermes.bat`（需要 WSL）
+   - **Windows** → `Hermes.bat`（需已安装 WSL2）
    - **Linux** → `./Hermes.sh`
 3. 首次使用会自动打开配置面板，填入 API Key 即可
 
@@ -59,7 +59,7 @@ python build_windows.py
 ```
 HermesPortable/
 ├── Hermes.command     # macOS 启动器 (双击)
-├── Hermes.bat         # Windows 启动器 (双击) ← 需要 WSL
+├── Hermes.bat         # Windows 启动器 (双击，通过 WSL2 运行)
 ├── Hermes.sh          # Linux 启动器
 ├── README.md          # 本文档
 ├── README.txt         # 用户指南
@@ -85,8 +85,20 @@ HermesPortable/
 - **数据隔离**：启动脚本设置 `HERMES_HOME=data/`，所有数据存U盘
 - **跨平台启动器**：
   - `.command` = macOS Finder 可双击的 shell 脚本
-  - `.bat` = Windows CMD 启动器（通过 WSL 运行）
+  - `.bat` = Windows 启动器（通过 WSL2 运行，与官方推荐一致）
   - `.sh` = Linux 终端启动器
+
+## 为什么选择 Hermes Portable？
+
+即使 Hermes Agent 官方提供了安装脚本，Portable 版仍有独特价值：
+
+| 对比项 | 官方安装 | Hermes Portable |
+|--------|---------|----------------|
+| 安装步骤 | `curl \| bash` + 配置 | 插U盘，双击 |
+| 系统影响 | 写入 `~/.hermes/`，安装全局命令 | 零痕迹，数据全在U盘 |
+| 换电脑 | 重新安装 + 迁移数据 | 拔了插上，直接用 |
+| Python/Node | 依赖系统或额外安装 | 全部自包含 |
+| 多设备同步 | 手动迁移 | 带着U盘就行 |
 
 ## Web 管理界面
 
@@ -95,10 +107,7 @@ Hermes Portable 支持可选的 Web 管理界面（[hermes-web-ui](https://githu
 ### 安装
 
 ```bash
-# 进入便携包目录
 cd /path/to/HermesPortable
-
-# 使用内置 Python 安装
 ./venv/bin/pip install hermes-web-ui
 ```
 
@@ -126,6 +135,7 @@ cd /path/to/HermesPortable
 
 - **GitHub 仓库**：https://github.com/yuluyangguang1/hermes-portable
 - **上游项目**：https://github.com/NousResearch/hermes-agent
+- **官方文档**：https://hermes-agent.nousresearch.com/docs
 - **Web UI**：https://github.com/EKKOLearnAI/hermes-web-ui
 
 ---
