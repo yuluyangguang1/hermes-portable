@@ -70,6 +70,7 @@ HermesPortable/
 ├── chat_viewer.py     # 聊天记录查看器
 ├── update.py          # 自动更新模块
 ├── uv                 # 包管理器
+├── node/              # Node.js + hermes-web-ui
 └── data/              # 用户数据 (配置/会话/技能/记忆)
     ├── .env           # API Keys ← 唯一需要编辑的文件
     ├── config.yaml    # 配置
@@ -102,18 +103,11 @@ HermesPortable/
 
 ## Web 管理界面
 
-Hermes Portable 支持可选的 Web 管理界面（[hermes-web-ui](https://github.com/EKKOLearnAI/hermes-web-ui)）。
+Hermes Portable 自动集成 [hermes-web-ui](https://github.com/EKKOLearnAI/hermes-web-ui) —— 启动时自动在后台启动并打开浏览器。
 
-### 安装
+**功能：** AI 聊天、会话管理、定时任务、用量统计、平台通道配置、技能浏览等。
 
-```bash
-cd /path/to/HermesPortable
-./venv/bin/pip install hermes-web-ui
-```
-
-### 启用
-
-启动 Hermes 后，在配置面板的「偏好设置」中启用「启动时自动打开 Web UI 管理界面」。
+**首次构建需联网：** 构建脚本会自动下载 Node.js v23 并安装 hermes-web-ui，无需手动操作。
 
 ### 端口对照
 
