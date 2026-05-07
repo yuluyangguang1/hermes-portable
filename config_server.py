@@ -10,7 +10,7 @@ import sys
 import threading
 import time
 import webbrowser
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import HTTPServer, ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -167,6 +167,13 @@ def _yaml_dump_simple(d, indent=0):
 
 
 def save_config(data):
+    # Input validation: sanitize env keys to prevent injection
+    import re
+    valid_env_keys = {p["env"] for p in PROVIDERS}
+    for ch in CHANNELS:
+        for field in ch["fields"]:
+            valid_env_keys.add(field["key"])
+
     lines = []
     lines.append("# ═══════════════════════════════════════════")
     lines.append("#  Hermes Portable — Environment Variables")
@@ -176,6 +183,8 @@ def save_config(data):
     for p in PROVIDERS:
         val = data.get("env", {}).get(p["env"], "")
         if val:
+            # Strip newlines to prevent env injection
+            val = str(val).replace("\n", "").replace("\r", "")
             lines.append(f"{p['env']}={val}")
         else:
             lines.append(f"# {p['env']}=")
@@ -185,6 +194,7 @@ def save_config(data):
         for field in ch["fields"]:
             val = data.get("env", {}).get(field["key"], "")
             if val:
+                val = str(val).replace("\n", "").replace("\r", "")
                 lines.append(f"{field['key']}={val}")
             else:
                 lines.append(f"# {field['key']}=")
@@ -894,7 +904,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     </div>
   </form>
 
-  <div class="footer">Hermes Portable v0.9 · 数据存储在 data/</div>
+  <div class="footer">Hermes Portable v0.11.0 · 数据存储在 data/</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1232,7 +1242,7 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self.send_error(404)
 
     def do_POST(self):
-        body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        body = self.rfile.read(min(int(self.headers.get("Content-Length", 0)), 1_000_000))
         if self.path == "/api/save":
             try:
                 data = json.loads(body)
@@ -1272,6 +1282,9 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         page = page.replace("__FIRST_RUN__", "true" if not has_key else "false")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Content-Security-Policy", "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com")
         self.end_headers()
         self.wfile.write(page.encode())
 
@@ -1288,6 +1301,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
     def _json_response(self, data):
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode())
 
@@ -1343,8 +1358,11 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         update_script = SCRIPT_DIR / "update.py"
         if update_script.exists():
             py = sys.executable
-            subprocess.run([py, str(update_script), "update"],
-                         cwd=str(SCRIPT_DIR), timeout=120)
+            try:
+                subprocess.run([py, str(update_script), "update"],
+                             cwd=str(SCRIPT_DIR), timeout=120)
+            except subprocess.TimeoutExpired:
+                pass
 
     def _test_provider(self, data):
         """Test an API key by making a minimal request."""
@@ -1451,18 +1469,31 @@ class ConfigHandler(SimpleHTTPRequestHandler):
 
     def _launch_hermes(self):
         time.sleep(1)
-        hermes_bin = VENV_DIR / "bin" / "hermes"
+        # Windows uses Scripts/hermes.exe, Unix uses bin/hermes
+        if sys.platform == "win32":
+            hermes_bin = VENV_DIR / "Scripts" / "hermes.exe"
+        else:
+            hermes_bin = VENV_DIR / "bin" / "hermes"
         if hermes_bin.exists():
             if sys.platform == "darwin":
+                # Escape single quotes in paths to prevent AppleScript injection
+                safe_dir = str(SCRIPT_DIR).replace("'", "'\\''")
+                safe_home = str(DATA_DIR).replace("'", "'\\''")
+                safe_bin = str(hermes_bin).replace("'", "'\\''")
                 script = f'''tell application "Terminal"
                     activate
-                    do script "cd '{SCRIPT_DIR}' && export HERMES_HOME='{DATA_DIR}' && '{hermes_bin}'"
+                    do script "cd '{safe_dir}' && export HERMES_HOME='{safe_home}' && '{safe_bin}'"
                 end tell'''
                 subprocess.run(["osascript", "-e", script])
             else:
                 env = os.environ.copy()
                 env["HERMES_HOME"] = str(DATA_DIR)
-                subprocess.Popen([str(hermes_bin)], env=env, cwd=str(SCRIPT_DIR))
+                if sys.platform == "win32":
+                    # Launch in a new console window (like macOS gets its own Terminal)
+                    subprocess.Popen([str(hermes_bin)], env=env, cwd=str(SCRIPT_DIR),
+                                     creationflags=subprocess.CREATE_NEW_CONSOLE)
+                else:
+                    subprocess.Popen([str(hermes_bin)], env=env, cwd=str(SCRIPT_DIR))
 
     def log_message(self, format, *args):
         pass
@@ -1472,7 +1503,7 @@ def main():
     os.environ["HERMES_HOME"] = str(DATA_DIR)
     env = parse_env()
     has_key = any(env.get(p["env"]) for p in PROVIDERS)
-    server = HTTPServer(("127.0.0.1", PORT), ConfigHandler)
+    server = ThreadingHTTPServer(("127.0.0.1", PORT), ConfigHandler)
     url = f"http://127.0.0.1:{PORT}"
 
     print(f"""

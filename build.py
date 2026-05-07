@@ -130,14 +130,9 @@ def step_python(ROOT):
         run([str(uv), "python", "install", PYTHON_VERSION, "--install-dir", str(py_dir)], env=env)
         ok(f"Python {PYTHON_VERSION} installed")
     except subprocess.CalledProcessError:
-        warn("uv python install failed, using system Python as fallback")
-        py_dir.mkdir(parents=True, exist_ok=True)
-        # Create a symlink to system python
-        sys_python = sys.executable
-        target = py_dir / ("python3.12" if platform.system() != "Windows" else "python3.12.exe")
-        if not target.exists():
-            target.symlink_to(sys_python)
-        ok(f"Using system Python: {sys_python}")
+        fail("uv python install failed. Cannot create portable Python — "
+             "symlinks to system Python break when copied to other machines.\n"
+             "  Fix: ensure internet access, or manually place Python in python/ dir.")
 
 
 def _find_python(ROOT):
@@ -323,7 +318,10 @@ def step_nodejs(ROOT):
             nested.rmdir()
     else:
         with tarfile.open(archive, "r:gz") as t:
-            t.extractall(node_dir)
+            # Security: filter out path traversal entries
+            safe_members = [m for m in t.getmembers()
+                           if not m.name.startswith("/") and ".." not in m.name]
+            t.extractall(node_dir, members=safe_members)
         nested = node_dir / f"node-v{NODE_VERSION}-{system.lower()}-{arch}"
         if nested.exists():
             for item in nested.iterdir():
@@ -387,7 +385,7 @@ def step_launchers(ROOT):
         "setlocal enabledelayedexpansion\r\n"
         'set "HERE=%~dp0"\r\n'
         'set "HERMES_HOME=%HERE%data"\r\n'
-        'set "PATH=%HERE%venv\\Scripts;%HERE%python;%PATH%"\r\n'
+        'set "PATH=%HERE%venv\\Scripts;%HERE%node;%HERE%python;%PATH%"\r\n'
         "\r\n"
         "echo.\r\n"
         "echo   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗\r\n"
@@ -398,7 +396,7 @@ def step_launchers(ROOT):
         "REM Check if API key is configured\r\n"
         'set "HAS_KEY=false"\r\n'
         'if exist "%HERE%data\\.env" (\r\n'
-        '    findstr /R "^[A-Z_]*_API_KEY=sk-" "%HERE%data\\.env" >nul 2>&1\r\n'
+        '    findstr /R "^[A-Z_]*_API_KEY=." "%HERE%data\\.env" >nul 2>&1\r\n'
         "    if !errorlevel! equ 0 set \"HAS_KEY=true\"\r\n"
         ")\r\n"
         "\r\n"
@@ -426,7 +424,7 @@ def step_launchers(ROOT):
         "setlocal\r\n"
         'set "HERE=%~dp0"\r\n'
         'set "HERMES_HOME=%HERE%data"\r\n'
-        'set "PATH=%HERE%venv\\Scripts;%HERE%python;%PATH%"\r\n'
+        'set "PATH=%HERE%venv\\Scripts;%HERE%node;%HERE%python;%PATH%"\r\n'
         'start "" "http://127.0.0.1:17520"\r\n'
         '"%HERE%venv\\Scripts\\python.exe" "%HERE%config_server.py"\r\n'
     )
@@ -437,8 +435,17 @@ def step_launchers(ROOT):
         "set -euo pipefail\n"
         'HERE="$(cd "$(dirname "$0")" && pwd)"\n'
         'export HERMES_HOME="$HERE/data"\n'
-        'export PATH="$HERE/venv/bin:$HERE/python:$PATH"\n'
+        'export PATH="$HERE/venv/bin:$HERE/node/bin:$HERE/python:$PATH"\n'
         'cd "$HERE"\n'
+        '\n'
+        'WEBUI_PID=""\n'
+        '\n'
+        'cleanup() {\n'
+        '    if [ -n "$WEBUI_PID" ] && kill -0 "$WEBUI_PID" 2>/dev/null; then\n'
+        '        kill "$WEBUI_PID" 2>/dev/null || true\n'
+        '    fi\n'
+        '}\n'
+        'trap cleanup EXIT INT TERM\n'
         '\n'
         '# Check if API key is configured\n'
         'HAS_KEY=false\n'
@@ -501,7 +508,7 @@ def step_cleanup(ROOT):
     # Test files in venv site-packages
     venv = ROOT / "venv"
     if venv.exists():
-        site = venv / ("Lib" if platform.system() == "Windows" else "lib") / "python3.12" / "site-packages"
+        site = venv / ("Lib" if platform.system() == "Windows" else "lib") / f"python{PYTHON_VERSION}" / "site-packages"
         if site.exists():
             for d in site.rglob("__tests__"):
                 shutil.rmtree(d, ignore_errors=True)

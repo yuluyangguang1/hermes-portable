@@ -1,10 +1,10 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 set "HERE=%~dp0"
 
 REM Check WSL availability
 wsl --version >nul 2>&1
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo.
     echo  ╔═══════════════════════════════════════╗
     echo  ║  Hermes Portable 需要 WSL2 才能运行   ║
@@ -22,7 +22,7 @@ if %errorlevel% neq 0 (
 )
 
 REM Convert Windows path to WSL path
-for /f "usebackq delims=" %%I in (`wsl wslpath "%HERE:.=\\%"`) do set WSL_HERE=%%I
+for /f "usebackq delims=" %%I in (`wsl wslpath "%HERE%"`) do set WSL_HERE=%%I
 
 echo.
 echo   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗
@@ -34,7 +34,7 @@ echo.
 
 REM Check if API key is configured
 wsl test -f "%WSL_HERE%/data/.env" ^&^& wsl grep -qE "^[A-Z_]+_API_KEY=" "%WSL_HERE%/data/.env"
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo   首次使用！正在打开配置面板...
     echo   请在浏览器中完成 API Key 配置。
     echo.
@@ -50,7 +50,11 @@ if "%1"=="--config" (
 )
 
 REM Start hermes-web-ui in background (if installed)
+set "WEBUI_OK=false"
 wsl bash -c "command -v hermes-web-ui >/dev/null 2>&1 && (export PATH='%WSL_HERE%/node/bin:$PATH' && hermes-web-ui start --port 8648 >/dev/null 2>&1 &)" 2>nul
-start http://127.0.0.1:8648
+if !errorlevel! equ 0 (
+    set "WEBUI_OK=true"
+    start http://127.0.0.1:8648
+)
 
 wsl bash -c "cd '%WSL_HERE%' && export HERMES_HOME='%WSL_HERE%/data' && export PATH='%WSL_HERE%/node/bin:$PATH' && '%WSL_HERE%/venv/bin/hermes' %*"

@@ -64,9 +64,13 @@ def list_sessions():
 
 def get_session(filename):
     """Load a single session."""
+    # Security: prevent path traversal
+    import re
+    if not re.match(r'^session_[a-zA-Z0-9_\-]+\.json$', filename):
+        return None
     sdir = get_sessions_dir()
     f = sdir / filename
-    if not f.exists():
+    if not f.exists() or not f.resolve().parent == sdir.resolve():
         return None
     with open(f) as fh:
         data = json.load(fh)
@@ -282,7 +286,7 @@ function renderSessions(sessions) {
   const list = document.getElementById('sessionList');
   list.innerHTML = sessions.map((s, i) => `
     <div class="session-item ${currentSession === s.file ? 'active' : ''}"
-         onclick="loadChat('${s.file}')">
+         onclick="loadChat('${s.file.replace(/'/g, "\\'")}')">
       <div class="preview">${escapeHtml(s.preview)}</div>
       <div class="meta">
         <span>${formatTime(s.start || s.updated)}</span>
@@ -390,6 +394,11 @@ class ChatHandler(SimpleHTTPRequestHandler):
     def _send(self, code, body, ctype="application/json"):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        if "text/html" in ctype:
+            self.send_header("Content-Security-Policy",
+                "default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'")
         self.end_headers()
         self.wfile.write(body.encode() if isinstance(body, str) else body)
 

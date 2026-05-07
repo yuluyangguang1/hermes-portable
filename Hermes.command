@@ -5,6 +5,15 @@ export HERMES_HOME="$HERE/data"
 export PATH="$HERE/venv/bin:$HERE/node/bin:$HERE/python:$PATH"
 cd "$HERE"
 
+WEBUI_PID=""
+
+cleanup() {
+    if [ -n "$WEBUI_PID" ] && kill -0 "$WEBUI_PID" 2>/dev/null; then
+        kill "$WEBUI_PID" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT INT TERM
+
 # Check if API key is configured
 HAS_KEY=false
 if [ -f "$HERE/data/.env" ]; then
@@ -34,7 +43,7 @@ fi
 # Start hermes-web-ui in background (if installed)
 if command -v hermes-web-ui &>/dev/null; then
     echo "  启动 Web UI..."
-    hermes-web-ui start --port 8648 &>/dev/null &
+    hermes-web-ui start --port 8648 >/dev/null &
     WEBUI_PID=$!
     sleep 1
     if command -v open &>/dev/null; then

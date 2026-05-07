@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import urllib.request
+import shutil
 from pathlib import Path
 from datetime import datetime
 
@@ -148,6 +149,20 @@ def do_update():
         print(f"{R}✗ hermes-agent is not a git clone, cannot update{X}")
         print(f"  Rebuild with: python3 build.py")
         return False
+
+    # Backup before update
+    print(f"\n{C}[0/3] Creating backup...{X}")
+    backup_dir = SCRIPT_DIR / "data" / ".update_backup"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = backup_dir / f"pre_update_{ts}"
+    try:
+        shutil.copytree(HERMES_DIR, backup_path, ignore=shutil.ignore_patterns(
+            "__pycache__", ".git", "node_modules", "venv", "*.pyc"
+        ))
+        print(f"{G}✓ Backup: {backup_path}{X}")
+    except Exception as e:
+        print(f"{Y}⚠ Backup failed ({e}), continuing anyway...{X}")
 
     print(f"\n{C}[1/3] Pulling latest changes...{X}")
     r = subprocess.run(

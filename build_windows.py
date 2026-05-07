@@ -120,7 +120,10 @@ def _download_embedded_python(ROOT):
     download(url, archive)
 
     with zipfile.ZipFile(archive) as z:
-        z.extractall(py_dir)
+        # Security: filter path traversal
+        safe = [n for n in z.namelist() if not n.startswith('/') and '..' not in n]
+        for n in safe:
+            z.extract(n, py_dir)
     archive.unlink(missing_ok=True)
 
     # Enable import site (needed for pip)
@@ -276,10 +279,10 @@ def step_launchers(ROOT):
     bat = ROOT / "Hermes.bat"
     bat.write_text(
         "@echo off\r\n"
-        "setlocal\r\n"
+        "setlocal enabledelayedexpansion\r\n"
         'set "HERE=%~dp0"\r\n'
         'set "HERMES_HOME=%HERE%data"\r\n'
-        'set "PATH=%HERE%venv\\Scripts;%HERE%python;%PATH%"\r\n'
+        'set "PATH=%HERE%venv\\Scripts;%HERE%node;%HERE%python;%PATH%"\r\n'
         "\r\n"
         "echo.\r\n"
         "echo   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗\r\n"
@@ -290,7 +293,7 @@ def step_launchers(ROOT):
         "REM Check if API key is configured\r\n"
         'set "HAS_KEY=false"\r\n'
         'if exist "%HERE%data\\.env" (\r\n'
-        '    findstr /R "^[A-Z_]*_API_KEY=sk-" "%HERE%data\\.env" >nul 2>&1\r\n'
+        '    findstr /R "^[A-Z_]*_API_KEY=." "%HERE%data\\.env" >nul 2>&1\r\n'
         "    if !errorlevel! equ 0 set \"HAS_KEY=true\"\r\n"
         ")\r\n"
         "\r\n"
@@ -319,7 +322,7 @@ def step_launchers(ROOT):
         "setlocal\r\n"
         'set "HERE=%~dp0"\r\n'
         'set "HERMES_HOME=%HERE%data"\r\n'
-        'set "PATH=%HERE%venv\\Scripts;%HERE%python;%PATH%"\r\n'
+        'set "PATH=%HERE%venv\\Scripts;%HERE%node;%HERE%python;%PATH%"\r\n'
         'start "" "http://127.0.0.1:17520"\r\n'
         '"%HERE%venv\\Scripts\\python.exe" "%HERE%config_server.py"\r\n'
     )
@@ -345,7 +348,7 @@ def step_cleanup(ROOT):
 def step_readme(ROOT):
     (ROOT / "README.txt").write_text(
         "╔══════════════════════════════════════════╗\n"
-        "║         HERMES  PORTABLE  v0.9           ║\n"
+        "║         HERMES  PORTABLE  v0.11.0           ║\n"
         "║       插上U盘，打开即用的 AI Agent       ║\n"
         "╚══════════════════════════════════════════╝\n"
         "\n"
