@@ -442,7 +442,12 @@ def main():
 
     for name, fn in steps:
         info(f"Step: {name}")
-        fn(ROOT)
+        try:
+            fn(ROOT)
+        except subprocess.CalledProcessError as e:
+            fail(f"Step '{name}' failed with exit code {e.returncode}")
+        except Exception as e:
+            fail(f"Step '{name}' failed: {e}")
 
     size = sum(f.stat().st_size for f in ROOT.rglob("*") if f.is_file()) / 1e6
     print(f"\n{G}{B}  ✓ Build complete!{X}")

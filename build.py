@@ -662,7 +662,12 @@ def main():
 
     for i, (desc, fn) in enumerate(steps, 1):
         print(f"{B}[{i}/{len(steps)}] {desc}{X}")
-        fn(ROOT)
+        try:
+            fn(ROOT)
+        except subprocess.CalledProcessError as e:
+            fail(f"Step '{desc}' failed with exit code {e.returncode}")
+        except Exception as e:
+            fail(f"Step '{desc}' failed: {e}")
         print()
 
     # Summary

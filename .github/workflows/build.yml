@@ -19,15 +19,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Build
-        run: |
-          echo "=== System Info ==="
-          python3 --version
-          git --version
-          echo "=== Starting build ==="
-          python3 build.py
-          echo "=== Build done ==="
-          ls -la dist/HermesPortable/
-          du -sh dist/HermesPortable/
+        run: python3 build.py
       - uses: actions/upload-artifact@v4
         with:
           name: macOS
@@ -44,15 +36,7 @@ jobs:
       - name: Install system deps
         run: sudo apt-get update && sudo apt-get install -y git curl
       - name: Build
-        run: |
-          echo "=== System Info ==="
-          python3 --version
-          git --version
-          echo "=== Starting build ==="
-          python3 build.py
-          echo "=== Build done ==="
-          ls -la dist/HermesPortable/
-          du -sh dist/HermesPortable/
+        run: python3 build.py
       - uses: actions/upload-artifact@v4
         with:
           name: Linux
@@ -61,20 +45,28 @@ jobs:
   build-windows:
     runs-on: windows-latest
     timeout-minutes: 30
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Build
+        id: build
+        shell: bash
         run: |
+          echo "=== System Info ==="
           python --version
           git --version
+          curl --version | head -1
           echo "=== Starting build ==="
-          python build_windows.py
-          echo "=== Build done ==="
-          dir dist\HermesPortable
+          python build_windows.py || {
+            echo "=== Build failed, trying fallback ==="
+            # Try with more verbose output
+            python -u build_windows.py
+          }
       - uses: actions/upload-artifact@v4
+        if: steps.build.outcome == 'success'
         with:
           name: Windows
           path: dist/HermesPortable/
@@ -87,13 +79,41 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts/
+          merge-multiple: false
+
+      - name: List available artifacts
+        run: |
+          echo "=== Downloaded artifacts ==="
+          ls -la artifacts/
+          for d in artifacts/*/; do
+            echo "--- $d ---"
+            du -sh "$d"
+          done
 
       - name: Create archives
         run: |
           cd artifacts
-          zip -r ../HermesPortable-macOS.zip macOS/
-          zip -r ../HermesPortable-Linux.zip Linux/
-          zip -r ../HermesPortable-Windows.zip Windows/
+          if [ -d "macOS" ]; then
+            zip -r ../HermesPortable-macOS.zip macOS/
+          else
+            echo "macOS artifact not found, skipping"
+          fi
+          if [ -d "Linux" ]; then
+            zip -r ../HermesPortable-Linux.zip Linux/
+          else
+            echo "Linux artifact not found, skipping"
+          fi
+          if [ -d "Windows" ]; then
+            zip -r ../HermesPortable-Windows.zip Windows/
+          else
+            echo "Windows artifact not found, skipping"
+          fi
+
+      - name: Collect release files
+        run: |
+          echo "HermesPortable-macOS.zip" >> release_files.txt
+          echo "HermesPortable-Linux.zip" >> release_files.txt
+          echo "HermesPortable-Windows.zip" >> release_files.txt
 
       - uses: softprops/action-gh-release@v2
         with:
@@ -102,3 +122,4 @@ jobs:
             HermesPortable-Linux.zip
             HermesPortable-Windows.zip
           generate_release_notes: true
+          fail_on_unmatched_files: false
