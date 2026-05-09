@@ -12,13 +12,22 @@ permissions:
 jobs:
   build-macos:
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Build
-        run: python3 build.py
+        run: |
+          echo "=== System Info ==="
+          python3 --version
+          git --version
+          echo "=== Starting build ==="
+          python3 build.py
+          echo "=== Build done ==="
+          ls -la dist/HermesPortable/
+          du -sh dist/HermesPortable/
       - uses: actions/upload-artifact@v4
         with:
           name: macOS
@@ -26,13 +35,24 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y git curl
       - name: Build
-        run: python3 build.py
+        run: |
+          echo "=== System Info ==="
+          python3 --version
+          git --version
+          echo "=== Starting build ==="
+          python3 build.py
+          echo "=== Build done ==="
+          ls -la dist/HermesPortable/
+          du -sh dist/HermesPortable/
       - uses: actions/upload-artifact@v4
         with:
           name: Linux
@@ -40,13 +60,20 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Build
-        run: python build_windows.py
+        run: |
+          python --version
+          git --version
+          echo "=== Starting build ==="
+          python build_windows.py
+          echo "=== Build done ==="
+          dir dist\HermesPortable
       - uses: actions/upload-artifact@v4
         with:
           name: Windows

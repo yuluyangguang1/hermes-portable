@@ -12,6 +12,7 @@ permissions:
 jobs:
   build-macos:
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,7 +20,7 @@ jobs:
           python-version: '3.12'
       - name: Build
         run: python3 build.py
-      - name: Rename venv
+      - name: Prepare artifacts
         run: |
           cd dist/HermesPortable
           mv venv ../venv-macos-arm64
@@ -39,11 +40,14 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y git curl
       - name: Build
         run: python3 build.py
       - uses: actions/upload-artifact@v4
@@ -57,6 +61,7 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -91,14 +96,12 @@ jobs:
           cp -r artifacts/python-linux-x64/ HermesPortable/python-linux-x64/
           cp -r artifacts/venv-windows-x64/ HermesPortable/venv-windows-x64/
           cp -r artifacts/python-windows-x64/ HermesPortable/python-windows-x64/
-          ls -la HermesPortable/
           du -sh HermesPortable/
 
       - name: Create archives
         run: |
           zip -r HermesPortable-Universal.zip HermesPortable/
 
-          # Per-platform
           mkdir -p macos-only && cp -r artifacts/shared-base/* macos-only/
           cp -r artifacts/venv-macos-arm64/ macos-only/venv
           cp -r artifacts/python-macos-arm64/ macos-only/python
