@@ -1,4 +1,4 @@
-name: Build Universal Package
+name: Build Universal
 
 on:
   workflow_dispatch:
@@ -10,46 +10,47 @@ permissions:
   contents: write
 
 jobs:
-  build-macos-arm64:
+  build-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build macOS version
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build
         run: python3 build.py
-      - name: Prepare platform-specific artifacts
+      - name: Rename venv
         run: |
           cd dist/HermesPortable
-          # Copy (not move) platform-specific dirs with new names
-          cp -r venv venv-macos-arm64
-          cp -r python python-macos-arm64
-          # Remove originals to keep shared artifact clean
-          rm -rf venv python
-      - name: Upload shared base
-        uses: actions/upload-artifact@v4
+          mv venv ../venv-macos-arm64
+          mv python ../python-macos-arm64
+      - uses: actions/upload-artifact@v4
         with:
           name: shared-base
           path: dist/HermesPortable/
-      - name: Upload macOS venv
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: venv-macos-arm64
-          path: dist/HermesPortable/venv-macos-arm64/
+          path: dist/venv-macos-arm64/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-macos-arm64
+          path: dist/python-macos-arm64/
 
   build-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y git curl
-      - name: Build Linux version
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build
         run: python3 build.py
-      - name: Upload Linux venv
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: venv-linux-x64
           path: dist/HermesPortable/venv/
-      - name: Upload Linux python
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: python-linux-x64
           path: dist/HermesPortable/python/
@@ -58,22 +59,23 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build Windows version
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build
         run: python build_windows.py
-      - name: Upload Windows venv
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: venv-windows-x64
           path: dist/HermesPortable/venv/
-      - name: Upload Windows python
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: python-windows-x64
           path: dist/HermesPortable/python/
 
   merge-and-release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-macos-arm64, build-linux, build-windows]
+    needs: [build-macos, build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -82,50 +84,37 @@ jobs:
 
       - name: Merge all platforms
         run: |
-          # Start with shared base (hermes-agent, node, data, launchers)
           cp -r artifacts/shared-base/ HermesPortable/
-
-          # Add each platform's venv + python
           cp -r artifacts/venv-macos-arm64/ HermesPortable/venv-macos-arm64/
+          cp -r artifacts/python-macos-arm64/ HermesPortable/python-macos-arm64/
           cp -r artifacts/venv-linux-x64/ HermesPortable/venv-linux-x64/
           cp -r artifacts/python-linux-x64/ HermesPortable/python-linux-x64/
           cp -r artifacts/venv-windows-x64/ HermesPortable/venv-windows-x64/
           cp -r artifacts/python-windows-x64/ HermesPortable/python-windows-x64/
-
-          echo "=== Final structure ==="
           ls -la HermesPortable/
-          du -sh HermesPortable/venv-*/
-          du -sh HermesPortable/python-*/
           du -sh HermesPortable/
 
-      - name: Create universal archive
-        run: zip -r HermesPortable-Universal.zip HermesPortable/
-
-      - name: Also create per-platform archives
+      - name: Create archives
         run: |
-          # macOS only
-          mkdir -p macos-only
-          cp -r artifacts/shared-base/* macos-only/
+          zip -r HermesPortable-Universal.zip HermesPortable/
+
+          # Per-platform
+          mkdir -p macos-only && cp -r artifacts/shared-base/* macos-only/
           cp -r artifacts/venv-macos-arm64/ macos-only/venv
-          # macOS uses same python as build (already in shared-base or use system)
+          cp -r artifacts/python-macos-arm64/ macos-only/python
           zip -r HermesPortable-macOS.zip macos-only/
 
-          # Linux only
-          mkdir -p linux-only
-          cp -r artifacts/shared-base/* linux-only/
+          mkdir -p linux-only && cp -r artifacts/shared-base/* linux-only/
           cp -r artifacts/venv-linux-x64/ linux-only/venv
           cp -r artifacts/python-linux-x64/ linux-only/python
           zip -r HermesPortable-Linux.zip linux-only/
 
-          # Windows only
-          mkdir -p windows-only
-          cp -r artifacts/shared-base/* windows-only/
+          mkdir -p windows-only && cp -r artifacts/shared-base/* windows-only/
           cp -r artifacts/venv-windows-x64/ windows-only/venv
           cp -r artifacts/python-windows-x64/ windows-only/python
           zip -r HermesPortable-Windows.zip windows-only/
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
           files: |
             HermesPortable-Universal.zip

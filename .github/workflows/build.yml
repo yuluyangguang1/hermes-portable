@@ -1,18 +1,7 @@
-name: Build & Release All Platforms
+name: Build & Release
 
 on:
   workflow_dispatch:
-    inputs:
-      platform:
-        description: 'Build platform (leave empty for all)'
-        required: false
-        default: ''
-        type: choice
-        options:
-          - ''
-          - macos
-          - linux
-          - windows
   push:
     tags:
       - 'v*'
@@ -22,44 +11,45 @@ permissions:
 
 jobs:
   build-macos:
-    if: ${{ github.event_name == 'push' || github.event.inputs.platform == '' || github.event.inputs.platform == 'macos' }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build macOS version
-        run: python3 build.py
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/setup-python@v5
         with:
-          name: HermesPortable-macOS
+          python-version: '3.12'
+      - name: Build
+        run: python3 build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS
           path: dist/HermesPortable/
 
   build-linux:
-    if: ${{ github.event_name == 'push' || github.event.inputs.platform == '' || github.event.inputs.platform == 'linux' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y git curl
-      - name: Build Linux version
-        run: python3 build.py
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/setup-python@v5
         with:
-          name: HermesPortable-Linux
+          python-version: '3.12'
+      - name: Build
+        run: python3 build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Linux
           path: dist/HermesPortable/
 
   build-windows:
-    if: ${{ github.event_name == 'push' || github.event.inputs.platform == '' || github.event.inputs.platform == 'windows' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build Windows version
-        run: python build_windows.py
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/setup-python@v5
         with:
-          name: HermesPortable-Windows
+          python-version: '3.12'
+      - name: Build
+        run: python build_windows.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Windows
           path: dist/HermesPortable/
 
   release:
@@ -67,20 +57,18 @@ jobs:
     needs: [build-macos, build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: artifacts/
 
       - name: Create archives
         run: |
           cd artifacts
-          zip -r ../HermesPortable-macOS.zip HermesPortable-macOS/
-          zip -r ../HermesPortable-Linux.zip HermesPortable-Linux/
-          zip -r ../HermesPortable-Windows.zip HermesPortable-Windows/
+          zip -r ../HermesPortable-macOS.zip macOS/
+          zip -r ../HermesPortable-Linux.zip Linux/
+          zip -r ../HermesPortable-Windows.zip Windows/
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
           files: |
             HermesPortable-macOS.zip
