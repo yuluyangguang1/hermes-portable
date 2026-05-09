@@ -904,7 +904,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     </div>
   </form>
 
-  <div class="footer">Hermes Portable v0.11.0 · 数据存储在 data/</div>
+  <div class="footer">Hermes Portable · 数据存储在 data/</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -917,6 +917,10 @@ let currentEnv = __CURRENT_ENV__;
 let enabledChannels = __ENABLED_CHANNELS__;
 let savedOnce = false;
 let isFirstRun = __FIRST_RUN__;
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 function switchTab(name, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -972,7 +976,7 @@ function renderApiKeySection() {
     <label>${p.name} API Key</label>
     <div class="api-key-row">
       <input type="password" id="apiKey_${p.env}" placeholder="粘贴你的 ${p.name} API Key"
-             value="${hasKey ? currentEnv[p.env] : ''}" oninput="updateKeyStatus(this,'${p.env}')">
+             value="${hasKey ? escapeHtml(currentEnv[p.env]) : ''}" oninput="updateKeyStatus(this,'${p.env}')">
       <div class="api-status ${hasKey?'set':''}" id="status_${p.env}"></div>
     </div></div>
     <div style="margin-top:8px">
@@ -1027,7 +1031,7 @@ function renderChannels() {
         ${ch.fields.map(f => `<div class="field">
           <label>${f.label}</label>
           <input type="${f.type}" placeholder="${f.placeholder}"
-                 value="${currentEnv[f.key]||''}"
+                 value="${escapeHtml(currentEnv[f.key]||'')}"
                  oninput="currentEnv['${f.key}']=this.value; updateChannelStatus('${ch.id}')">
         </div>`).join('')}
       </div>
@@ -1197,11 +1201,18 @@ function runUpdate() {
     const timer = setInterval(() => {
       checks++;
       fetch('/api/version').then(r => r.json()).then(data => {
-        log.textContent = '更新完成！\n当前版本: ' + data.local + '\n';
-        clearInterval(timer);
-        toast('更新完成', 'success');
-      }).catch(() => {});
-      if (checks > 30) clearInterval(timer);
+        if (data.update_available === false || checks > 30) {
+          clearInterval(timer);
+          log.textContent = '更新完成！\n当前版本: ' + data.local + '\n';
+          toast('更新完成', 'success');
+        }
+      }).catch(() => {
+        if (checks > 30) {
+          clearInterval(timer);
+          log.textContent += '更新超时，请手动检查\n';
+          toast('更新超时', 'error');
+        }
+      });
     }, 3000);
   }).catch(() => {
     log.textContent += '更新失败\n';
@@ -1399,8 +1410,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 "headers": {"Authorization": f"Bearer {api_key}"},
             },
             "google": {
-                "url": f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}",
-                "headers": {},
+                "url": "https://generativelanguage.googleapis.com/v1beta/models",
+                "headers": {"x-goog-api-key": api_key},
             },
             "xiaomi": {
                 "url": "https://api.xiaoai.mi.com/v1/models",
