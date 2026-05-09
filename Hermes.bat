@@ -55,6 +55,8 @@ where hermes-web-ui >nul 2>&1
 if !errorlevel! equ 0 (
     start /b hermes-web-ui start --port 8648 >nul 2>&1
     set "WEBUI_OK=true"
+    timeout /t 2 /nobreak >nul
+    start "" "http://127.0.0.1:8648"
 )
 
 "%VENV_DIR%\Scripts\hermes.exe" %*

@@ -77,4 +77,18 @@ if [ "$HAS_KEY" = false ]; then
     exec "$VENV_DIR/bin/python" "$HERE/config_server.py"
 fi
 
+# Start hermes-web-ui in background (if installed)
+WEBUI_PID=""
+if command -v hermes-web-ui &>/dev/null; then
+    export PATH="$HERE/node/bin:$PATH"
+    hermes-web-ui start --port 8648 &>/dev/null &
+    WEBUI_PID=$!
+    sleep 2
+    if command -v open &>/dev/null; then
+        open "http://127.0.0.1:8648"
+    elif command -v xdg-open &>/dev/null; then
+        xdg-open "http://127.0.0.1:8648"
+    fi
+fi
+
 exec "$VENV_DIR/bin/hermes" "$@"
