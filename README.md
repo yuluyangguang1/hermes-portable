@@ -57,6 +57,8 @@ python build_windows.py             # 输出到 dist/HermesPortable/
 
 **构建环境要求：** Python 3.8+、git、curl
 
+> 📖 完全不懂命令行？请看 [构建教程.html](构建教程.html)（项目根目录），手把手教你从零开始。
+
 ### 方式三：本地多平台合并
 
 如果你有多台不同系统的电脑，可以分别构建后合并成 Universal 包：

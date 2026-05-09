@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Portable — 构建教程</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    line-height: 1.8;
+    padding: 20px;
+  }
+  .container { max-width: 800px; margin: 0 auto; }
+  h1 { font-size: 28px; color: #fff; margin-bottom: 8px; }
+  .subtitle { color: #888; margin-bottom: 32px; }
+  h2 { font-size: 20px; color: #4ade80; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid #222; }
+  h3 { font-size: 16px; color: #fff; margin: 24px 0 12px; }
+  p { margin: 8px 0; color: #b0b0b0; }
+  .step { background: #141414; border: 1px solid #222; border-radius: 8px; padding: 20px; margin: 16px 0; }
+  .step-num { display: inline-block; background: #4ade80; color: #000; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: bold; font-size: 14px; margin-right: 8px; }
+  .step-title { font-size: 16px; font-weight: bold; color: #fff; }
+  code { background: #1a1a1a; padding: 2px 8px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 14px; color: #4ade80; }
+  pre { background: #1a1a1a; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0; }
+  pre code { padding: 0; background: none; }
+  .cmd { background: #1a1a2e; border: 1px solid #2a2a4e; border-radius: 8px; padding: 16px; margin: 12px 0; font-family: 'Courier New', monospace; font-size: 14px; }
+  .cmd::before { content: '$ '; color: #666; }
+  .warn { background: #2a1a0a; border: 1px solid #4a2a0a; border-radius: 8px; padding: 16px; margin: 12px 0; }
+  .warn::before { content: '⚠️ '; }
+  .ok { background: #0a2a0a; border: 1px solid #0a4a0a; border-radius: 8px; padding: 16px; margin: 12px 0; }
+  .ok::before { content: '✅ '; }
+  a { color: #4ade80; }
+  .platform-tabs { display: flex; gap: 4px; margin: 16px 0; }
+  .platform-tab { padding: 8px 16px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; cursor: pointer; color: #888; font-size: 14px; }
+  .platform-tab.active { background: #4ade80; color: #000; border-color: #4ade80; font-weight: bold; }
+  .platform-content { display: none; }
+  .platform-content.active { display: block; }
+  .screenshot { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 16px; margin: 12px 0; text-align: center; color: #666; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #222; }
+  th { color: #4ade80; font-size: 13px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🛠️ Hermes Portable — 从零构建教程</h1>
+<p class="subtitle">面向完全不懂编程的用户，手把手教你构建自己的 AI Agent U盘</p>
+
+<!-- ════════════════════ 前置准备 ════════════════════ -->
+<h2>📦 第一步：安装必要工具</h2>
+<p>构建前需要安装两个工具：<strong>Python</strong>（编程语言）和 <strong>Git</strong>（下载代码用）。</p>
+
+<div class="platform-tabs">
+  <div class="platform-tab active" onclick="switchPlatform('mac')">🍎 macOS</div>
+  <div class="platform-tab" onclick="switchPlatform('win')">🪟 Windows</div>
+  <div class="platform-tab" onclick="switchPlatform('linux')">🐧 Linux</div>
+</div>
+
+<div id="mac-prep" class="platform-content active">
+  <div class="step">
+    <p><span class="step-num">1</span><span class="step-title">检查是否已安装</span></p>
+    <p>打开 <strong>终端</strong>（按 <code>Command + 空格</code>，输入 <code>终端</code>，回车），输入：</p>
+    <div class="cmd">python3 --version</div>
+    <p>如果显示 <code>Python 3.x.x</code> 说明已安装，跳到第二步。</p>
+    <p>如果提示 <code>command not found</code>，继续下面的步骤。</p>
+  </div>
+
+  <div class="step">
+    <p><span class="step-num">2</span><span class="step-title">安装 Python</span></p>
+    <p>打开浏览器，访问：<a href="https://www.python.org/downloads/" target="_blank">https://www.python.org/downloads/</a></p>
+    <p>点击大的黄色按钮 <strong>"Download Python 3.12.x"</strong></p>
+    <p>下载完成后双击 <code>.pkg</code> 文件，一路点 <strong>"继续"</strong> 安装即可。</p>
+  </div>
+
+  <div class="step">
+    <p><span class="step-num">3</span><span class="step-title">安装 Git</span></p>
+    <p>在终端输入：</p>
+    <div class="cmd">git --version</div>
+    <p>如果提示安装 Xcode Command Line Tools，点 <strong>"安装"</strong> 等待完成即可。</p>
+    <p>如果没有提示，说明已安装。</p>
+  </div>
+</div>
+
+<div id="win-prep" class="platform-content">
+  <div class="step">
+    <p><span class="step-num">1</span><span class="step-title">安装 Python</span></p>
+    <p>打开浏览器，访问：<a href="https://www.python.org/downloads/" target="_blank">https://www.python.org/downloads/</a></p>
+    <p>点击大的黄色按钮 <strong>"Download Python 3.12.x"</strong></p>
+    <p>下载完成后双击 <code>.exe</code> 文件。</p>
+    <div class="warn">安装时 <strong>务必勾选</strong> "Add Python to PATH"（底部的复选框），然后点 "Install Now"。</div>
+  </div>
+
+  <div class="step">
+    <p><span class="step-num">2</span><span class="step-title">安装 Git</span></p>
+    <p>打开浏览器，访问：<a href="https://git-scm.com/download/win" target="_blank">https://git-scm.com/download/win</a></p>
+    <p>下载会自动开始，双击 <code>.exe</code> 文件，一路点 <strong>"Next"</strong> 安装即可。</p>
+  </div>
+
+  <div class="step">
+    <p><span class="step-num">3</span><span class="step-title">打开命令行</span></p>
+    <p>按 <code>Win + R</code>，输入 <code>cmd</code>，回车。</p>
+    <p>或者在文件管理器地址栏输入 <code>cmd</code> 回车。</p>
+  </div>
+</div>
+
+<div id="linux-prep" class="platform-content">
+  <div class="step">
+    <p><span class="step-num">1</span><span class="step-title">安装 Python 和 Git</span></p>
+    <p>打开终端，输入：</p>
+    <div class="cmd">sudo apt update && sudo apt install -y python3 python3-pip git curl</div>
+    <p>输入密码（不显示），等待安装完成。</p>
+  </div>
+</div>
+
+<!-- ════════════════════ 下载代码 ════════════════════ -->
+<h2>📥 第二步：下载代码</h2>
+
+<div class="platform-tabs">
+  <div class="platform-tab active" onclick="switchPlatform2('mac2')">🍎 macOS</div>
+  <div class="platform-tab" onclick="switchPlatform2('win2')">🪟 Windows</div>
+  <div class="platform-tab" onclick="switchPlatform2('linux2')">🐧 Linux</div>
+</div>
+
+<div id="mac2-prep" class="platform-content active">
+  <div class="step">
+    <p><span class="step-num">1</span><span class="step-title">打开终端，输入以下命令</span></p>
+    <div class="cmd">cd Desktop</div>
+    <div class="cmd">git clone https://github.com/yuluyangguang1/hermes-portable.git</div>
+    <div class="cmd">cd hermes-portable</div>
+    <p>这会把代码下载到桌面的 <code>hermes-portable</code> 文件夹。</p>
+  </div>
+</div>
+
+<div id="win2-prep" class="platform-content">
+  <div class="step">
+    <p><span class="step-num">1</span><span class="step-title">打开 CMD，输入以下命令</span></p>
+    <div class="cmd">cd %USERPROFILE%\Desktop</div>
+    <div class="cmd">git clone https://github.com/yuluyangguang1/hermes-portable.git</div>
+    <div class="cmd">cd hermes-portable</div>
+    <p>这会把代码下载到桌面的 <code>hermes-portable</code> 文件夹。</p>
+  </div>
+</div>
+
+<div id="linux2-prep" class="platform-content">
+  <div class="step">
+    <p><span class="step-num">1</span><span class="step-title">打开终端，输入以下命令</span></p>
+    <div class="cmd">cd ~/Desktop</div>
+    <div class="cmd">git clone https://github.com/yuluyangguang1/hermes-portable.git</div>
+    <div class="cmd">cd hermes-portable</div>
+  </div>
+</div>
+
+<!-- ════════════════════ 开始构建 ════════════════════ -->
+<h2>🔨 第三步：开始构建</h2>
+
+<div class="platform-tabs">
+  <div class="platform-tab active" onclick="switchPlatform3('mac3')">🍎 macOS</div>
+  <div class="platform-tab" onclick="switchPlatform3('win3')">🪟 Windows</div>
+  <div class="platform-tab" onclick="switchPlatform3('linux3')">🐧 Linux</div>
+</div>
+
+<div id="mac3-prep" class="platform-content active">
+  <div class="step">
+    <p><span class="step-num">1</span><span class="step-title">运行构建脚本</span></p>
+    <p>确保终端已经在 <code>hermes-portable</code> 目录中（上一步的 <code>cd hermes-portable</code>），然后输入：</p>
+    <div class="cmd">python3 build.py</div>
+    <p>构建过程大约需要 <strong>5-10 分钟</strong>，取决于网速。你会看到进度信息：</p>
+    <pre><code>[1/10] Downloading uv (package manager)
+[✓] uv ready
+[2/10] Installing portable Python
+[✓] Python 3.12 installed
+[3/10] Cloning hermes-agent
+[✓] hermes-agent cloned
+...
+[✓] BUILD COMPLETE</code></pre>
+  </div>
+
+  <div class="step">
+    <p><span class="step-num">2</span><span class="step-title">构建完成！</span></p>
+    <div class="ok">构建产物在 <code>dist/HermesPortable/</code> 文件夹中。</div>
+    <p>把 <code>HermesPortable</code> 文件夹复制到U盘，双击 <code>Hermes.command</code> 即可使用。</p>
+  </div>
+</div>
+
+<div id="win3-prep" class="platform-content">
+  <div class="step">
+    <p><span class="step-num">1</span><span class="step-title">运行构建脚本</span></p>
+    <p>确保 CMD 已经在 <code>hermes-portable</code> 目录中，然后输入：</p>
+    <div class="cmd">python build_windows.py</div>
+    <p>构建过程大约需要 <strong>5-10 分钟</strong>。</p>
+    <div class="warn">如果提示 <code>python 不是内部或外部命令</code>，说明 Python 没有安装或没有勾选 "Add to PATH"。请重新安装 Python 并确保勾选。</div>
+  </div>
+
+  <div class="step">
+    <p><span class="step-num">2</span><span class="step-title">构建完成！</span></p>
+    <div class="ok">构建产物在 <code>dist\HermesPortable\</code> 文件夹中。</div>
+    <p>把 <code>HermesPortable</code> 文件夹复制到U盘，双击 <code>Hermes.bat</code> 即可使用。</p>
+  </div>
+</div>
+
+<div id="linux3-prep" class="platform-content">
+  <div class="step">
+    <p><span class="step-num">1</span><span class="step-title">运行构建脚本</span></p>
+    <div class="cmd">python3 build.py</div>
+    <p>构建完成后的产物在 <code>dist/HermesPortable/</code> 文件夹中。</p>
+  </div>
+</div>
+
+<!-- ════════════════════ 直接输出到U盘 ════════════════════ -->
+<h2>💾 直接构建到U盘（可选）</h2>
+<p>如果你想直接把产物构建到U盘，而不是先构建再复制：</p>
+
+<div class="step">
+  <p><span class="step-title">macOS / Linux</span></p>
+  <div class="cmd">python3 build.py /Volumes/你的U盘名</div>
+</div>
+
+<div class="step">
+  <p><span class="step-title">Windows</span></p>
+  <p>先用资源管理器打开U盘，在地址栏输入 <code>cmd</code> 回车，然后：</p>
+  <div class="cmd">python build_windows.py</div>
+  <p>构建产物会直接生成在U盘的 <code>dist\HermesPortable\</code> 中。</p>
+</div>
+
+<!-- ════════════════════ 首次使用 ════════════════════ -->
+<h2>🚀 第四步：首次使用</h2>
+
+<div class="step">
+  <p><span class="step-num">1</span><span class="step-title">双击启动</span></p>
+  <table>
+    <tr><th>系统</th><th>双击的文件</th></tr>
+    <tr><td>macOS</td><td><code>Hermes.command</code></td></tr>
+    <tr><td>Windows</td><td><code>Hermes.bat</code></td></tr>
+    <tr><td>Linux</td><td>终端运行 <code>./Hermes.sh</code></td></tr>
+  </table>
+</div>
+
+<div class="step">
+  <p><span class="step-num">2</span><span class="step-title">配置 API Key</span></p>
+  <p>首次启动会自动打开浏览器，显示配置面板。</p>
+  <p>选择一个 AI 提供商（推荐 <strong>OpenRouter</strong>），填入你的 API Key，点击 <strong>"测试连接"</strong>，成功后点击 <strong>"启动"</strong>。</p>
+</div>
+
+<div class="step">
+  <p><span class="step-num">3</span><span class="step-title">开始对话</span></p>
+  <p>启动后终端中即可与 AI 对话。所有数据存储在U盘的 <code>data/</code> 目录中。</p>
+</div>
+
+<!-- ════════════════════ 常见问题 ════════════════════ -->
+<h2>❓ 常见问题</h2>
+
+<div class="step">
+  <p><strong>Q: 构建时提示 "git clone failed" 怎么办？</strong></p>
+  <p>A: 网络问题。确保能访问 GitHub。如果在中国大陆，可能需要使用代理。</p>
+</div>
+
+<div class="step">
+  <p><strong>Q: Windows 双击 .bat 没反应？</strong></p>
+  <p>A: 右键 <code>Hermes.bat</code> → 以管理员身份运行。如果还是没反应，打开 CMD，手动输入 <code>Hermes.bat</code> 查看错误信息。</p>
+</div>
+
+<div class="step">
+  <p><strong>Q: macOS 提示 "无法打开，因为无法验证开发者"？</strong></p>
+  <p>A: 右键 <code>Hermes.command</code> → 打开，然后点 "仍然打开"。</p>
+</div>
+
+<div class="step">
+  <p><strong>Q: 构建时提示 "No module named pip"？</strong></p>
+  <p>A: Python 安装不完整。重新安装 Python，确保安装时勾选了 pip。</p>
+</div>
+
+<div class="step">
+  <p><strong>Q: 可以不用构建，直接下载使用吗？</strong></p>
+  <p>A: 可以！从 <a href="https://github.com/yuluyangguang1/hermes-portable/releases">GitHub Releases</a> 下载预构建包，解压即可使用。</p>
+</div>
+
+<!-- ════════════════════ 脚本 ════════════════════ -->
+<script>
+function switchPlatform(id) {
+  document.querySelectorAll('#mac-prep, #win-prep, #linux-prep').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.platform-tabs')[0].querySelectorAll('.platform-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById(id + '-prep').classList.add('active');
+  event.target.classList.add('active');
+}
+function switchPlatform2(id) {
+  document.querySelectorAll('#mac2-prep, #win2-prep, #linux2-prep').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.platform-tabs')[1].querySelectorAll('.platform-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById(id + '-prep').classList.add('active');
+  event.target.classList.add('active');
+}
+function switchPlatform3(id) {
+  document.querySelectorAll('#mac3-prep, #win3-prep, #linux3-prep').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.platform-tabs')[2].querySelectorAll('.platform-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById(id + '-prep').classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+
+</div>
+</body>
+</html>
