@@ -367,7 +367,7 @@ def step_webui(ROOT):
 def step_launchers(ROOT):
     """Write launcher scripts that set HERMES_HOME and go."""
     # Copy helper scripts and Windows build script
-    for fname in ("config_server.py", "chat_viewer.py", "update.py", "guide.html", "favicon.svg", "HermesPortable使用说明.html", "构建教程.html"):
+    for fname in ("config_server.py", "chat_viewer.py", "update.py", "guide.html", "favicon.svg", "HermesPortable使用说明.html"):
         src = Path(__file__).parent / fname
         if src.exists():
             shutil.copy2(src, ROOT / fname)

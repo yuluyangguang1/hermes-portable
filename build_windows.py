@@ -272,7 +272,7 @@ def step_data(ROOT):
 def step_launchers(ROOT):
     """Write Windows-native launcher scripts."""
     # Copy helper scripts
-    for fname in ("config_server.py", "chat_viewer.py", "update.py", "HermesPortable使用说明.html", "构建教程.html"):
+    for fname in ("config_server.py", "chat_viewer.py", "update.py", "HermesPortable使用说明.html"):
         src = Path(__file__).parent / fname
         if src.exists():
             shutil.copy2(src, ROOT / fname)
