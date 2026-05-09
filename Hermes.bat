@@ -1,8 +1,18 @@
 @echo off
+chcp 65001 >nul
 setlocal enabledelayedexpansion
+
+REM -- Prevent multiple instances --
+if defined HERMES_RUNNING (
+    echo   Hermes 已在运行中，请勿重复启动。
+    timeout /t 3 /nobreak >nul
+    exit /b 1
+)
+set "HERMES_RUNNING=1"
+
 set "HERE=%~dp0"
 
-REM ── Multi-platform package detection ──
+REM -- Multi-platform package detection --
 if exist "%HERE%venv-windows-x64\Scripts\hermes.exe" (
     set "VENV_DIR=%HERE%venv-windows-x64"
     set "PYTHON_DIR=%HERE%python-windows-x64"
@@ -22,9 +32,9 @@ set "HERMES_HOME=%HERE%data"
 set "PATH=%VENV_DIR%\Scripts;%HERE%node;%PYTHON_DIR%;%PATH%"
 
 echo.
-echo   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗
-echo   ╠═╣╠═╣╠╦╝╠═╝║╣ ║   ║ ║ ║
-echo   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  Portable
+echo    +---+ +---+ +---+ +---+ +---+
+echo    ^| H ^| ^| E ^| ^| R ^| ^| M ^| ^| E ^| S   Portable
+echo    +---+ +---+ +---+ +---+ +---+
 echo.
 
 REM Check if API key is configured
@@ -38,15 +48,15 @@ if "%HAS_KEY%"=="false" (
     echo   首次使用！正在打开配置面板...
     echo   请在浏览器中完成 API Key 配置。
     echo.
-    start "" "http://127.0.0.1:17520"
     "%VENV_DIR%\Scripts\python.exe" "%HERE%config_server.py"
-    goto :eof
+    pause
+    exit /b 0
 )
 
 if "%1"=="--config" (
-    start "" "http://127.0.0.1:17520"
     "%VENV_DIR%\Scripts\python.exe" "%HERE%config_server.py"
-    goto :eof
+    pause
+    exit /b 0
 )
 
 REM Start hermes-web-ui in background (if installed)
@@ -60,3 +70,5 @@ if !errorlevel! equ 0 (
 )
 
 "%VENV_DIR%\Scripts\hermes.exe" %*
+pause
+exit /b 0
