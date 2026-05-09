@@ -414,6 +414,10 @@ def step_readme(ROOT):
 def main():
     banner()
 
+    print(f"[DEBUG] platform.system() = {platform.system()}", flush=True)
+    print(f"[DEBUG] platform.machine() = {platform.machine()}", flush=True)
+    print(f"[DEBUG] sys.version = {sys.version}", flush=True)
+
     if platform.system() != "Windows":
         warn("此脚本用于 Windows 平台。macOS/Linux 请使用 build.py")
         if input("继续? (y/N): ").lower() != "y":
@@ -445,8 +449,16 @@ def main():
         try:
             fn(ROOT)
         except subprocess.CalledProcessError as e:
+            print(f"[ERROR] Command: {e.cmd}", flush=True)
+            print(f"[ERROR] Return code: {e.returncode}", flush=True)
+            if e.stdout:
+                print(f"[ERROR] stdout: {e.stdout}", flush=True)
+            if e.stderr:
+                print(f"[ERROR] stderr: {e.stderr}", flush=True)
             fail(f"Step '{name}' failed with exit code {e.returncode}")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             fail(f"Step '{name}' failed: {e}")
 
     size = sum(f.stat().st_size for f in ROOT.rglob("*") if f.is_file()) / 1e6

@@ -68,6 +68,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Debug info
+        run: |
+          python --version
+          git --version
+          where curl
+          curl --version
+          echo "Platform:"
+          python -c "import platform; print(platform.system(), platform.machine())"
       - name: Build
         id: build
         run: python build_windows.py
