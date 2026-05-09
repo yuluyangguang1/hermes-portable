@@ -16,36 +16,91 @@
 > 如果遇到兼容性问题，可使用 `Hermes-WSL.bat` 通过 WSL2 运行作为备选方案。
 > 详见 [官方文档](https://hermes-agent.nousresearch.com/docs/user-guide/windows-native)。
 
-## 构建
+## 快速开始
 
-### macOS / Linux（在 Mac 或 Linux 上构建）
+### 方式一：下载预构建包（推荐）
 
+从 [Releases](https://github.com/yuluyangguang1/hermes-portable/releases) 下载：
+
+| 包 | 说明 | 大小 |
+|----|------|------|
+| `HermesPortable-Universal.zip` | 多平台合一（macOS + Linux + Windows） | ~600MB |
+| `HermesPortable-macOS.zip` | 仅 macOS | ~210MB |
+| `HermesPortable-Linux.zip` | 仅 Linux | ~210MB |
+| `HermesPortable-Windows.zip` | 仅 Windows | ~210MB |
+
+下载后解压，双击启动器即可：
+- **macOS** → `Hermes.command`
+- **Windows** → `Hermes.bat`
+- **Linux** → `./Hermes.sh`
+
+首次使用会自动打开配置面板，填入 API Key 即可。
+
+### 方式二：本地构建
+
+每个平台需要在对应系统上构建（Python C 扩展是平台特定的）。
+
+#### macOS / Linux
 ```bash
+git clone https://github.com/yuluyangguang1/hermes-portable.git
+cd hermes-portable
 python3 build.py                    # 输出到 dist/HermesPortable/
 python3 build.py /Volumes/MyUSB     # 直接输出到U盘
 ```
 
-### Windows（原生构建，无需 WSL2）
-
+#### Windows
 ```bash
-# 1. 克隆或下载本项目
 git clone https://github.com/yuluyangguang1/hermes-portable.git
 cd hermes-portable
-
-# 2. 运行构建脚本（在 PowerShell 或 CMD 中）
-python build_windows.py
-
-# 输出到 dist/HermesPortable/
-# 双击 Hermes.bat 即可启动
+python build_windows.py             # 输出到 dist/HermesPortable/
 ```
 
-**构建环境要求：** Python 3.8+、git、curl（Windows 自带）
+**构建环境要求：** Python 3.8+、git、curl
 
-**构建产物：** ~500MB 的完全自包含文件夹
+### 方式三：本地多平台合并
 
-## 使用（拿到U盘后直接用）
+如果你有多台不同系统的电脑，可以分别构建后合并成 Universal 包：
 
-1. 插上U盘
+```bash
+# 1. 在每台电脑上构建到不同目录
+# Mac:
+python3 build.py /path/to/HermesPortable-mac
+# Linux:
+python3 build.py /path/to/HermesPortable-linux
+# Windows:
+python build_windows.py D:\HermesPortable-win
+
+# 2. 在一台电脑上合并
+mkdir HermesPortable-Universal
+
+# 复制共享文件（从任一平台）
+cp -r /path/to/HermesPortable-mac/hermes-agent HermesPortable-Universal/
+cp -r /path/to/HermesPortable-mac/node HermesPortable-Universal/
+cp -r /path/to/HermesPortable-mac/data HermesPortable-Universal/
+cp /path/to/HermesPortable-mac/*.command HermesPortable-Universal/
+cp /path/to/HermesPortable-mac/*.sh HermesPortable-Universal/
+cp /path/to/HermesPortable-mac/*.html HermesPortable-Universal/
+cp /path/to/HermesPortable-mac/config_server.py HermesPortable-Universal/
+cp /path/to/HermesPortable-mac/chat_viewer.py HermesPortable-Universal/
+cp /path/to/HermesPortable-mac/update.py HermesPortable-Universal/
+
+# 重命名各平台 venv + python
+mv /path/to/HermesPortable-mac/venv HermesPortable-Universal/venv-macos-arm64
+mv /path/to/HermesPortable-mac/python HermesPortable-Universal/python-macos-arm64
+mv /path/to/HermesPortable-linux/venv HermesPortable-Universal/venv-linux-x64
+mv /path/to/HermesPortable-linux/python HermesPortable-Universal/python-linux-x64
+mv /path/to/HermesPortable-win/venv HermesPortable-Universal/venv-windows-x64
+mv /path/to/HermesPortable-win/python HermesPortable-Universal/python-windows-x64
+
+# 复制 Windows 启动器
+cp /path/to/HermesPortable-win/*.bat HermesPortable-Universal/
+```
+
+合并后的包可以在任意平台直接使用，启动器会自动检测并选择对应的 venv。
+
+## 使用
+
+1. 插上U盘（或解压到任意目录）
 2. 双击启动：
    - **macOS** → `Hermes.command`
    - **Windows** → `Hermes.bat`（原生运行，无需 WSL2）
@@ -58,25 +113,32 @@ python build_windows.py
 
 ```
 HermesPortable/
-├── Hermes.command     # macOS 启动器 (双击)
-├── Hermes.bat         # Windows 启动器 (双击，原生运行)
-├── Hermes-WSL.bat     # Windows WSL2 备选启动器
-├── Hermes.sh          # Linux 启动器
-├── README.md          # 本文档
-├── README.txt         # 用户指南
-├── python/            # Python 独立运行时（平台特定）
-├── venv/              # 虚拟环境 + 所有依赖（平台特定）
-├── hermes-agent/      # Hermes 源代码
-├── config_server.py   # Web 配置面板
-├── chat_viewer.py     # 聊天记录查看器
-├── update.py          # 自动更新模块
-├── uv                 # 包管理器
-├── node/              # Node.js + hermes-web-ui
-└── data/              # 用户数据 (配置/会话/技能/记忆)
-    ├── .env           # API Keys ← 唯一需要编辑的文件
-    ├── config.yaml    # 配置
-    ├── sessions/      # 对话历史
-    ├── skills/        # 技能
+├── Hermes.command              # macOS 启动器 (双击)
+├── Hermes.bat                  # Windows 启动器 (双击，原生运行)
+├── Hermes-WSL.bat              # Windows WSL2 备选启动器
+├── Hermes.sh                   # Linux 启动器
+├── README.md                   # 本文档
+├── README.txt                  # 用户指南
+├── HermesPortable使用说明.html  # 中文详细说明
+├── guide.html                  # 英文详细说明
+├── python/                     # Python 独立运行时（单平台包）
+├── python-macos-arm64/         # macOS Python（Universal 包）
+├── python-linux-x64/           # Linux Python（Universal 包）
+├── python-windows-x64/         # Windows Python（Universal 包）
+├── venv/                       # 虚拟环境（单平台包）
+├── venv-macos-arm64/           # macOS 虚拟环境（Universal 包）
+├── venv-linux-x64/             # Linux 虚拟环境（Universal 包）
+├── venv-windows-x64/           # Windows 虚拟环境（Universal 包）
+├── hermes-agent/               # Hermes 源代码
+├── node/                       # Node.js + hermes-web-ui
+├── config_server.py            # Web 配置面板
+├── chat_viewer.py              # 聊天记录查看器
+├── update.py                   # 自动更新模块
+└── data/                       # 用户数据 (配置/会话/技能/记忆)
+    ├── .env                    # API Keys ← 唯一需要编辑的文件
+    ├── config.yaml             # 配置
+    ├── sessions/               # 对话历史
+    ├── skills/                 # 技能
     └── ...
 ```
 
@@ -89,6 +151,7 @@ HermesPortable/
   - `.command` = macOS Finder 可双击的 shell 脚本
   - `.bat` = Windows 原生启动器（Early Beta，另有 `.bat` WSL2 备选）
   - `.sh` = Linux 终端启动器
+- **Universal 包**：启动器自动检测当前平台，选择对应的 venv 目录
 
 ## 为什么选择 Hermes Portable？
 
@@ -108,7 +171,7 @@ Hermes Portable 自动集成 [hermes-web-ui](https://github.com/EKKOLearnAI/herm
 
 **功能：** AI 聊天、会话管理、定时任务、用量统计、平台通道配置、技能浏览等。
 
-**首次构建需联网：** 构建脚本会自动下载 Node.js v23 并安装 hermes-web-ui，无需手动操作。
+**首次构建需联网：** 构建脚本会自动下载 Node.js v22 并安装 hermes-web-ui，无需手动操作。
 
 ### 端口对照
 
@@ -144,4 +207,4 @@ Hermes Portable 自动集成 [hermes-web-ui](https://github.com/EKKOLearnAI/herm
 
 ---
 
-*最后更新: 2026-05-06*
+*最后更新: 2026-05-09*
