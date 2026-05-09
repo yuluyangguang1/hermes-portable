@@ -14,53 +14,62 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 build.py
-      - run: |
+      - name: Build macOS version
+        run: python3 build.py
+      - name: Prepare platform-specific artifacts
+        run: |
           cd dist/HermesPortable
-          # Rename platform-specific dirs
-          mv venv ../venv-macos-arm64
-          mv python ../python-macos-arm64
-          # Keep hermes-agent, node, data as-is
-          tar cf ../macos-arm64.tar venv-macos-arm64 python-macos-arm64
-      - uses: actions/upload-artifact@v4
+          # Copy (not move) platform-specific dirs with new names
+          cp -r venv venv-macos-arm64
+          cp -r python python-macos-arm64
+          # Remove originals to keep shared artifact clean
+          rm -rf venv python
+      - name: Upload shared base
+        uses: actions/upload-artifact@v4
         with:
-          name: macos-arm64
-          path: dist/macos-arm64.tar
-      - uses: actions/upload-artifact@v4
-        with:
-          name: shared
+          name: shared-base
           path: dist/HermesPortable/
+      - name: Upload macOS venv
+        uses: actions/upload-artifact@v4
+        with:
+          name: venv-macos-arm64
+          path: dist/HermesPortable/venv-macos-arm64/
 
   build-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y git curl
-      - run: python3 build.py
-      - run: |
-          cd dist/HermesPortable
-          mv venv ../venv-linux-x64
-          mv python ../python-linux-x64
-          tar cf ../linux-x64.tar venv-linux-x64 python-linux-x64
-      - uses: actions/upload-artifact@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y git curl
+      - name: Build Linux version
+        run: python3 build.py
+      - name: Upload Linux venv
+        uses: actions/upload-artifact@v4
         with:
-          name: linux-x64
-          path: dist/linux-x64.tar
+          name: venv-linux-x64
+          path: dist/HermesPortable/venv/
+      - name: Upload Linux python
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-linux-x64
+          path: dist/HermesPortable/python/
 
   build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python build_windows.py
-      - run: |
-          cd dist/HermesPortable
-          mv venv ../venv-windows-x64
-          mv python ../python-windows-x64
-          tar cf ../windows-x64.tar venv-windows-x64 python-windows-x64
-      - uses: actions/upload-artifact@v4
+      - name: Build Windows version
+        run: python build_windows.py
+      - name: Upload Windows venv
+        uses: actions/upload-artifact@v4
         with:
-          name: windows-x64
-          path: dist/windows-x64.tar
+          name: venv-windows-x64
+          path: dist/HermesPortable/venv/
+      - name: Upload Windows python
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-windows-x64
+          path: dist/HermesPortable/python/
 
   merge-and-release:
     if: startsWith(github.ref, 'refs/tags/')
@@ -73,22 +82,20 @@ jobs:
 
       - name: Merge all platforms
         run: |
-          # Start with shared base (from macOS build)
-          cp -r artifacts/shared/ HermesPortable/
+          # Start with shared base (hermes-agent, node, data, launchers)
+          cp -r artifacts/shared-base/ HermesPortable/
 
-          # Extract each platform's venv + python
-          tar xf artifacts/macos-arm64/macos-arm64.tar -C HermesPortable/
-          tar xf artifacts/linux-x64/linux-x64.tar -C HermesPortable/
-          tar xf artifacts/windows-x64/windows-x64.tar -C HermesPortable/
-
-          # Copy all launcher scripts
-          cp artifacts/shared/Hermes.bat HermesPortable/
-          cp artifacts/shared/Hermes.command HermesPortable/
-          cp artifacts/shared/Hermes.sh HermesPortable/
-          cp artifacts/shared/Hermes-WSL.bat HermesPortable/
+          # Add each platform's venv + python
+          cp -r artifacts/venv-macos-arm64/ HermesPortable/venv-macos-arm64/
+          cp -r artifacts/venv-linux-x64/ HermesPortable/venv-linux-x64/
+          cp -r artifacts/python-linux-x64/ HermesPortable/python-linux-x64/
+          cp -r artifacts/venv-windows-x64/ HermesPortable/venv-windows-x64/
+          cp -r artifacts/python-windows-x64/ HermesPortable/python-windows-x64/
 
           echo "=== Final structure ==="
           ls -la HermesPortable/
+          du -sh HermesPortable/venv-*/
+          du -sh HermesPortable/python-*/
           du -sh HermesPortable/
 
       - name: Create universal archive
@@ -97,24 +104,24 @@ jobs:
       - name: Also create per-platform archives
         run: |
           # macOS only
-          mkdir -p macos-only && cp -r artifacts/shared/* macos-only/
-          tar xf artifacts/macos-arm64/macos-arm64.tar -C macos-only/
-          mv macos-only/venv-macos-arm64 macos-only/venv
-          mv macos-only/python-macos-arm64 macos-only/python
+          mkdir -p macos-only
+          cp -r artifacts/shared-base/* macos-only/
+          cp -r artifacts/venv-macos-arm64/ macos-only/venv
+          # macOS uses same python as build (already in shared-base or use system)
           zip -r HermesPortable-macOS.zip macos-only/
 
           # Linux only
-          mkdir -p linux-only && cp -r artifacts/shared/* linux-only/
-          tar xf artifacts/linux-x64/linux-x64.tar -C linux-only/
-          mv linux-only/venv-linux-x64 linux-only/venv
-          mv linux-only/python-linux-x64 linux-only/python
+          mkdir -p linux-only
+          cp -r artifacts/shared-base/* linux-only/
+          cp -r artifacts/venv-linux-x64/ linux-only/venv
+          cp -r artifacts/python-linux-x64/ linux-only/python
           zip -r HermesPortable-Linux.zip linux-only/
 
           # Windows only
-          mkdir -p windows-only && cp -r artifacts/shared/* windows-only/
-          tar xf artifacts/windows-x64/windows-x64.tar -C windows-only/
-          mv windows-only/venv-windows-x64 windows-only/venv
-          mv windows-only/python-windows-x64 windows-only/python
+          mkdir -p windows-only
+          cp -r artifacts/shared-base/* windows-only/
+          cp -r artifacts/venv-windows-x64/ windows-only/venv
+          cp -r artifacts/python-windows-x64/ windows-only/python
           zip -r HermesPortable-Windows.zip windows-only/
 
       - name: Create GitHub Release
