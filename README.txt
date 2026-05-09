@@ -1,37 +1,20 @@
 ╔══════════════════════════════════════════╗
-║         HERMES  PORTABLE  v0.9           ║
+║         HERMES  PORTABLE  v0.11.0           ║
 ║       插上U盘，打开即用的 AI Agent       ║
 ╚══════════════════════════════════════════╝
 
 【支持平台】
   macOS 10.15+ (Catalina)  →  Hermes.command  双击即用
   Linux (glibc 2.17+)      →  ./Hermes.sh     终端运行
-  Windows 10/11            →  Hermes.bat       需要 WSL
+  Windows 10/11            →  Hermes.bat       双击即用（原生支持，Early Beta）
 
 【首次使用】
-  1. 打开 data/.env 文件
-  2. 填入你的 API Key（去掉前面的 #）
-  3. 双击启动：
+  双击启动即可，首次会自动打开配置面板：
      macOS    →  Hermes.command  (双击即可)
      Linux    →  ./Hermes.sh
-     Windows  →  Hermes.bat  (需先装 WSL: wsl --install)
+     Windows  →  Hermes.bat  (双击即可)
 
-  首次启动会自动打开 Web 配置面板，方便配置。
-
-【Windows 用户注意】
-  Hermes 不支持 Windows 原生运行，必须通过 WSL。
-  安装 WSL 步骤：
-    1. 以管理员身份打开 PowerShell
-    2. 运行: wsl --install
-    3. 重启电脑
-    4. 详情: https://learn.microsoft.com/wsl/install
-
-【Linux 用户注意】
-  当前 U 盘仅包含 macOS 版 Python。首次在 Linux 上使用：
-    1. 插入 U 盘
-    2. cd /path/to/HermesPortable
-    3. ./linux-rebuild.sh
-  这会自动重建 Linux 兼容的 Python 和依赖。
+  在配置面板中填入 API Key，点击「启动」即可使用。
 
 【目录说明】
   data/             所有用户数据（配置/会话/技能）
@@ -40,10 +23,13 @@
   venv/             Python 依赖（勿动）
   python/           Python 运行时（勿动）
   hermes-agent/     Hermes 源码（勿动）
-  build.py          完整构建脚本
-  linux-rebuild.sh  Linux 快速重建脚本
   config_server.py  Web 配置面板
   chat_viewer.py    聊天记录查看器
+  guide.html        操作说明（浏览器打开）
+  HermesPortable使用说明.html  中文使用说明
+
+【Windows 备选】
+  如果 Hermes.bat 原生运行遇到问题，可使用 Hermes-WSL.bat 通过 WSL2 运行。
 
 【更新 Hermes】
   cd hermes-agent && git pull && cd ..
