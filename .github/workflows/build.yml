@@ -1,13 +1,28 @@
-name: Build All Platforms
+name: Build & Release All Platforms
 
 on:
-  workflow_dispatch:  # 手动触发
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Build platform (leave empty for all)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - macos
+          - linux
+          - windows
   push:
     tags:
-      - 'v*'  # 推送版本标签时自动构建
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build-macos:
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform == '' || github.event.inputs.platform == 'macos' }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +35,7 @@ jobs:
           path: dist/HermesPortable/
 
   build-linux:
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform == '' || github.event.inputs.platform == 'linux' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +50,7 @@ jobs:
           path: dist/HermesPortable/
 
   build-windows:
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform == '' || github.event.inputs.platform == 'windows' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,3 +61,29 @@ jobs:
         with:
           name: HermesPortable-Windows
           path: dist/HermesPortable/
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-macos, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Create archives
+        run: |
+          cd artifacts
+          zip -r ../HermesPortable-macOS.zip HermesPortable-macOS/
+          zip -r ../HermesPortable-Linux.zip HermesPortable-Linux/
+          zip -r ../HermesPortable-Windows.zip HermesPortable-Windows/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            HermesPortable-macOS.zip
+            HermesPortable-Linux.zip
+            HermesPortable-Windows.zip
+          generate_release_notes: true
