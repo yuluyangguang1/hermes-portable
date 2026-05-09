@@ -253,7 +253,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 <title>Hermes Portable — 配置</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+  /* Google Fonts removed for China compatibility */
 
   :root {
     --bg: #041c1c;
@@ -934,7 +934,7 @@ function showOnboarding() {
   document.getElementById('onboarding').style.display = 'flex';
 }
 function dismissOnboarding() {
-  document.getElementById('onboarding').classList.add('hidden');
+  document.getElementById('onboarding').style.display = 'none';
 }
 function updateStep(step) {
   for (let i = 1; i <= 3; i++) {
@@ -1295,7 +1295,7 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
-        self.send_header("Content-Security-Policy", "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com")
+        self.send_header("Content-Security-Policy", "default-src 'self' 'unsafe-inline' 'unsafe-eval'")
         self.end_headers()
         self.wfile.write(page.encode())
 
