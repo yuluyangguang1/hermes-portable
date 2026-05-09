@@ -367,13 +367,13 @@ def step_webui(ROOT):
 def step_launchers(ROOT):
     """Write launcher scripts that set HERMES_HOME and go."""
     # Copy helper scripts and Windows build script
-    for fname in ("config_server.py", "chat_viewer.py", "update.py", "build_windows.py", "guide.html", "favicon.svg"):
+    for fname in ("config_server.py", "chat_viewer.py", "update.py", "guide.html", "favicon.svg", "HermesPortable使用说明.html"):
         src = Path(__file__).parent / fname
         if src.exists():
             shutil.copy2(src, ROOT / fname)
 
-    # Copy linux-rebuild.sh and build.py
-    for fname in ("linux-rebuild.sh", "build.py", "update.sh"):
+    # Copy update scripts (user-facing, not build scripts)
+    for fname in ("update.py", "update.sh"):
         src = Path(__file__).parent / fname
         if src.exists():
             shutil.copy2(src, ROOT / fname)
@@ -607,12 +607,10 @@ def step_readme(ROOT):
         "  venv/             Python 依赖（勿动）\n"
         "  python/           Python 运行时（勿动）\n"
         "  hermes-agent/     Hermes 源码（勿动）\n"
-        "  build.py          完整构建脚本（macOS/Linux）\n"
-        "  build_windows.py  Windows 构建脚本\n"
-        "  linux-rebuild.sh  Linux 快速重建脚本\n"
         "  config_server.py  Web 配置面板\n"
         "  chat_viewer.py    聊天记录查看器\n"
         "  guide.html        操作说明（浏览器打开）\n"
+        "  HermesPortable使用说明.html  中文使用说明\n"
         "\n"
         "【Windows 备选】\n"
         "  如果 Hermes.bat 原生运行遇到问题，可使用 Hermes-WSL.bat 通过 WSL2 运行。\n"

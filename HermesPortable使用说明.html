@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HermesPortable 使用说明</title>
+<style>
+  :root {
+    --accent: #4f46e5;
+    --accent-light: #818cf8;
+    --accent-bg: #eef2ff;
+    --green: #059669;
+    --green-bg: #ecfdf5;
+    --amber: #d97706;
+    --amber-bg: #fffbeb;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --slate-50: #f8fafc;
+    --slate-100: #f1f5f9;
+    --slate-200: #e2e8f0;
+    --slate-300: #cbd5e1;
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --slate-700: #334155;
+    --slate-800: #1e293b;
+    --slate-900: #0f172a;
+    --radius: 12px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+    --shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--slate-50);
+    color: var(--slate-800);
+    line-height: 1.75;
+    font-size: 15px;
+  }
+
+  /* ===== Header ===== */
+  .hero {
+    background: linear-gradient(135deg, #312e81 0%, #4f46e5 50%, #6366f1 100%);
+    color: #fff;
+    text-align: center;
+    padding: 64px 20px 56px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 50%, rgba(255,255,255,.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255,255,255,.06) 0%, transparent 40%);
+  }
+  .hero-inner { position: relative; max-width: 700px; margin: 0 auto; }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(255,255,255,.15);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,.2);
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    letter-spacing: .3px;
+    margin-bottom: 20px;
+  }
+  .hero h1 { font-size: 36px; font-weight: 700; letter-spacing: -.5px; margin-bottom: 12px; }
+  .hero p { font-size: 16px; opacity: .85; max-width: 520px; margin: 0 auto; }
+
+  /* ===== Layout ===== */
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 40px;
+    max-width: 1100px;
+    margin: -32px auto 0;
+    padding: 0 24px 60px;
+    position: relative;
+  }
+
+  /* ===== Sidebar TOC ===== */
+  .sidebar {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+  }
+  .sidebar::-webkit-scrollbar { width: 3px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--slate-300); border-radius: 3px; }
+  .toc-box {
+    background: #fff;
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 0;
+  }
+  .toc-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--slate-400);
+    padding: 0 20px 10px;
+    border-bottom: 1px solid var(--slate-100);
+  }
+  .toc-list { list-style: none; padding: 8px 0; }
+  .toc-list a {
+    display: block;
+    padding: 6px 20px;
+    font-size: 13px;
+    color: var(--slate-600);
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: all .15s;
+  }
+  .toc-list a:hover, .toc-list a.active {
+    color: var(--accent);
+    background: var(--accent-bg);
+    border-left-color: var(--accent);
+  }
+
+  /* ===== Main Content ===== */
+  .main { min-width: 0; }
+
+  /* ===== Section ===== */
+  .section {
+    background: #fff;
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 32px 36px;
+    margin-bottom: 20px;
+    scroll-margin-top: 24px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--slate-100);
+  }
+  .section-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .section-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--slate-900);
+    margin: 0;
+  }
+
+  /* ===== Typography ===== */
+  h3 { font-size: 15px; font-weight: 600; color: var(--slate-700); margin: 24px 0 10px; }
+  p { margin: 8px 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ===== Tables ===== */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 4px; font-size: 14px; }
+  thead th {
+    background: var(--slate-50);
+    color: var(--slate-600);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 2px solid var(--slate-200);
+  }
+  tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--slate-100);
+    color: var(--slate-700);
+  }
+  tbody tr:hover td { background: var(--slate-50); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ===== Code ===== */
+  code {
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    background: var(--slate-100);
+    color: var(--accent);
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+  pre {
+    background: var(--slate-900);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 12px 0 16px;
+    overflow-x: auto;
+    position: relative;
+    border: 1px solid var(--slate-800);
+  }
+  pre::before {
+    content: '';
+    position: absolute;
+    top: 12px; left: 16px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 16px 0 0 #f59e0b, 32px 0 0 #22c55e;
+  }
+  pre code {
+    display: block;
+    background: none;
+    color: #e2e8f0;
+    padding: 12px 0 0;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+  .comment { color: #64748b; }
+  .cmd { color: #a5b4fc; }
+
+  /* ===== Cards / Callouts ===== */
+  .callout {
+    display: flex;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    margin: 14px 0;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout-tip { background: var(--green-bg); color: #065f46; border: 1px solid #a7f3d0; }
+  .callout-warn { background: var(--amber-bg); color: #92400e; border: 1px solid #fde68a; }
+  .callout-info { background: var(--accent-bg); color: #3730a3; border: 1px solid #c7d2fe; }
+
+  /* ===== Tags ===== */
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .tag {
+    display: inline-block;
+    background: var(--accent-bg);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid #c7d2fe;
+  }
+
+  /* ===== Steps ===== */
+  .steps { margin: 14px 0; }
+  .step {
+    display: flex;
+    gap: 14px;
+    padding: 12px 0;
+    align-items: flex-start;
+  }
+  .step + .step { border-top: 1px solid var(--slate-100); }
+  .step-num {
+    width: 30px; height: 30px;
+    line-height: 30px;
+    text-align: center;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step-content { flex: 1; padding-top: 4px; font-size: 14px; }
+
+  /* ===== Platform Cards ===== */
+  .platform-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .platform-card {
+    text-align: center;
+    padding: 20px 12px;
+    border: 1px solid var(--slate-200);
+    border-radius: 10px;
+    transition: box-shadow .2s, border-color .2s;
+  }
+  .platform-card:hover { border-color: var(--accent-light); box-shadow: var(--shadow-md); }
+  .platform-card .icon { font-size: 28px; margin-bottom: 8px; }
+  .platform-card strong { display: block; font-size: 14px; margin-bottom: 4px; }
+  .platform-card code { font-size: 12px; }
+
+  /* ===== Port badges ===== */
+  .ports { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+  .port {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--slate-50);
+    border: 1px solid var(--slate-200);
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .port-num { font-weight: 700; color: var(--accent); font-family: "SF Mono", monospace; }
+
+  /* ===== FAQ ===== */
+  .faq-item {
+    border: 1px solid var(--slate-200);
+    border-radius: 10px;
+    margin: 10px 0;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .faq-item:hover { border-color: var(--accent-light); }
+  .faq-q {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--slate-700);
+    cursor: pointer;
+    user-select: none;
+    background: #fff;
+  }
+  .faq-q::before {
+    content: 'Q';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px; height: 24px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .faq-q::after {
+    content: '';
+    margin-left: auto;
+    width: 8px; height: 8px;
+    border-right: 2px solid var(--slate-400);
+    border-bottom: 2px solid var(--slate-400);
+    transform: rotate(-45deg);
+    transition: transform .2s;
+    flex-shrink: 0;
+  }
+  .faq-item.open .faq-q::after { transform: rotate(45deg); }
+  .faq-a {
+    padding: 0 18px 16px 52px;
+    font-size: 14px;
+    color: var(--slate-600);
+    line-height: 1.7;
+    display: none;
+  }
+  .faq-item.open .faq-a { display: block; }
+
+  /* ===== Footer ===== */
+  .footer {
+    text-align: center;
+    color: var(--slate-400);
+    font-size: 13px;
+    padding: 32px 20px;
+    border-top: 1px solid var(--slate-200);
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 800px) {
+    .layout { grid-template-columns: 1fr; gap: 0; }
+    .sidebar { position: static; max-height: none; margin-bottom: 20px; }
+    .section { padding: 24px 20px; }
+    .hero h1 { font-size: 28px; }
+    .platform-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== Hero ===== -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">v0.12.0 &middot; MIT License</div>
+    <h1>HermesPortable</h1>
+    <p>Build once, use everywhere — 插上 U 盘，直接运行的 AI Agent 便携版</p>
+  </div>
+</div>
+
+<!-- ===== Layout ===== -->
+<div class="layout">
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="toc-box">
+    <div class="toc-title">目录导航</div>
+    <ul class="toc-list">
+      <li><a href="#about">项目简介</a></li>
+      <li><a href="#build">构建便携包</a></li>
+      <li><a href="#run">启动与首次配置</a></li>
+      <li><a href="#commands">核心命令一览</a></li>
+      <li><a href="#chat">对话与交互</a></li>
+      <li><a href="#config">配置管理</a></li>
+      <li><a href="#gateway">消息网关</a></li>
+      <li><a href="#cron">定时任务</a></li>
+      <li><a href="#skills">技能管理</a></li>
+      <li><a href="#session">会话管理</a></li>
+      <li><a href="#update">更新与维护</a></li>
+      <li><a href="#file">文件目录结构</a></li>
+      <li><a href="#free">免费模型配置</a></li>
+      <li><a href="#troubleshoot">常见问题</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- Main -->
+<main class="main">
+
+<!-- 1 -->
+<div class="section" id="about">
+  <div class="section-header">
+    <div class="section-icon" style="background:#eef2ff;color:#4f46e5;">&#x1F4E6;</div>
+    <h2>项目简介</h2>
+  </div>
+  <p><strong>HermesPortable</strong> 是 <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent</a>（Nous Research 开发）的完全自包含便携版。它将 Python 运行时、依赖库、Node.js、配置面板和全部源代码打包到一个目录中，可直接从 U 盘在 macOS / Linux / Windows（WSL2）上运行，<strong>无需安装</strong>。</p>
+
+  <h3>主要特性</h3>
+  <table>
+    <thead><tr><th>功能</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>交互式 CLI</td><td>多行编辑、流式输出、斜杠命令</td></tr>
+      <tr><td>消息网关</td><td>Telegram / Discord / Slack / WhatsApp / Signal / Email</td></tr>
+      <tr><td>持久记忆</td><td>MEMORY.md + USER.md 自动管理上下文</td></tr>
+      <tr><td>内置工具</td><td>40+ 工具：终端、浏览器、搜索、文件操作、TTS、定时任务等</td></tr>
+      <tr><td>LLM 供应商</td><td>支持 15+ 供应商（OpenRouter、Anthropic、OpenAI、Google、DeepSeek 等）</td></tr>
+      <tr><td>子代理</td><td>子代理委托与并行工作流</td></tr>
+      <tr><td>终端后端</td><td>本地 / Docker / SSH / Singularity / Modal / Daytona</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 2 -->
+<div class="section" id="build">
+  <div class="section-header">
+    <div class="section-icon" style="background:#ecfdf5;color:#059669;">&#x1F528;</div>
+    <h2>构建便携包</h2>
+  </div>
+  <p>构建需要 Python 3.8+、git、curl。</p>
+
+  <h3>macOS / Linux</h3>
+  <pre><code><span class="comment"># 构建到默认输出目录 dist/HermesPortable/</span>
+<span class="cmd">python3 build.py</span>
+
+<span class="comment"># 直接构建到 U 盘</span>
+<span class="cmd">python3 build.py /Volumes/MyUSB</span></code></pre>
+
+  <h3>Windows（在 WSL2 中）</h3>
+  <pre><code><span class="cmd">git clone https://github.com/yuluyangguang1/hermes-portable.git</span>
+<span class="cmd">cd hermes-portable</span>
+<span class="cmd">python3 build.py</span></code></pre>
+
+  <div class="callout callout-warn">
+    <span class="callout-icon">&#x1F6A8;</span>
+    <div><strong>Windows 用户首次构建前，必须先完成 WSL2 环境配置。</strong>WSL2 是 Windows 子系统，Hermes 依赖它运行 Linux 环境。以下是完整配置步骤：</div>
+  </div>
+
+  <h3>Windows 首次构建完整指南</h3>
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span>
+      <span class="step-content">
+        <strong>启用 WSL2</strong><br>
+        以<strong>管理员身份</strong>打开 PowerShell，运行：
+        <pre><code><span class="cmd">wsl --install</span></code></pre>
+        该命令自动启用 WSL、安装 Linux 内核并设置 WSL2 为默认版本。安装完成后<strong>重启电脑</strong>。
+      </span>
+    </div>
+    <div class="step"><span class="step-num">2</span>
+      <span class="step-content">
+        <strong>安装 Ubuntu 发行版</strong><br>
+        重启后，系统会自动启动 Ubuntu 安装（如未启动，在 Microsoft Store 搜索 "Ubuntu" 安装）。首次打开需要设置 Linux 用户名和密码。
+      </span>
+    </div>
+    <div class="step"><span class="step-num">3</span>
+      <span class="step-content">
+        <strong>安装依赖工具</strong><br>
+        打开 Ubuntu 终端，依次运行：
+        <pre><code><span class="cmd">sudo apt update</span>
+<span class="cmd">sudo apt install -y python3 python3-pip git curl</span></code></pre>
+      </span>
+    </div>
+    <div class="step"><span class="step-num">4</span>
+      <span class="step-content">
+        <strong>克隆项目并构建</strong><br>
+        <pre><code><span class="cmd">git clone https://github.com/yuluyangguang1/hermes-portable.git</span>
+<span class="cmd">cd hermes-portable</span>
+<span class="cmd">python3 build.py</span></code></pre>
+        构建默认输出到 <code>dist/HermesPortable/</code>。
+      </span>
+    </div>
+    <div class="step"><span class="step-num">5</span>
+      <span class="step-content">
+        <strong>从 Windows 访问构建产物</strong><br>
+        WSL2 中的文件可以通过文件管理器访问。在 Ubuntu 终端运行：
+        <pre><code><span class="cmd">explorer.exe dist/HermesPortable</span></code></pre>
+        这会直接在 Windows 资源管理器中打开构建目录。也可以将 <code>dist/HermesPortable</code> 复制到 U 盘或任意 Windows 目录。
+      </span>
+    </div>
+    <div class="step"><span class="step-num">6</span>
+      <span class="step-content">
+        <strong>启动运行</strong><br>
+        在 Windows 资源管理器中双击 <code>Hermes.bat</code> 即可启动（会自动调用 WSL2）。
+      </span>
+    </div>
+  </div>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">&#x1F4CD;</span>
+    <div>
+      <strong>WSL2 路径说明</strong>
+      <table style="margin:8px 0 0;font-size:13px;">
+        <thead><tr><th>WSL2 路径</th><th>Windows 路径</th></tr></thead>
+        <tbody>
+          <tr><td><code>~/hermes-portable/</code></td><td><code>\\wsl$\Ubuntu\home\用户名\hermes-portable</code></td></tr>
+          <tr><td><code>/mnt/c/</code></td><td><code>C:\</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="callout callout-warn">
+    <span class="callout-icon">&#x26A0;</span>
+    <div>
+      <strong>常见问题</strong>
+      <ul style="margin:6px 0 0 16px;font-size:14px;">
+        <li><code>wsl --install</code> 报错 → 先运行 <code>wsl --update</code> 确保内核为最新版</li>
+        <li>WSL2 中网络慢 → 检查 VPN 是否影响 WSL2 代理，可尝试 <code>wsl --shutdown</code> 后重启</li>
+        <li>磁盘空间不足 → WSL2 虚拟磁盘默认上限 256GB，运行 <code>wsl --system -d Ubuntu df -h</code> 查看使用情况</li>
+        <li>构建中途断开 → WSL2 终端窗口关闭会终止进程，建议在 <strong>Windows Terminal</strong> 中运行</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout callout-tip">
+    <span class="callout-icon">&#x2705;</span>
+    <div><strong>构建产物约 500MB</strong>，包含：独立 CPython 3.12、Node.js v23、hermes-agent 全部依赖、Web UI。</div>
+  </div>
+</div>
+
+<!-- 3 -->
+<div class="section" id="run">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef2f2;color:#dc2626;">&#x1F680;</div>
+    <h2>启动与首次配置</h2>
+  </div>
+
+  <div class="platform-grid">
+    <div class="platform-card">
+      <div class="icon">&#x1F34E;</div>
+      <strong>macOS</strong>
+      <span>双击 <code>Hermes.command</code></span>
+    </div>
+    <div class="platform-card">
+      <div class="icon">&#x1F427;</div>
+      <strong>Linux</strong>
+      <span>终端运行 <code>./Hermes.sh</code></span>
+    </div>
+    <div class="platform-card">
+      <div class="icon">&#x1F5A5;</div>
+      <strong>Windows</strong>
+      <span>双击 <code>Hermes.bat</code></span>
+    </div>
+  </div>
+
+  <h3>首次启动流程</h3>
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span><span class="step-content">插入 U 盘，运行对应平台的启动脚本</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content">未配置 API Key 时，浏览器自动打开配置面板 <code>http://127.0.0.1:17520</code></span></div>
+    <div class="step"><span class="step-num">3</span><span class="step-content">在配置面板中填入所选 LLM 供应商的 API Key</span></div>
+    <div class="step"><span class="step-num">4</span><span class="step-content">点击"Start"，进入交互式对话</span></div>
+  </div>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">&#x1F310;</span>
+    <div>
+      <strong>端口分配</strong>
+      <div class="ports">
+        <span class="port">Gateway <span class="port-num">8642</span></span>
+        <span class="port">Web UI <span class="port-num">8648</span></span>
+        <span class="port">配置面板 <span class="port-num">17520</span></span>
+        <span class="port">对话查看 <span class="port-num">17521</span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 4 -->
+<div class="section" id="commands">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fefce8;color:#ca8a04;">&#x1F4CB;</div>
+    <h2>核心命令一览</h2>
+  </div>
+
+  <table>
+    <thead><tr><th>命令</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>hermes</code></td><td>启动交互式对话 TUI</td></tr>
+      <tr><td><code>hermes -q "问题"</code></td><td>单次查询模式</td></tr>
+      <tr><td><code>hermes model</code></td><td>选择 LLM 供应商和模型</td></tr>
+      <tr><td><code>hermes setup</code></td><td>交互式初始配置向导</td></tr>
+      <tr><td><code>hermes gateway</code></td><td>消息网关管理</td></tr>
+      <tr><td><code>hermes config</code></td><td>配置管理</td></tr>
+      <tr><td><code>hermes status</code></td><td>查看所有组件状态</td></tr>
+      <tr><td><code>hermes doctor</code></td><td>诊断问题</td></tr>
+      <tr><td><code>hermes cron</code></td><td>定时任务管理</td></tr>
+      <tr><td><code>hermes skills</code></td><td>技能管理</td></tr>
+      <tr><td><code>hermes plugins</code></td><td>插件管理</td></tr>
+      <tr><td><code>hermes tools</code></td><td>启用 / 禁用工具</td></tr>
+      <tr><td><code>hermes sessions</code></td><td>会话管理</td></tr>
+      <tr><td><code>hermes memory</code></td><td>记忆管理</td></tr>
+      <tr><td><code>hermes auth</code></td><td>凭证管理</td></tr>
+      <tr><td><code>hermes backup</code></td><td>备份与恢复</td></tr>
+      <tr><td><code>hermes logs</code></td><td>查看日志</td></tr>
+      <tr><td><code>hermes profile</code></td><td>配置文件管理（列表 / 创建 / 删除 / 导出 / 导入）</td></tr>
+      <tr><td><code>hermes dashboard</code></td><td>Web 仪表盘</td></tr>
+      <tr><td><code>hermes claw migrate</code></td><td>从 OpenClaw 迁移</td></tr>
+      <tr><td><code>hermes version</code></td><td>显示版本</td></tr>
+      <tr><td><code>hermes update</code></td><td>更新到最新版</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 5 -->
+<div class="section" id="chat">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f0f9ff;color:#0284c7;">&#x1F4AC;</div>
+    <h2>对话与交互</h2>
+  </div>
+
+  <h3>启动对话</h3>
+  <pre><code><span class="cmd">hermes</span>                          <span class="comment"># 进入交互式 TUI</span>
+<span class="cmd">hermes -q "帮我写一个冒泡排序"</span>    <span class="comment"># 单次查询</span>
+<span class="cmd">hermes --toolsets web,terminal</span>  <span class="comment"># 指定工具集启动</span></code></pre>
+
+  <h3>TUI 内斜杠命令</h3>
+  <table>
+    <thead><tr><th>命令</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>/new</code> <code>/reset</code></td><td>开始新对话</td></tr>
+      <tr><td><code>/model [provider:model]</code></td><td>切换模型</td></tr>
+      <tr><td><code>/personality [name]</code></td><td>切换人格</td></tr>
+      <tr><td><code>/retry</code></td><td>重试上一轮</td></tr>
+      <tr><td><code>/undo</code></td><td>撤销上一轮</td></tr>
+      <tr><td><code>/compress</code></td><td>压缩上下文</td></tr>
+      <tr><td><code>/usage</code></td><td>查看 Token 用量</td></tr>
+      <tr><td><code>/insights [--days N]</code></td><td>查看使用洞察</td></tr>
+      <tr><td><code>/skills</code></td><td>浏览已安装技能</td></tr>
+      <tr><td><code>/stop</code></td><td>中断当前操作</td></tr>
+      <tr><td><code>/platforms</code></td><td>查看平台状态</td></tr>
+      <tr><td><code>/status</code></td><td>查看状态</td></tr>
+      <tr><td><code>/sethome</code></td><td>设置工作目录</td></tr>
+      <tr><td><code>/&lt;skill-name&gt;</code></td><td>运行指定技能</td></tr>
+    </tbody>
+  </table>
+
+  <h3>可用人格</h3>
+  <div class="tags">
+    <span class="tag">helpful</span><span class="tag">concise</span><span class="tag">technical</span>
+    <span class="tag">creative</span><span class="tag">teacher</span><span class="tag">pirate</span>
+    <span class="tag">shakespeare</span><span class="tag">surfer</span><span class="tag">noir</span>
+    <span class="tag">philosopher</span>
+  </div>
+</div>
+
+<!-- 6 -->
+<div class="section" id="config">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fdf4ff;color:#a855f7;">&#x2699;</div>
+    <h2>配置管理</h2>
+  </div>
+
+  <h3>config 子命令</h3>
+  <table>
+    <thead><tr><th>命令</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>hermes config show</code></td><td>显示当前配置</td></tr>
+      <tr><td><code>hermes config edit</code></td><td>用编辑器打开配置文件</td></tr>
+      <tr><td><code>hermes config set key value</code></td><td>设置配置项</td></tr>
+      <tr><td><code>hermes config path</code></td><td>显示配置文件路径</td></tr>
+      <tr><td><code>hermes config check</code></td><td>检查配置是否正确</td></tr>
+    </tbody>
+  </table>
+
+  <h3>认证管理</h3>
+  <table>
+    <thead><tr><th>命令</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>hermes auth add</code></td><td>添加 API Key</td></tr>
+      <tr><td><code>hermes auth list</code></td><td>列出已保存凭证</td></tr>
+      <tr><td><code>hermes auth remove</code></td><td>删除凭证</td></tr>
+      <tr><td><code>hermes auth status</code></td><td>查看认证状态</td></tr>
+    </tbody>
+  </table>
+
+  <h3>关键配置文件</h3>
+  <table>
+    <thead><tr><th>文件</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td><code>data/.env</code></td><td>API Key（必填）</td></tr>
+      <tr><td><code>data/config.yaml</code></td><td>主配置文件</td></tr>
+    </tbody>
+  </table>
+
+  <h3>支持的 LLM 供应商</h3>
+  <div class="tags">
+    <span class="tag">OpenRouter</span><span class="tag">Anthropic</span><span class="tag">OpenAI</span>
+    <span class="tag">Google</span><span class="tag">DeepSeek</span><span class="tag">小米 MiMo</span>
+    <span class="tag">Nous Portal</span><span class="tag">Kimi</span><span class="tag">MiniMax</span>
+    <span class="tag">Hugging Face</span><span class="tag">NVIDIA NIM</span><span class="tag">Arcee AI</span>
+  </div>
+
+  <pre><code><span class="comment"># 切换模型示例</span>
+<span class="cmd">hermes model</span>
+<span class="cmd">hermes config set model.default "anthropic/claude-opus-4.6"</span></code></pre>
+</div>
+
+<!-- 7 -->
+<div class="section" id="gateway">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fff7ed;color:#ea580c;">&#x1F517;</div>
+    <h2>消息网关</h2>
+  </div>
+  <p>通过消息网关，Hermes 可以在多平台上接收和回复消息。</p>
+
+  <h3>网关命令</h3>
+  <table>
+    <thead><tr><th>命令</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>hermes gateway setup</code></td><td>配置消息平台</td></tr>
+      <tr><td><code>hermes gateway start</code></td><td>启动网关</td></tr>
+      <tr><td><code>hermes gateway stop</code></td><td>停止网关</td></tr>
+      <tr><td><code>hermes gateway restart</code></td><td>重启网关</td></tr>
+      <tr><td><code>hermes gateway status</code></td><td>查看网关状态</td></tr>
+      <tr><td><code>hermes gateway install</code></td><td>安装为系统服务</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">&#x1F511;</span>
+    <div>在 <code>data/.env</code> 中设置平台 Token：<code>TELEGRAM_BOT_TOKEN</code>、<code>DISCORD_BOT_TOKEN</code>、<code>SLACK_BOT_TOKEN</code> 等。</div>
+  </div>
+</div>
+
+<!-- 8 -->
+<div class="section" id="cron">
+  <div class="section-header">
+    <div class="section-icon" style="background:#ecfdf5;color:#059669;">&#x23F0;</div>
+    <h2>定时任务</h2>
+  </div>
+
+  <table>
+    <thead><tr><th>命令</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>hermes cron create</code></td><td>创建定时任务</td></tr>
+      <tr><td><code>hermes cron list</code></td><td>列出所有任务</td></tr>
+      <tr><td><code>hermes cron edit</code></td><td>编辑任务</td></tr>
+      <tr><td><code>hermes cron pause</code></td><td>暂停任务</td></tr>
+      <tr><td><code>hermes cron resume</code></td><td>恢复任务</td></tr>
+      <tr><td><code>hermes cron run</code></td><td>立即执行任务</td></tr>
+      <tr><td><code>hermes cron remove</code></td><td>删除任务</td></tr>
+      <tr><td><code>hermes cron status</code></td><td>查看调度器状态</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 9 -->
+<div class="section" id="skills">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fef2f2;color:#e11d48;">&#x1F9E0;</div>
+    <h2>技能管理</h2>
+  </div>
+  <p>Hermes 支持技能（Skills）系统，可从经验中学习并创建新技能。</p>
+
+  <table>
+    <thead><tr><th>命令</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>hermes skills browse</code></td><td>浏览可用技能</td></tr>
+      <tr><td><code>hermes skills search</code></td><td>搜索技能</td></tr>
+      <tr><td><code>hermes skills install</code></td><td>安装技能</td></tr>
+      <tr><td><code>hermes skills list</code></td><td>列出已安装技能</td></tr>
+      <tr><td><code>hermes skills inspect</code></td><td>查看技能详情</td></tr>
+      <tr><td><code>hermes skills update</code></td><td>更新技能</td></tr>
+      <tr><td><code>hermes skills uninstall</code></td><td>卸载技能</td></tr>
+      <tr><td><code>hermes skills publish</code></td><td>发布技能</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 10 -->
+<div class="section" id="session">
+  <div class="section-header">
+    <div class="section-icon" style="background:#f0f9ff;color:#0284c7;">&#x1F4C2;</div>
+    <h2>会话管理</h2>
+  </div>
+
+  <table>
+    <thead><tr><th>命令</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>hermes sessions list</code></td><td>列出所有会话</td></tr>
+      <tr><td><code>hermes sessions export</code></td><td>导出会话</td></tr>
+      <tr><td><code>hermes sessions delete</code></td><td>删除会话</td></tr>
+      <tr><td><code>hermes sessions prune</code></td><td>清理旧会话</td></tr>
+      <tr><td><code>hermes sessions stats</code></td><td>会话统计</td></tr>
+      <tr><td><code>hermes sessions rename</code></td><td>重命名会话</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 11 -->
+<div class="section" id="update">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fdf4ff;color:#a855f7;">&#x1F504;</div>
+    <h2>更新与维护</h2>
+  </div>
+
+  <h3>更新 hermes-agent</h3>
+  <pre><code><span class="cmd">python3 update.py status</span>    <span class="comment"># 查看当前版本</span>
+<span class="cmd">python3 update.py check</span>     <span class="comment"># 检查新版本</span>
+<span class="cmd">python3 update.py update</span>    <span class="comment"># 更新到最新版</span></code></pre>
+
+  <h3>Linux 跨平台重建</h3>
+  <p>如果便携包在 macOS 上构建，需要在 Linux 使用时重建 Python 环境：</p>
+  <pre><code><span class="cmd">./linux-rebuild.sh</span>    <span class="comment"># 需要系统安装 Python 3.12</span></code></pre>
+
+  <div class="callout callout-tip">
+    <span class="callout-icon">&#x1F4BE;</span>
+    <div>所有数据存储在 <code>data/</code> 目录，直接复制该目录即可完成备份。</div>
+  </div>
+</div>
+
+<!-- 12 -->
+<div class="section" id="file">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fefce8;color:#ca8a04;">&#x1F4C1;</div>
+    <h2>文件目录结构</h2>
+  </div>
+
+  <table>
+    <thead><tr><th>路径</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>Hermes.command</code></td><td>macOS 启动器（双击运行）</td></tr>
+      <tr><td><code>Hermes.sh</code></td><td>Linux 启动器</td></tr>
+      <tr><td><code>Hermes.bat</code></td><td>Windows 启动器</td></tr>
+      <tr><td><code>build.py</code></td><td>构建脚本</td></tr>
+      <tr><td><code>update.py</code></td><td>更新工具</td></tr>
+      <tr><td><code>config_server.py</code></td><td>Web 配置面板</td></tr>
+      <tr><td><code>chat_viewer.py</code></td><td>对话查看器</td></tr>
+      <tr><td><code>linux-rebuild.sh</code></td><td>Linux 重建脚本</td></tr>
+      <tr><td><code>data/.env</code></td><td>API Key 文件</td></tr>
+      <tr><td><code>data/config.yaml</code></td><td>主配置</td></tr>
+      <tr><td><code>data/sessions/</code></td><td>对话历史</td></tr>
+      <tr><td><code>data/skills/</code></td><td>已安装技能</td></tr>
+      <tr><td><code>data/memories/</code></td><td>持久记忆</td></tr>
+      <tr><td><code>data/cron/</code></td><td>定时任务</td></tr>
+      <tr><td><code>data/logs/</code></td><td>日志文件</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 13 -->
+<div class="section" id="free">
+  <div class="section-header">
+    <div class="section-icon" style="background:#ecfdf5;color:#059669;">&#x1F381;</div>
+    <h2>免费模型配置</h2>
+  </div>
+  <p>以下方案均<strong>无需付费</strong>即可使用 LLM，适合体验和轻度使用。按推荐程度排序。</p>
+
+  <!-- 方案一 -->
+  <h3>方案一：OpenRouter（推荐）</h3>
+  <p>注册即可获取免费 API Key，支持多个免费模型。</p>
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span><span class="step-content">前往 <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a> 注册并获取 API Key</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content">编辑便携包 <code>data/.env</code> 文件，添加：<br><code>OPENROUTER_API_KEY=sk-or-v1-你的密钥</code></span></div>
+    <div class="step"><span class="step-num">3</span><span class="step-content">在配置面板或通过命令设置模型：<br><code>hermes config set model.default "openrouter/elephant-alpha"</code></span></div>
+  </div>
+  <table>
+    <thead><tr><th>免费模型 ID</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>openrouter/elephant-alpha</code></td><td>OpenRouter 自有模型，免费</td></tr>
+      <tr><td><code>openrouter/owl-alpha</code></td><td>OpenRouter 自有模型，免费</td></tr>
+      <tr><td><code>tencent/hy3-preview:free</code></td><td>腾讯 HY3 免费版</td></tr>
+      <tr><td><code>minimax/minimax-m2.5:free</code></td><td>MiniMax M2.5 免费版</td></tr>
+      <tr><td><code>nvidia/nemotron-3-super-120b-a12b:free</code></td><td>NVIDIA Nemotron 免费版</td></tr>
+      <tr><td><code>arcee-ai/trinity-large-preview:free</code></td><td>Arcee Trinity 免费版</td></tr>
+    </tbody>
+  </table>
+  <div class="callout callout-tip">
+    <span class="callout-icon">&#x1F4A1;</span>
+    <div>OpenRouter 会动态上线新的免费模型。在 Hermes 中运行 <code>hermes model</code>，选择 OpenRouter 后可浏览所有当前可用的免费模型。</div>
+  </div>
+
+  <!-- 方案二 -->
+  <h3>方案二：Google Gemini 免费层</h3>
+  <p>Google 提供免费 API 额度，但有速率限制（可能触发 429 错误）。</p>
+
+  <h3 style="margin-top:12px;font-size:14px;">方式 A：API Key</h3>
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span><span class="step-content">前往 <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> 创建免费 API Key</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content">编辑 <code>data/.env</code>，添加：<br><code>GOOGLE_API_KEY=你的密钥</code></span></div>
+    <div class="step"><span class="step-num">3</span><span class="step-content"><code>hermes config set model.default "gemini/gemini-3-flash-preview"</code></span></div>
+  </div>
+
+  <h3 style="margin-top:12px;font-size:14px;">方式 B：OAuth 免密钥</h3>
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span><span class="step-content">运行 <code>hermes model</code>，选择 <code>google-gemini-cli</code> 供应商</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content">按提示完成浏览器 OAuth 授权即可，无需 API Key</span></div>
+  </div>
+  <table>
+    <thead><tr><th>可用模型</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>gemini-3.1-pro-preview</code></td><td>最强，免费层有限额</td></tr>
+      <tr><td><code>gemini-3-pro-preview</code></td><td>次强</td></tr>
+      <tr><td><code>gemini-3-flash-preview</code></td><td>速度快，推荐日常使用</td></tr>
+      <tr><td><code>gemini-3.1-flash-lite-preview</code></td><td>最轻量</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 方案三 -->
+  <h3>方案三：Nous Portal 免费层</h3>
+  <p>Hermes 官方提供的免费模型入口，通过 OAuth 登录。</p>
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span><span class="step-content">运行 <code>hermes login</code> 或 <code>hermes model</code>，通过浏览器完成 OAuth 登录</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content">系统自动检测免费层，仅显示可用的免费模型</span></div>
+    <div class="step"><span class="step-num">3</span><span class="step-content">选择模型后即可使用，无需手动配置 API Key</span></div>
+  </div>
+  <div class="callout callout-warn">
+    <span class="callout-icon">&#x26A0;</span>
+    <div><strong>限制：</strong>免费层用户无法使用消息网关（Telegram / Discord 等机器人功能），仅支持 CLI 对话。</div>
+  </div>
+  <p>已知免费模型：<code>xiaomi/mimo-v2-pro</code>、<code>minimax/minimax-m2.5:free</code> 等。</p>
+
+  <!-- 方案四 -->
+  <h3>方案四：Hugging Face 推理服务</h3>
+  <p>Hugging Face 提供每月 $0.10 的免费额度，可调用多种开源模型。</p>
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span><span class="step-content">前往 <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a> 创建 Token（勾选 "Make calls to Inference Providers"）</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content">编辑 <code>data/.env</code>，添加：<br><code>HF_TOKEN=hf_你的令牌</code></span></div>
+    <div class="step"><span class="step-num">3</span><span class="step-content"><code>hermes config set model.default "huggingface/deepseek-ai/DeepSeek-V3.2"</code></span></div>
+  </div>
+  <table>
+    <thead><tr><th>可用模型</th><th>类型</th></tr></thead>
+    <tbody>
+      <tr><td><code>deepseek-ai/DeepSeek-V3.2</code></td><td>通用大模型</td></tr>
+      <tr><td><code>Qwen/Qwen3.5-397B-A17B</code></td><td>超大参数模型</td></tr>
+      <tr><td><code>Qwen/Qwen3.5-35B-A3B</code></td><td>轻量高效</td></tr>
+      <tr><td><code>moonshotai/Kimi-K2.5</code></td><td>Kimi 系列</td></tr>
+      <tr><td><code>XiaomiMiMo/MiMo-V2-Flash</code></td><td>小米 MiMo</td></tr>
+      <tr><td><code>MiniMaxAI/MiniMax-M2.5</code></td><td>MiniMax</td></tr>
+      <tr><td><code>zai-org/GLM-5</code></td><td>智谱 GLM</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 方案五 -->
+  <h3>方案五：Qwen OAuth（通义千问）</h3>
+  <p>通过 Qwen CLI 登录后免密钥使用。</p>
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span><span class="step-content">先安装 Qwen CLI 并运行 <code>qwen auth qwen-oauth</code> 完成登录</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content"><code>hermes config set model.default "qwen-oauth/qwen-max"</code></span></div>
+  </div>
+
+  <!-- 方案六 -->
+  <h3>方案六：本地部署（完全免费）</h3>
+  <p>在本机运行模型，无需任何 API Key，适合有显卡的用户。</p>
+  <table>
+    <thead><tr><th>工具</th><th>配置</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>Ollama</td><td><code>provider: "ollama"</code></td><td>最易上手，<code>ollama pull</code> 拉模型即可</td></tr>
+      <tr><td>LM Studio</td><td><code>provider: "lmstudio"</code></td><td>图形界面，本地运行 <code>http://127.0.0.1:1234</code></td></tr>
+      <tr><td>vLLM</td><td><code>provider: "vllm"</code></td><td>高性能推理，适合生产环境</td></tr>
+      <tr><td>llama.cpp</td><td><code>provider: "llamacpp"</code></td><td>轻量级 C++ 推理引擎</td></tr>
+    </tbody>
+  </table>
+  <pre><code><span class="comment"># 以 Ollama 为例</span>
+<span class="comment"># 1. 安装 Ollama 后拉取模型</span>
+<span class="cmd">ollama pull llama3.1</span>
+
+<span class="comment"># 2. 配置 Hermes 使用 Ollama</span>
+<span class="cmd">hermes config set model.default "ollama/llama3.1"</span></code></pre>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">&#x1F3AF;</span>
+    <div>
+      <strong>方案选择建议：</strong>
+      <ul style="margin:6px 0 0 16px;font-size:14px;">
+        <li><strong>零门槛</strong>：OpenRouter（注册即用）或 Nous Portal（OAuth 登录）</li>
+        <li><strong>高质量</strong>：Google Gemini 免费层（模型最强）</li>
+        <li><strong>多样化</strong>：Hugging Face（可选模型最多）</li>
+        <li><strong>完全离线</strong>：Ollama 本地部署（无网络也可用）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- 14 -->
+<div class="section" id="troubleshoot">
+  <div class="section-header">
+    <div class="section-icon" style="background:#fffbeb;color:#d97706;">&#x2753;</div>
+    <h2>常见问题</h2>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">启动后浏览器没有自动打开？</div>
+    <div class="faq-a">手动访问 <code>http://127.0.0.1:17520</code>，或运行 <code>hermes setup</code> 进入配置向导。</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Linux 上提示 Python 不兼容？</div>
+    <div class="faq-a">便携包在 macOS 构建的 Python 无法在 Linux 上运行。请确保系统安装了 Python 3.12，然后运行 <code>./linux-rebuild.sh</code> 重建。</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Windows 上无法运行？</div>
+    <div class="faq-a">Windows 支持需要先安装 WSL2（Windows Subsystem for Linux），然后在 WSL2 终端中运行。</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">API Key 配置在哪？</div>
+    <div class="faq-a">编辑 <code>data/.env</code> 文件，填入对应供应商的 Key，如 <code>ANTHROPIC_API_KEY=sk-xxx</code>。</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">如何诊断问题？</div>
+    <div class="faq-a">运行 <code>hermes doctor</code> 自动诊断，或查看 <code>data/logs/</code> 下的日志文件。</div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<div class="footer">
+  HermesPortable &mdash; 基于 Hermes Agent v0.12.0 &nbsp;|&nbsp; MIT License
+</div>
+
+<script>
+// TOC active highlight on scroll
+const tocLinks = document.querySelectorAll('.toc-list a');
+const sections = document.querySelectorAll('.section');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      tocLinks.forEach(l => l.classList.remove('active'));
+      const id = e.target.id;
+      const link = document.querySelector(`.toc-list a[href="#${id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => observer.observe(s));
+
+// FAQ toggle
+document.querySelectorAll('.faq-q').forEach(q => {
+  q.addEventListener('click', () => q.parentElement.classList.toggle('open'));
+});
+</script>
+
+</body>
+</html>

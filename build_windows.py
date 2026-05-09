@@ -272,7 +272,7 @@ def step_data(ROOT):
 def step_launchers(ROOT):
     """Write Windows-native launcher scripts."""
     # Copy helper scripts
-    for fname in ("config_server.py", "chat_viewer.py", "update.py"):
+    for fname in ("config_server.py", "chat_viewer.py", "update.py", "HermesPortable使用说明.html"):
         src = Path(__file__).parent / fname
         if src.exists():
             shutil.copy2(src, ROOT / fname)
@@ -389,7 +389,10 @@ def step_readme(ROOT):
         "  data\\config.yaml  配置文件\n"
         "  venv\\             Python 依赖\n"
         "  python\\           Python 运行时\n"
-        "  hermes-agent\\     Hermes 源码\n"
+        "  hermes-agent\\\\     Hermes 源码\n"
+        "\n"
+        "【使用说明】\n"
+        "  双击 HermesPortable使用说明.html 查看详细使用方法\n"
         "\n"
         "【已知限制】\n"
         "  - Windows 原生支持为 Early Beta\n"
