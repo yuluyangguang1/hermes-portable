@@ -62,24 +62,28 @@ jobs:
   build-windows:
     runs-on: windows-latest
     timeout-minutes: 30
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Build
+        id: build
         run: python build_windows.py
       - uses: actions/upload-artifact@v4
+        if: steps.build.outcome == 'success'
         with:
           name: venv-windows-x64
           path: dist/HermesPortable/venv/
       - uses: actions/upload-artifact@v4
+        if: steps.build.outcome == 'success'
         with:
           name: python-windows-x64
           path: dist/HermesPortable/python/
 
   merge-and-release:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: always() && startsWith(github.ref, 'refs/tags/')
     needs: [build-macos, build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
@@ -90,32 +94,44 @@ jobs:
       - name: Merge all platforms
         run: |
           cp -r artifacts/shared-base/ HermesPortable/
-          cp -r artifacts/venv-macos-arm64/ HermesPortable/venv-macos-arm64/
-          cp -r artifacts/python-macos-arm64/ HermesPortable/python-macos-arm64/
-          cp -r artifacts/venv-linux-x64/ HermesPortable/venv-linux-x64/
-          cp -r artifacts/python-linux-x64/ HermesPortable/python-linux-x64/
-          cp -r artifacts/venv-windows-x64/ HermesPortable/venv-windows-x64/
-          cp -r artifacts/python-windows-x64/ HermesPortable/python-windows-x64/
+          if [ -d "artifacts/venv-macos-arm64" ]; then
+            cp -r artifacts/venv-macos-arm64/ HermesPortable/venv-macos-arm64/
+            cp -r artifacts/python-macos-arm64/ HermesPortable/python-macos-arm64/
+          fi
+          if [ -d "artifacts/venv-linux-x64" ]; then
+            cp -r artifacts/venv-linux-x64/ HermesPortable/venv-linux-x64/
+            cp -r artifacts/python-linux-x64/ HermesPortable/python-linux-x64/
+          fi
+          if [ -d "artifacts/venv-windows-x64" ]; then
+            cp -r artifacts/venv-windows-x64/ HermesPortable/venv-windows-x64/
+            cp -r artifacts/python-windows-x64/ HermesPortable/python-windows-x64/
+          fi
           du -sh HermesPortable/
 
       - name: Create archives
         run: |
           zip -r HermesPortable-Universal.zip HermesPortable/
 
-          mkdir -p macos-only && cp -r artifacts/shared-base/* macos-only/
-          cp -r artifacts/venv-macos-arm64/ macos-only/venv
-          cp -r artifacts/python-macos-arm64/ macos-only/python
-          zip -r HermesPortable-macOS.zip macos-only/
+          if [ -d "artifacts/venv-macos-arm64" ]; then
+            mkdir -p macos-only && cp -r artifacts/shared-base/* macos-only/
+            cp -r artifacts/venv-macos-arm64/ macos-only/venv
+            cp -r artifacts/python-macos-arm64/ macos-only/python
+            zip -r HermesPortable-macOS.zip macos-only/
+          fi
 
-          mkdir -p linux-only && cp -r artifacts/shared-base/* linux-only/
-          cp -r artifacts/venv-linux-x64/ linux-only/venv
-          cp -r artifacts/python-linux-x64/ linux-only/python
-          zip -r HermesPortable-Linux.zip linux-only/
+          if [ -d "artifacts/venv-linux-x64" ]; then
+            mkdir -p linux-only && cp -r artifacts/shared-base/* linux-only/
+            cp -r artifacts/venv-linux-x64/ linux-only/venv
+            cp -r artifacts/python-linux-x64/ linux-only/python
+            zip -r HermesPortable-Linux.zip linux-only/
+          fi
 
-          mkdir -p windows-only && cp -r artifacts/shared-base/* windows-only/
-          cp -r artifacts/venv-windows-x64/ windows-only/venv
-          cp -r artifacts/python-windows-x64/ windows-only/python
-          zip -r HermesPortable-Windows.zip windows-only/
+          if [ -d "artifacts/venv-windows-x64" ]; then
+            mkdir -p windows-only && cp -r artifacts/shared-base/* windows-only/
+            cp -r artifacts/venv-windows-x64/ windows-only/venv
+            cp -r artifacts/python-windows-x64/ windows-only/python
+            zip -r HermesPortable-Windows.zip windows-only/
+          fi
 
       - uses: softprops/action-gh-release@v2
         with:
@@ -125,3 +141,4 @@ jobs:
             HermesPortable-Linux.zip
             HermesPortable-Windows.zip
           generate_release_notes: true
+          fail_on_unmatched_files: false
