@@ -1,27 +1,31 @@
 @echo off
 setlocal enabledelayedexpansion
 set "HERE=%~dp0"
+
+REM ── Multi-platform package detection ──
+if exist "%HERE%venv-windows-x64\Scripts\hermes.exe" (
+    set "VENV_DIR=%HERE%venv-windows-x64"
+    set "PYTHON_DIR=%HERE%python-windows-x64"
+) else if exist "%HERE%venv\Scripts\hermes.exe" (
+    set "VENV_DIR=%HERE%venv"
+    set "PYTHON_DIR=%HERE%python"
+) else (
+    echo.
+    echo   [ERROR] 未找到 venv 目录
+    echo   请先运行构建脚本: python build_windows.py
+    echo.
+    pause
+    exit /b 1
+)
+
 set "HERMES_HOME=%HERE%data"
-set "PATH=%HERE%venv\Scripts;%HERE%node;%HERE%python;%PATH%"
+set "PATH=%VENV_DIR%\Scripts;%HERE%node;%PYTHON_DIR%;%PATH%"
 
 echo.
 echo   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗
 echo   ╠═╣╠═╣╠╦╝╠═╝║╣ ║   ║ ║ ║
 echo   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  Portable
 echo.
-
-REM Check if native venv exists
-if not exist "%HERE%venv\Scripts\hermes.exe" (
-    echo   [ERROR] 未找到 venv\Scripts\hermes.exe
-    echo.
-    echo   请先运行构建脚本生成完整环境：
-    echo     python build_windows.py
-    echo.
-    echo   或者使用 WSL2 模式：双击 Hermes-WSL.bat
-    echo.
-    pause
-    exit /b 1
-)
 
 REM Check if API key is configured
 set "HAS_KEY=false"
@@ -35,13 +39,13 @@ if "%HAS_KEY%"=="false" (
     echo   请在浏览器中完成 API Key 配置。
     echo.
     start "" "http://127.0.0.1:17520"
-    "%HERE%venv\Scripts\python.exe" "%HERE%config_server.py"
+    "%VENV_DIR%\Scripts\python.exe" "%HERE%config_server.py"
     goto :eof
 )
 
 if "%1"=="--config" (
     start "" "http://127.0.0.1:17520"
-    "%HERE%venv\Scripts\python.exe" "%HERE%config_server.py"
+    "%VENV_DIR%\Scripts\python.exe" "%HERE%config_server.py"
     goto :eof
 )
 
@@ -53,4 +57,4 @@ if !errorlevel! equ 0 (
     set "WEBUI_OK=true"
 )
 
-"%HERE%venv\Scripts\hermes.exe" %*
+"%VENV_DIR%\Scripts\hermes.exe" %*

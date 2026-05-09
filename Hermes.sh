@@ -1,12 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
+
+# ── Platform detection ──
+OS="$(uname -s)"
+ARCH="$(uname -m)"
+
+case "$OS" in
+  Darwin)
+    case "$ARCH" in
+      arm64)  PLATFORM="macos-arm64" ;;
+      *)      PLATFORM="macos-x64" ;;
+    esac
+    ;;
+  Linux)
+    PLATFORM="linux-x64"
+    ;;
+  *)
+    echo "  不支持的操作系统: $OS"
+    exit 1
+    ;;
+esac
+
+# ── Multi-platform package detection ──
+# If per-platform venv exists (universal package), use it
+if [ -d "$HERE/venv-$PLATFORM" ]; then
+    VENV_DIR="$HERE/venv-$PLATFORM"
+    PYTHON_DIR="$HERE/python-$PLATFORM"
+# Otherwise fall back to single-platform venv
+elif [ -d "$HERE/venv" ]; then
+    VENV_DIR="$HERE/venv"
+    PYTHON_DIR="$HERE/python"
+else
+    echo ""
+    echo "  [ERROR] 未找到 venv 目录"
+    echo "  请先运行构建脚本: python3 build.py"
+    echo ""
+    exit 1
+fi
+
 export HERMES_HOME="$HERE/data"
-export PATH="$HERE/venv/bin:$HERE/node/bin:$HERE/python:$PATH"
+export PATH="$VENV_DIR/bin:$HERE/node/bin:$PYTHON_DIR:$PATH"
 cd "$HERE"
 
 WEBUI_PID=""
-
 cleanup() {
     if [ -n "$WEBUI_PID" ] && kill -0 "$WEBUI_PID" 2>/dev/null; then
         kill "$WEBUI_PID" 2>/dev/null || true
@@ -37,20 +74,7 @@ if [ "$HAS_KEY" = false ]; then
     elif command -v xdg-open &>/dev/null; then
         xdg-open "http://127.0.0.1:17520"
     fi
-    exec "$HERE/venv/bin/python" "$HERE/config_server.py"
+    exec "$VENV_DIR/bin/python" "$HERE/config_server.py"
 fi
 
-# Start hermes-web-ui in background (if installed)
-if command -v hermes-web-ui &>/dev/null; then
-    echo "  启动 Web UI..."
-    hermes-web-ui start --port 8648 >/dev/null &
-    WEBUI_PID=$!
-    sleep 1
-    if command -v open &>/dev/null; then
-        open "http://127.0.0.1:8648"
-    elif command -v xdg-open &>/dev/null; then
-        xdg-open "http://127.0.0.1:8648"
-    fi
-fi
-
-exec "$HERE/venv/bin/hermes" "$@"
+exec "$VENV_DIR/bin/hermes" "$@"

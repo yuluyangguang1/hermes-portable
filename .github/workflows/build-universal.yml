@@ -1,0 +1,128 @@
+name: Build Universal Package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos-arm64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 build.py
+      - run: |
+          cd dist/HermesPortable
+          # Rename platform-specific dirs
+          mv venv ../venv-macos-arm64
+          mv python ../python-macos-arm64
+          # Keep hermes-agent, node, data as-is
+          tar cf ../macos-arm64.tar venv-macos-arm64 python-macos-arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: dist/macos-arm64.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shared
+          path: dist/HermesPortable/
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y git curl
+      - run: python3 build.py
+      - run: |
+          cd dist/HermesPortable
+          mv venv ../venv-linux-x64
+          mv python ../python-linux-x64
+          tar cf ../linux-x64.tar venv-linux-x64 python-linux-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          path: dist/linux-x64.tar
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python build_windows.py
+      - run: |
+          cd dist/HermesPortable
+          mv venv ../venv-windows-x64
+          mv python ../python-windows-x64
+          tar cf ../windows-x64.tar venv-windows-x64 python-windows-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: dist/windows-x64.tar
+
+  merge-and-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-macos-arm64, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Merge all platforms
+        run: |
+          # Start with shared base (from macOS build)
+          cp -r artifacts/shared/ HermesPortable/
+
+          # Extract each platform's venv + python
+          tar xf artifacts/macos-arm64/macos-arm64.tar -C HermesPortable/
+          tar xf artifacts/linux-x64/linux-x64.tar -C HermesPortable/
+          tar xf artifacts/windows-x64/windows-x64.tar -C HermesPortable/
+
+          # Copy all launcher scripts
+          cp artifacts/shared/Hermes.bat HermesPortable/
+          cp artifacts/shared/Hermes.command HermesPortable/
+          cp artifacts/shared/Hermes.sh HermesPortable/
+          cp artifacts/shared/Hermes-WSL.bat HermesPortable/
+
+          echo "=== Final structure ==="
+          ls -la HermesPortable/
+          du -sh HermesPortable/
+
+      - name: Create universal archive
+        run: zip -r HermesPortable-Universal.zip HermesPortable/
+
+      - name: Also create per-platform archives
+        run: |
+          # macOS only
+          mkdir -p macos-only && cp -r artifacts/shared/* macos-only/
+          tar xf artifacts/macos-arm64/macos-arm64.tar -C macos-only/
+          mv macos-only/venv-macos-arm64 macos-only/venv
+          mv macos-only/python-macos-arm64 macos-only/python
+          zip -r HermesPortable-macOS.zip macos-only/
+
+          # Linux only
+          mkdir -p linux-only && cp -r artifacts/shared/* linux-only/
+          tar xf artifacts/linux-x64/linux-x64.tar -C linux-only/
+          mv linux-only/venv-linux-x64 linux-only/venv
+          mv linux-only/python-linux-x64 linux-only/python
+          zip -r HermesPortable-Linux.zip linux-only/
+
+          # Windows only
+          mkdir -p windows-only && cp -r artifacts/shared/* windows-only/
+          tar xf artifacts/windows-x64/windows-x64.tar -C windows-only/
+          mv windows-only/venv-windows-x64 windows-only/venv
+          mv windows-only/python-windows-x64 windows-only/python
+          zip -r HermesPortable-Windows.zip windows-only/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            HermesPortable-Universal.zip
+            HermesPortable-macOS.zip
+            HermesPortable-Linux.zip
+            HermesPortable-Windows.zip
+          generate_release_notes: true
