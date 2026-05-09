@@ -252,6 +252,8 @@ def step_data(ROOT):
             "terminal:\n"
             '  backend: "local"\n'
             "  timeout: 180\n\n"
+            "shell:\n"
+            '  default: "powershell"\n\n'
             "compression:\n"
             "  enabled: true\n"
             "  threshold: 0.50\n"
@@ -290,6 +292,16 @@ def step_launchers(ROOT):
         "echo   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  Portable\r\n"
         "echo.\r\n"
         "\r\n"
+        "REM Check if native venv exists\r\n"
+        'if not exist "%HERE%venv\\Scripts\\hermes.exe" (\r\n'
+        "    echo   [ERROR] 未找到 venv\\Scripts\\hermes.exe\r\n"
+        "    echo.\r\n"
+        "    echo   请先运行构建脚本生成完整环境\r\n"
+        "    echo.\r\n"
+        "    pause\r\n"
+        "    exit /b 1\r\n"
+        ")\r\n"
+        "\r\n"
         "REM Check if API key is configured\r\n"
         'set "HAS_KEY=false"\r\n'
         'if exist "%HERE%data\\.env" (\r\n'
@@ -310,6 +322,14 @@ def step_launchers(ROOT):
         '    start "" "http://127.0.0.1:17520"\r\n'
         '    "%HERE%venv\\Scripts\\python.exe" "%HERE%config_server.py"\r\n'
         "    goto :eof\r\n"
+        ")\r\n"
+        "\r\n"
+        "REM Start hermes-web-ui in background (if installed)\r\n"
+        'set "WEBUI_OK=false"\r\n'
+        "where hermes-web-ui >nul 2>&1\r\n"
+        "if !errorlevel! equ 0 (\r\n"
+        "    start /b hermes-web-ui start --port 8648 >nul 2>&1\r\n"
+        '    set "WEBUI_OK=true"\r\n'
         ")\r\n"
         "\r\n"
         '"%HERE%venv\\Scripts\\hermes.exe" %*\r\n'
@@ -353,8 +373,11 @@ def step_readme(ROOT):
         "╚══════════════════════════════════════════╝\n"
         "\n"
         "【Windows 使用方法】\n"
-        "  双击 Hermes.bat 即可启动\n"
+        "  双击 Hermes.bat 即可启动（原生运行，无需 WSL2）\n"
         "  首次使用会自动打开配置面板\n"
+        "\n"
+        "【WSL2 备选】\n"
+        "  如果原生运行遇到问题，可双击 Hermes-WSL.bat 通过 WSL2 运行\n"
         "\n"
         "【配置面板】\n"
         "  地址: http://127.0.0.1:17520\n"
@@ -367,6 +390,11 @@ def step_readme(ROOT):
         "  venv\\             Python 依赖\n"
         "  python\\           Python 运行时\n"
         "  hermes-agent\\     Hermes 源码\n"
+        "\n"
+        "【已知限制】\n"
+        "  - Windows 原生支持为 Early Beta\n"
+        "  - 文件监听使用轮询（效率较低）\n"
+        "  - 建议使用 Windows Terminal 获得最佳体验\n"
         "\n"
         "【更新】\n"
         "  双击 Hermes-Config.bat，在设置页点击「检查更新」\n"

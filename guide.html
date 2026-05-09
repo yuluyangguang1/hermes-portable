@@ -385,7 +385,8 @@
 
   <pre><code>HermesPortable/
 ├── <span class="cmd">Hermes.command</span>      <span class="comment"># macOS 启动器（双击）</span>
-├── <span class="cmd">Hermes.bat</span>          <span class="comment"># Windows 启动器（双击）</span>
+├── <span class="cmd">Hermes.bat</span>          <span class="comment"># Windows 启动器（双击，原生运行）</span>
+├── <span class="cmd">Hermes-WSL.bat</span>      <span class="comment"># Windows WSL2 备选启动器</span>
 ├── <span class="cmd">Hermes.sh</span>           <span class="comment"># Linux 启动器</span>
 ├── <span class="cmd">Hermes-Config.bat</span>   <span class="comment"># Windows 配置面板入口</span>
 ├── <span class="cmd">README.txt</span>          <span class="comment"># 用户指南</span>
@@ -412,7 +413,7 @@
 <section>
   <h2><span class="icon">🪟</span> Windows 原生支持</h2>
 
-  <p>Hermes Portable 支持 Windows 原生运行，<strong>无需安装 WSL</strong>。</p>
+  <p>Hermes Portable 支持 Windows 原生运行，<strong>无需安装 WSL</strong>（Early Beta）。</p>
 
   <h3>在 Windows 上构建</h3>
   <pre><code><span class="comment"># 1. 克隆或下载项目</span>
@@ -432,6 +433,12 @@ python3 build.py /Volumes/MyUSB     <span class="comment"># 直接输出到U盘<
   <div class="callout warn">
     <p><strong>⚠️ 注意：</strong>Python 虚拟环境和依赖是平台特定的。macOS 构建的产物只能在 macOS 上运行。Windows 用户需要在 Windows 机器上运行 <code>build_windows.py</code>。</p>
   </div>
+
+  <h3>WSL2 备选方案</h3>
+  <p>如果原生运行遇到兼容性问题，可使用 <code>Hermes-WSL.bat</code> 通过 WSL2 运行。需要先安装 WSL2：</p>
+  <pre><code><span class="comment"># 以管理员身份打开 PowerShell</span>
+wsl --install
+<span class="comment"># 重启电脑</span></code></pre>
 </section>
 
 <!-- ════════════════════ 备份与更新 ════════════════════ -->
@@ -478,7 +485,7 @@ venv/bin/pip install -e hermes-agent[all]</code></pre>
   </ul>
 
   <h3>Q: Windows 上双击 .bat 没反应？</h3>
-  <p>右键 <code>Hermes.bat</code> → 以管理员身份运行。如果仍然没反应，打开 CMD，手动运行 <code>Hermes.bat</code> 查看错误信息。</p>
+  <p>右键 <code>Hermes.bat</code> → 以管理员身份运行。如果仍然没反应，打开 CMD，手动运行 <code>Hermes.bat</code> 查看错误信息。如果原生运行遇到兼容性问题，可尝试 <code>Hermes-WSL.bat</code>（需要安装 WSL2）。</p>
 
   <h3>Q: 如何更换模型？</h3>
   <p>打开配置面板（<code>http://127.0.0.1:17520</code>），在「模型」标签页选择新模型，或直接编辑 <code>data/config.yaml</code> 中的 <code>model.default</code> 字段。</p>

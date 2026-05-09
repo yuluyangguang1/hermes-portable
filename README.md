@@ -10,11 +10,11 @@
 |------|--------|------|
 | **macOS** | `Hermes.command` 双击 | macOS 10.15+ |
 | **Linux** | `./Hermes.sh` 终端运行 | glibc 2.17+ |
-| **Windows** | `Hermes.bat` 双击 | **需要 WSL2** |
+| **Windows** | `Hermes.bat` 双击 | Windows 10/11（原生支持，Early Beta） |
 
-> ⚠️ **Windows 用户**：Hermes Agent 官方不支持原生 Windows，必须通过 WSL2 运行。
-> 安装方法：以管理员身份打开 PowerShell → 运行 `wsl --install` → 重启电脑。
-> 详见 [微软官方指南](https://learn.microsoft.com/windows/wsl/install)。
+> 💡 **Windows 用户**：Hermes Agent 已支持原生 Windows 运行（Early Beta），无需 WSL2。
+> 如果遇到兼容性问题，可使用 `Hermes-WSL.bat` 通过 WSL2 运行作为备选方案。
+> 详见 [官方文档](https://hermes-agent.nousresearch.com/docs/user-guide/windows-native)。
 
 ## 构建
 
@@ -25,21 +25,21 @@ python3 build.py                    # 输出到 dist/HermesPortable/
 python3 build.py /Volumes/MyUSB     # 直接输出到U盘
 ```
 
-### Windows（在 WSL2 中构建）
+### Windows（原生构建，无需 WSL2）
 
 ```bash
 # 1. 克隆或下载本项目
 git clone https://github.com/yuluyangguang1/hermes-portable.git
 cd hermes-portable
 
-# 2. 运行构建脚本（在 WSL2 终端中）
-python3 build.py
+# 2. 运行构建脚本（在 PowerShell 或 CMD 中）
+python build_windows.py
 
 # 输出到 dist/HermesPortable/
-# 在 Windows 资源管理器中双击 Hermes.bat 即可启动
+# 双击 Hermes.bat 即可启动
 ```
 
-**构建环境要求：** Python 3.8+、git、curl
+**构建环境要求：** Python 3.8+、git、curl（Windows 自带）
 
 **构建产物：** ~500MB 的完全自包含文件夹
 
@@ -48,7 +48,7 @@ python3 build.py
 1. 插上U盘
 2. 双击启动：
    - **macOS** → `Hermes.command`
-   - **Windows** → `Hermes.bat`（需已安装 WSL2）
+   - **Windows** → `Hermes.bat`（原生运行，无需 WSL2）
    - **Linux** → `./Hermes.sh`
 3. 首次使用会自动打开配置面板，填入 API Key 即可
 
@@ -59,7 +59,8 @@ python3 build.py
 ```
 HermesPortable/
 ├── Hermes.command     # macOS 启动器 (双击)
-├── Hermes.bat         # Windows 启动器 (双击，通过 WSL2 运行)
+├── Hermes.bat         # Windows 启动器 (双击，原生运行)
+├── Hermes-WSL.bat     # Windows WSL2 备选启动器
 ├── Hermes.sh          # Linux 启动器
 ├── README.md          # 本文档
 ├── README.txt         # 用户指南
@@ -86,7 +87,7 @@ HermesPortable/
 - **数据隔离**：启动脚本设置 `HERMES_HOME=data/`，所有数据存U盘
 - **跨平台启动器**：
   - `.command` = macOS Finder 可双击的 shell 脚本
-  - `.bat` = Windows 启动器（通过 WSL2 运行，与官方推荐一致）
+  - `.bat` = Windows 原生启动器（Early Beta，另有 `.bat` WSL2 备选）
   - `.sh` = Linux 终端启动器
 
 ## 为什么选择 Hermes Portable？

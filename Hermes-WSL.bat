@@ -1,0 +1,58 @@
+@echo off
+setlocal enabledelayedexpansion
+set "HERE=%~dp0"
+
+REM Check WSL availability
+wsl --version >nul 2>&1
+if !errorlevel! neq 0 (
+    echo.
+    echo  ╔═══════════════════════════════════════╗
+    echo  ║  此启动器需要 WSL2                     ║
+    echo  ╚═══════════════════════════════════════╝
+    echo.
+    echo  请先安装 WSL2:
+    echo    1. 以管理员身份打开 PowerShell
+    echo    2. 运行: wsl --install
+    echo    3. 重启电脑
+    echo.
+    echo  或者使用原生版本: 双击 Hermes.bat
+    echo.
+    pause
+    exit /b 1
+)
+
+REM Convert Windows path to WSL path
+for /f "usebackq delims=" %%I in (`wsl wslpath "%HERE%"`) do set WSL_HERE=%%I
+
+echo.
+echo   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗
+echo   ╠═╣╠═╣╠╦╝╠═╝║╣ ║   ║ ║ ║
+echo   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  Portable (WSL2)
+echo.
+
+REM Check if API key is configured
+wsl test -f "%WSL_HERE%/data/.env" ^&^& wsl grep -qE "^[A-Z_]+_API_KEY=.{10,}" "%WSL_HERE%/data/.env"
+if !errorlevel! neq 0 (
+    echo   首次使用！正在打开配置面板...
+    echo   请在浏览器中完成 API Key 配置。
+    echo.
+    start http://127.0.0.1:17520
+    wsl bash -c "cd '%WSL_HERE%' && export HERMES_HOME='%WSL_HERE%/data' && '%WSL_HERE%/venv/bin/python' '%WSL_HERE%/config_server.py'"
+    goto :eof
+)
+
+if "%1"=="--config" (
+    start http://127.0.0.1:17520
+    wsl bash -c "cd '%WSL_HERE%' && export HERMES_HOME='%WSL_HERE%/data' && '%WSL_HERE%/venv/bin/python' '%WSL_HERE%/config_server.py'"
+    goto :eof
+)
+
+REM Start hermes-web-ui in background (if installed)
+set "WEBUI_OK=false"
+wsl bash -c "command -v hermes-web-ui >/dev/null 2>&1 && (export PATH='%WSL_HERE%/node/bin:$PATH' && hermes-web-ui start --port 8648 >/dev/null 2>&1 &)" 2>nul
+if !errorlevel! equ 0 (
+    set "WEBUI_OK=true"
+    start http://127.0.0.1:8648
+)
+
+wsl bash -c "cd '%WSL_HERE%' && export HERMES_HOME='%WSL_HERE%/data' && export PATH='%WSL_HERE%/node/bin:$PATH' && '%WSL_HERE%/venv/bin/hermes' %*"

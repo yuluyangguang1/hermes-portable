@@ -286,7 +286,7 @@ def step_data(ROOT):
     ok("data/ ready")
 
 
-NODE_VERSION = "23.11.0"
+NODE_VERSION = "22.16.0"
 
 def step_nodejs(ROOT):
     """Download Node.js binary for hermes-web-ui."""
@@ -295,10 +295,12 @@ def step_nodejs(ROOT):
         ok("Node.js already present"); return
 
     system, arch = detect_platform()
+    # Node.js uses different arch names: x64 instead of x86_64, arm64 instead of aarch64
+    node_arch = "x64" if arch == "x86_64" else "arm64"
     if system == "Darwin":
-        url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-darwin-{arch}.tar.gz"
+        url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-darwin-{node_arch}.tar.gz"
     elif system == "Linux":
-        url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-linux-{arch}.tar.gz"
+        url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-linux-{node_arch}.tar.gz"
     else:
         url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-win-x64.zip"
 
@@ -322,7 +324,7 @@ def step_nodejs(ROOT):
             safe_members = [m for m in t.getmembers()
                            if not m.name.startswith("/") and ".." not in m.name]
             t.extractall(node_dir, members=safe_members)
-        nested = node_dir / f"node-v{NODE_VERSION}-{system.lower()}-{arch}"
+        nested = node_dir / f"node-v{NODE_VERSION}-{system.lower()}-{node_arch}"
         if nested.exists():
             for item in nested.iterdir():
                 shutil.move(str(item), str(node_dir / item.name))
@@ -378,7 +380,6 @@ def step_launchers(ROOT):
             if fname.endswith(".sh"):
                 (ROOT / fname).chmod(0o755)
 
-    # ── Windows (WSL required) ──
     # ── Native Windows (no WSL needed!) ──
     (ROOT / "Hermes.bat").write_text(
         "@echo off\r\n"
@@ -392,6 +393,16 @@ def step_launchers(ROOT):
         "echo   ╠═╣╠═╣╠╦╝╠═╝║╣ ║   ║ ║ ║\r\n"
         "echo   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  Portable\r\n"
         "echo.\r\n"
+        "\r\n"
+        "REM Check if native venv exists\r\n"
+        'if not exist "%HERE%venv\\Scripts\\hermes.exe" (\r\n'
+        "    echo   [ERROR] 未找到 venv\\Scripts\\hermes.exe\r\n"
+        "    echo.\r\n"
+        "    echo   请先运行构建脚本生成完整环境\r\n"
+        "    echo.\r\n"
+        "    pause\r\n"
+        "    exit /b 1\r\n"
+        ")\r\n"
         "\r\n"
         "REM Check if API key is configured\r\n"
         'set "HAS_KEY=false"\r\n'
@@ -415,7 +426,56 @@ def step_launchers(ROOT):
         "    goto :eof\r\n"
         ")\r\n"
         "\r\n"
+        "REM Start hermes-web-ui in background (if installed)\r\n"
+        'set "WEBUI_OK=false"\r\n'
+        "where hermes-web-ui >nul 2>&1\r\n"
+        "if !errorlevel! equ 0 (\r\n"
+        "    start /b hermes-web-ui start --port 8648 >nul 2>&1\r\n"
+        '    set "WEBUI_OK=true"\r\n'
+        ")\r\n"
+        "\r\n"
         '"%HERE%venv\\Scripts\\hermes.exe" %*\r\n'
+    )
+
+    # ── Windows WSL2 fallback launcher ──
+    (ROOT / "Hermes-WSL.bat").write_text(
+        "@echo off\r\n"
+        "setlocal enabledelayedexpansion\r\n"
+        'set "HERE=%~dp0"\r\n'
+        "\r\n"
+        "REM Check WSL availability\r\n"
+        "wsl --version >nul 2>&1\r\n"
+        "if !errorlevel! neq 0 (\r\n"
+        "    echo.\r\n"
+        "    echo  此启动器需要 WSL2。请使用原生版本: Hermes.bat\r\n"
+        "    echo.\r\n"
+        "    pause\r\n"
+        "    exit /b 1\r\n"
+        ")\r\n"
+        "\r\n"
+        'for /f "usebackq delims=" %%I in (`wsl wslpath "%HERE%"`) do set WSL_HERE=%%I\r\n'
+        "\r\n"
+        "echo.\r\n"
+        "echo   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗\r\n"
+        "echo   ╠═╣╠═╣╠╦╝╠═╝║╣ ║   ║ ║ ║\r\n"
+        "echo   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  Portable (WSL2)\r\n"
+        "echo.\r\n"
+        "\r\n"
+        'wsl test -f "%WSL_HERE%/data/.env" ^&^& wsl grep -qE "^[A-Z_]+_API_KEY=.{10,}" "%WSL_HERE%/data/.env"\r\n'
+        "if !errorlevel! neq 0 (\r\n"
+        "    echo   首次使用！正在打开配置面板...\r\n"
+        "    start http://127.0.0.1:17520\r\n"
+        "    wsl bash -c \"cd '%WSL_HERE%' && export HERMES_HOME='%WSL_HERE%/data' && '%WSL_HERE%/venv/bin/python' '%WSL_HERE%/config_server.py'\"\r\n"
+        "    goto :eof\r\n"
+        ")\r\n"
+        "\r\n"
+        'if "%1"=="--config" (\r\n'
+        "    start http://127.0.0.1:17520\r\n"
+        "    wsl bash -c \"cd '%WSL_HERE%' && export HERMES_HOME='%WSL_HERE%/data' && '%WSL_HERE%/venv/bin/python' '%WSL_HERE%/config_server.py'\"\r\n"
+        "    goto :eof\r\n"
+        ")\r\n"
+        "\r\n"
+        'wsl bash -c "cd \'%WSL_HERE%\' && export HERMES_HOME=\'%WSL_HERE%/data\' && export PATH=\'%WSL_HERE%/node/bin:$PATH\' && \'%WSL_HERE%/venv/bin/hermes\' %*"\r\n'
     )
 
     # ── Windows config-only launcher ──
@@ -530,7 +590,7 @@ def step_readme(ROOT):
         "【支持平台】\n"
         "  macOS 10.15+ (Catalina)  →  Hermes.command  双击即用\n"
         "  Linux (glibc 2.17+)      →  ./Hermes.sh     终端运行\n"
-        "  Windows 10/11            →  Hermes.bat       双击即用（原生支持）\n"
+        "  Windows 10/11            →  Hermes.bat       双击即用（原生支持，Early Beta）\n"
         "\n"
         "【首次使用】\n"
         "  双击启动即可，首次会自动打开配置面板：\n"
@@ -553,6 +613,9 @@ def step_readme(ROOT):
         "  config_server.py  Web 配置面板\n"
         "  chat_viewer.py    聊天记录查看器\n"
         "  guide.html        操作说明（浏览器打开）\n"
+        "\n"
+        "【Windows 备选】\n"
+        "  如果 Hermes.bat 原生运行遇到问题，可使用 Hermes-WSL.bat 通过 WSL2 运行。\n"
         "\n"
         "【更新 Hermes】\n"
         "  cd hermes-agent && git pull && cd ..\n"
