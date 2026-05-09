@@ -29,7 +29,12 @@ if exist "%HERE%venv-windows-x64\Scripts\hermes.exe" (
 )
 
 set "HERMES_HOME=%HERE%data"
-set "PATH=%VENV_DIR%\Scripts;%HERE%node;%PYTHON_DIR%;%PATH%"
+set "PATH=%VENV_DIR%\Scripts;%HERE%node-windows-x64;%PYTHON_DIR%;%PATH%"
+
+REM Sync portable config to ~/.hermes (hermes-web-ui uses this path)
+if not exist "%USERPROFILE%\.hermes" mkdir "%USERPROFILE%\.hermes"
+if exist "%HERE%data\.env" copy /y "%HERE%data\.env" "%USERPROFILE%\.hermes\.env" >nul 2>&1
+if exist "%HERE%data\config.yaml" copy /y "%HERE%data\config.yaml" "%USERPROFILE%\.hermes\config.yaml" >nul 2>&1
 
 echo.
 echo    +---+ +---+ +---+ +---+ +---+
@@ -63,9 +68,9 @@ REM Start hermes-web-ui in background (if installed)
 set "WEBUI_OK=false"
 where hermes-web-ui >nul 2>&1
 if !errorlevel! equ 0 (
-    start /b hermes-web-ui start --port 8648 >nul 2>&1
+    start "" /b cmd /c "hermes-web-ui start --port 8648"
     set "WEBUI_OK=true"
-    timeout /t 2 /nobreak >nul
+    timeout /t 3 /nobreak >nul
     start "" "http://127.0.0.1:8648"
 )
 
