@@ -439,6 +439,39 @@ python3 build.py /Volumes/MyUSB     <span class="comment"># 直接输出到U盘<
   <pre><code><span class="comment"># 以管理员身份打开 PowerShell</span>
 wsl --install
 <span class="comment"># 重启电脑</span></code></pre>
+
+  <h3>本地多平台合并</h3>
+  <p>如果你有多台不同系统的电脑，可以分别构建后合并成 Universal 包：</p>
+  <pre><code><span class="comment"># 1. 在每台电脑上构建到不同目录</span>
+<span class="comment"># Mac:</span>
+python3 build.py /path/to/HermesPortable-mac
+<span class="comment"># Linux:</span>
+python3 build.py /path/to/HermesPortable-linux
+<span class="comment"># Windows:</span>
+python build_windows.py D:\HermesPortable-win
+
+<span class="comment"># 2. 在一台电脑上合并</span>
+mkdir HermesPortable-Universal
+
+<span class="comment"># 复制共享文件（从任一平台）</span>
+cp -r HermesPortable-mac/hermes-agent HermesPortable-Universal/
+cp -r HermesPortable-mac/node HermesPortable-Universal/
+cp -r HermesPortable-mac/data HermesPortable-Universal/
+cp HermesPortable-mac/*.command HermesPortable-Universal/
+cp HermesPortable-mac/*.sh HermesPortable-Universal/
+cp HermesPortable-mac/*.html HermesPortable-Universal/
+cp HermesPortable-mac/config_server.py HermesPortable-Universal/
+
+<span class="comment"># 重命名各平台 venv + python</span>
+mv HermesPortable-mac/venv HermesPortable-Universal/venv-macos-arm64
+mv HermesPortable-mac/python HermesPortable-Universal/python-macos-arm64
+mv HermesPortable-linux/venv HermesPortable-Universal/venv-linux-x64
+mv HermesPortable-linux/python HermesPortable-Universal/python-linux-x64
+mv HermesPortable-win/venv HermesPortable-Universal/venv-windows-x64
+mv HermesPortable-win/python HermesPortable-Universal/python-windows-x64
+
+<span class="comment"># 复制 Windows 启动器</span>
+cp HermesPortable-win/*.bat HermesPortable-Universal/</code></pre>
 </section>
 
 <!-- ════════════════════ 备份与更新 ════════════════════ -->
