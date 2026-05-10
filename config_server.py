@@ -15,7 +15,40 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 DATA_DIR = SCRIPT_DIR / "data"
-VENV_DIR = SCRIPT_DIR / "venv"
+
+
+def _detect_venv_dir():
+    """Pick the right venv for the current platform.
+
+    Universal zip ships venv-<platform>/; single-platform zip ships venv/.
+    We auto-detect so the config panel works in both layouts.
+    """
+    import platform as _p
+    system = _p.system()
+    arch = _p.machine().lower()
+    if arch in ("x86_64", "amd64"): arch = "x64"
+    elif arch in ("aarch64", "arm64"): arch = "arm64"
+
+    if system == "Darwin":
+        label = f"macos-{arch}"
+    elif system == "Linux":
+        label = f"linux-{arch}"
+    elif system == "Windows":
+        label = f"windows-{arch}"
+    else:
+        label = f"{system.lower()}-{arch}"
+
+    for candidate in (SCRIPT_DIR / f"venv-{label}", SCRIPT_DIR / "venv"):
+        py = (candidate / "Scripts" / "python.exe") if system == "Windows" \
+            else (candidate / "bin" / "python")
+        if py.exists():
+            return candidate
+    # Fallback: return the single-platform default even if missing,
+    # so downstream error messages stay informative.
+    return SCRIPT_DIR / "venv"
+
+
+VENV_DIR = _detect_venv_dir()
 ENV_FILE = DATA_DIR / ".env"
 CONFIG_FILE = DATA_DIR / "config.yaml"
 
@@ -114,11 +147,15 @@ CHANNELS = [
 def parse_env():
     keys = {}
     if ENV_FILE.exists():
-        for line in ENV_FILE.read_text().splitlines():
+        for line in ENV_FILE.read_text(encoding="utf-8", errors="replace").splitlines():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
-                keys[k.strip()] = v.strip()
+                v = v.strip()
+                # Strip matching surrounding quotes: KEY="value" → value
+                if len(v) >= 2 and v[0] == v[-1] and v[0] in ('"', "'"):
+                    v = v[1:-1]
+                keys[k.strip()] = v
     return keys
 
 def parse_yaml_safe(path):
@@ -162,7 +199,12 @@ def _yaml_dump_simple(d, indent=0):
         elif v is None:
             lines.append(f"{prefix}{k}:")
         else:
-            lines.append(f'{prefix}{k}: "{v}"')
+            # YAML double-quoted string: escape backslashes and quotes, and
+            # flatten newlines. Keeps the output parseable by any YAML reader.
+            s = str(v)
+            s = s.replace("\\", "\\\\").replace('"', '\\"')
+            s = s.replace("\n", "\\n").replace("\r", "\\r")
+            lines.append(f'{prefix}{k}: "{s}"')
     return lines
 
 
@@ -1320,7 +1362,10 @@ class ConfigHandler(SimpleHTTPRequestHandler):
     def _get_version(self):
         import urllib.request
         # Local version
-        hermes_bin = VENV_DIR / "bin" / "hermes"
+        if sys.platform == "win32":
+            hermes_bin = VENV_DIR / "Scripts" / "hermes.exe"
+        else:
+            hermes_bin = VENV_DIR / "bin" / "hermes"
         local = "unknown"
         if hermes_bin.exists():
             try:
@@ -1500,6 +1545,21 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 env = os.environ.copy()
                 env["HERMES_HOME"] = str(DATA_DIR)
                 if sys.platform == "win32":
+                    # Inherit a proper PATH so hermes can reach venv tools,
+                    # node, and the portable python. Also force UTF-8 so
+                    # Chinese output doesn't blow up in the new console.
+                    scripts = VENV_DIR / "Scripts"
+                    node_dir = SCRIPT_DIR / "node-windows-x64"
+                    if not node_dir.exists():
+                        node_dir = SCRIPT_DIR / "node"
+                    python_dir = SCRIPT_DIR / "python-windows-x64"
+                    if not python_dir.exists():
+                        python_dir = SCRIPT_DIR / "python"
+                    path_parts = [str(scripts), str(node_dir), str(python_dir),
+                                  env.get("PATH", "")]
+                    env["PATH"] = os.pathsep.join(p for p in path_parts if p)
+                    env["PYTHONIOENCODING"] = "utf-8"
+                    env["PYTHONUTF8"] = "1"
                     # Launch in a new console window (like macOS gets its own Terminal)
                     subprocess.Popen([str(hermes_bin)], env=env, cwd=str(SCRIPT_DIR),
                                      creationflags=subprocess.CREATE_NEW_CONSOLE)

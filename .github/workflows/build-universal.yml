@@ -9,89 +9,83 @@ on:
 permissions:
   contents: write
 
+# Each platform job builds with --layout universal, which produces
+#   venv-<platform>/ and python-<platform>/ (and node-<platform>/)
+# instead of plain venv/. The merge job then overlays all three onto a
+# single shared-base (which contains launchers, data/, hermes-agent/).
+
 jobs:
   build-macos:
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        with: { python-version: '3.12' }
       - name: Build
-        run: python3 build.py
-      - name: Prepare artifacts
-        run: |
-          cd dist/HermesPortable
-          mv venv ../venv-macos-arm64
-          mv python ../python-macos-arm64
-      - uses: actions/upload-artifact@v4
+        run: python3 build.py --layout universal
+      - name: Upload shared base (launchers, data, hermes-agent, uv)
+        uses: actions/upload-artifact@v4
         with:
           name: shared-base
-          path: dist/HermesPortable/
-      - uses: actions/upload-artifact@v4
+          path: |
+            dist/HermesPortable/
+            !dist/HermesPortable/venv-*/
+            !dist/HermesPortable/python-*/
+            !dist/HermesPortable/node-*/
+      - name: Upload macOS venv/python/node
+        uses: actions/upload-artifact@v4
         with:
-          name: venv-macos-arm64
-          path: dist/venv-macos-arm64/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: python-macos-arm64
-          path: dist/python-macos-arm64/
+          name: macos-runtime
+          path: |
+            dist/HermesPortable/venv-macos-arm64/
+            dist/HermesPortable/python-macos-arm64/
+            dist/HermesPortable/node-macos-arm64/
+          if-no-files-found: warn
 
   build-linux:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        with: { python-version: '3.12' }
       - name: Install system deps
         run: sudo apt-get update && sudo apt-get install -y git curl
       - name: Build
-        run: python3 build.py
-      - uses: actions/upload-artifact@v4
+        run: python3 build.py --layout universal
+      - name: Upload Linux venv/python/node
+        uses: actions/upload-artifact@v4
         with:
-          name: venv-linux-x64
-          path: dist/HermesPortable/venv/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: python-linux-x64
-          path: dist/HermesPortable/python/
+          name: linux-runtime
+          path: |
+            dist/HermesPortable/venv-linux-x64/
+            dist/HermesPortable/python-linux-x64/
+            dist/HermesPortable/node-linux-x64/
+          if-no-files-found: warn
 
   build-windows:
     runs-on: windows-latest
-    timeout-minutes: 30
-    continue-on-error: true
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Debug info
-        run: |
-          python --version
-          git --version
-          where curl
-          curl --version
-          echo "Platform:"
-          python -c "import platform; print(platform.system(), platform.machine())"
+        with: { python-version: '3.12' }
       - name: Build
-        id: build
-        run: python build_windows.py
-      - uses: actions/upload-artifact@v4
-        if: steps.build.outcome == 'success'
+        shell: bash
+        run: python build.py --layout universal
+      - name: Upload Windows venv/python/node
+        uses: actions/upload-artifact@v4
         with:
-          name: venv-windows-x64
-          path: dist/HermesPortable/venv/
-      - uses: actions/upload-artifact@v4
-        if: steps.build.outcome == 'success'
-        with:
-          name: python-windows-x64
-          path: dist/HermesPortable/python/
+          name: windows-runtime
+          path: |
+            dist/HermesPortable/venv-windows-x64/
+            dist/HermesPortable/python-windows-x64/
+            dist/HermesPortable/node-windows-x64/
+          if-no-files-found: warn
 
   merge-and-release:
-    if: always() && startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/')
     needs: [build-macos, build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
@@ -99,47 +93,50 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Merge all platforms
+      - name: Assemble Universal
         run: |
-          cp -r artifacts/shared-base/ HermesPortable/
-          if [ -d "artifacts/venv-macos-arm64" ]; then
-            cp -r artifacts/venv-macos-arm64/ HermesPortable/venv-macos-arm64/
-            cp -r artifacts/python-macos-arm64/ HermesPortable/python-macos-arm64/
-          fi
-          if [ -d "artifacts/venv-linux-x64" ]; then
-            cp -r artifacts/venv-linux-x64/ HermesPortable/venv-linux-x64/
-            cp -r artifacts/python-linux-x64/ HermesPortable/python-linux-x64/
-          fi
-          if [ -d "artifacts/venv-windows-x64" ]; then
-            cp -r artifacts/venv-windows-x64/ HermesPortable/venv-windows-x64/
-            cp -r artifacts/python-windows-x64/ HermesPortable/python-windows-x64/
-          fi
+          set -e
+          mkdir -p HermesPortable
+          # shared-base contains launchers, data/, hermes-agent/, uv, README, ...
+          cp -a artifacts/shared-base/. HermesPortable/
+          for rt in macos-runtime linux-runtime windows-runtime; do
+            if [ -d "artifacts/$rt" ]; then
+              cp -a "artifacts/$rt/." HermesPortable/
+              echo "  merged $rt"
+            else
+              echo "  ! $rt missing — skipping"
+            fi
+          done
           du -sh HermesPortable/
+          ls HermesPortable/
 
-      - name: Create archives
+      - name: Build Universal zip
+        run: zip -rq HermesPortable-Universal.zip HermesPortable/
+
+      - name: Build per-platform zips (same launchers, single runtime each)
         run: |
-          zip -r HermesPortable-Universal.zip HermesPortable/
-
-          if [ -d "artifacts/venv-macos-arm64" ]; then
-            mkdir -p macos-only && cp -r artifacts/shared-base/* macos-only/
-            cp -r artifacts/venv-macos-arm64/ macos-only/venv
-            cp -r artifacts/python-macos-arm64/ macos-only/python
-            zip -r HermesPortable-macOS.zip macos-only/
-          fi
-
-          if [ -d "artifacts/venv-linux-x64" ]; then
-            mkdir -p linux-only && cp -r artifacts/shared-base/* linux-only/
-            cp -r artifacts/venv-linux-x64/ linux-only/venv
-            cp -r artifacts/python-linux-x64/ linux-only/python
-            zip -r HermesPortable-Linux.zip linux-only/
-          fi
-
-          if [ -d "artifacts/venv-windows-x64" ]; then
-            mkdir -p windows-only && cp -r artifacts/shared-base/* windows-only/
-            cp -r artifacts/venv-windows-x64/ windows-only/venv
-            cp -r artifacts/python-windows-x64/ windows-only/python
-            zip -r HermesPortable-Windows.zip windows-only/
-          fi
+          set -e
+          pack_platform() {
+            local platform=$1 rtdir=$2
+            if [ ! -d "artifacts/$rtdir" ]; then return 0; fi
+            rm -rf "out-$platform"
+            mkdir -p "out-$platform"
+            cp -a artifacts/shared-base/. "out-$platform/"
+            cp -a "artifacts/$rtdir/." "out-$platform/"
+            # Rename platform-suffixed dirs to generic ones so the
+            # single-platform zip also works with the default launcher path.
+            ( cd "out-$platform"
+              for d in venv-* python-* node-*; do
+                [ -d "$d" ] || continue
+                base="${d%%-*}"
+                mv "$d" "$base"
+              done )
+            zip -rq "HermesPortable-$platform.zip" "out-$platform"
+            mv "HermesPortable-$platform.zip" .
+          }
+          pack_platform macOS   macos-runtime
+          pack_platform Linux   linux-runtime
+          pack_platform Windows windows-runtime
 
       - uses: softprops/action-gh-release@v2
         with:
