@@ -1412,13 +1412,27 @@ class ConfigHandler(SimpleHTTPRequestHandler):
 
     def _run_update(self):
         update_script = SCRIPT_DIR / "update.py"
-        if update_script.exists():
-            py = sys.executable
-            try:
-                subprocess.run([py, str(update_script), "update"],
-                             cwd=str(SCRIPT_DIR), timeout=120)
-            except subprocess.TimeoutExpired:
-                pass
+        if not update_script.exists():
+            return
+        # Use the portable venv's python if we can find it, so update.py
+        # reinstalls into the same venv hermes runs from. Fall back to
+        # whatever `sys.executable` points at (usually the same anyway).
+        if sys.platform == "win32":
+            py = VENV_DIR / "Scripts" / "python.exe"
+        else:
+            py = VENV_DIR / "bin" / "python"
+        if not py.exists():
+            py = Path(sys.executable)
+        # No timeout: a fresh `pip install` of hermes-agent + its extras
+        # can easily take 5+ minutes on a cold cache; the old 120s
+        # ceiling silently aborted mid-install and left the venv in a
+        # half-broken state. The frontend polls /api/version for
+        # completion instead of relying on us returning.
+        try:
+            subprocess.run([str(py), str(update_script), "update"],
+                           cwd=str(SCRIPT_DIR))
+        except Exception:
+            pass
 
     def _test_provider(self, data):
         """Test an API key by making a minimal request."""
@@ -1459,7 +1473,9 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 "headers": {"x-goog-api-key": api_key},
             },
             "xiaomi": {
-                "url": "https://api.xiaoai.mi.com/v1/models",
+                # Xiaomi MiMo uses api.xiaomimimo.com (NOT api.xiaoai.mi.com —
+                # that's Xiaomi's smart-home assistant, unrelated).
+                "url": "https://api.xiaomimimo.com/v1/models",
                 "headers": {"Authorization": f"Bearer {api_key}"},
             },
             "nous": {

@@ -35,6 +35,19 @@ Windows notes
   • Prefer short install paths (e.g. C:\HP) — long paths can trip up
     older Python packages on Windows.
 
+macOS notes
+-----------
+  • GitHub CI builds on macos-latest, which is ARM64 (Apple Silicon).
+    Intel Mac users should either build from source (`python3 build.py`)
+    or use the Universal zip once both arch builds land in it.
+
+Linux notes
+-----------
+  • Requires glibc ≥ 2.28 (Ubuntu 20.04+, Debian 11+, RHEL 8+).
+    Node.js 22.x's prebuilt binaries won't run on older glibc.
+  • If `Hermes.sh` fails with `GLIBC_2.xx not found`, run
+    `./linux-rebuild.sh` on the target machine to rebuild the runtime.
+
 Data layout
 -----------
   data/             all user state (sessions, skills, logs)

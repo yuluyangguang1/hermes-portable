@@ -12,77 +12,115 @@ from pathlib import Path
 from datetime import datetime
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
-SESSIONS_DIR = SCRIPT_DIR / "data" / "sessions"
-# Fallback to system sessions
+# Portable data dir (set by the launchers via HERMES_HOME=$HERE/data).
+PORTABLE_SESSIONS = SCRIPT_DIR / "data" / "sessions"
+# System-wide data dir (used when hermes was started without the launcher).
 SYSTEM_SESSIONS = Path.home() / ".hermes" / "sessions"
 
 PORT = 17521
 
 
-def get_sessions_dir():
-    if SESSIONS_DIR.exists() and list(SESSIONS_DIR.glob("session_*.json")):
-        return SESSIONS_DIR
-    if SYSTEM_SESSIONS.exists():
-        return SYSTEM_SESSIONS
-    return SESSIONS_DIR
+def _candidate_session_dirs():
+    """All directories we may find hermes session files in.
+
+    Unioning them means we show everything — whether the user launched
+    via Hermes.sh (portable `data/`) or by running `hermes` directly
+    outside the portable folder (~/.hermes/).
+    """
+    seen = set()
+    for d in (PORTABLE_SESSIONS, SYSTEM_SESSIONS):
+        if d.exists() and d.is_dir():
+            resolved = d.resolve()
+            if resolved not in seen:
+                seen.add(resolved)
+                yield d
 
 
 def list_sessions():
-    """List all sessions sorted by time."""
-    sdir = get_sessions_dir()
+    """List all sessions, newest first (by last_updated, falling back to mtime)."""
+    seen_ids = set()
     sessions = []
-    for f in sorted(sdir.glob("session_*.json"), reverse=True):
-        try:
-            with open(f) as fh:
-                data = json.load(fh)
-            msg_count = len(data.get("messages", []))
-            # Filter out non-chat messages
-            chat_msgs = [m for m in data.get("messages", [])
-                         if m.get("role") in ("user", "assistant")]
-            if not chat_msgs:
-                continue
+    for sdir in _candidate_session_dirs():
+        for f in sdir.glob("session_*.json"):
+            try:
+                with open(f, encoding="utf-8", errors="replace") as fh:
+                    data = json.load(fh)
+                msg_count = len(data.get("messages", []))
+                chat_msgs = [m for m in data.get("messages", [])
+                             if m.get("role") in ("user", "assistant")]
+                if not chat_msgs:
+                    continue
 
-            first_user = next((m for m in chat_msgs if m["role"] == "user"), {})
-            first_msg = str(first_user.get("content", ""))[:80]
-            if not first_msg:
-                continue
+                first_user = next((m for m in chat_msgs if m["role"] == "user"), {})
+                first_msg = str(first_user.get("content", ""))[:80]
+                if not first_msg:
+                    continue
 
-            sessions.append({
-                "file": f.name,
-                "session_id": data.get("session_id", f.stem),
-                "model": data.get("model", "unknown"),
-                "start": data.get("session_start", ""),
-                "updated": data.get("last_updated", ""),
-                "message_count": msg_count,
-                "chat_count": len(chat_msgs),
-                "preview": first_msg,
-            })
-        except Exception:
-            continue
+                sid = data.get("session_id") or f.stem
+                # De-duplicate across dirs: same session id shouldn't appear twice
+                if sid in seen_ids:
+                    continue
+                seen_ids.add(sid)
+
+                # Use last_updated for sort; fall back to mtime.
+                sort_key = data.get("last_updated") or data.get("session_start") or ""
+                if not sort_key:
+                    try:
+                        sort_key = datetime.fromtimestamp(f.stat().st_mtime).isoformat()
+                    except Exception:
+                        sort_key = ""
+
+                sessions.append({
+                    "_sort": sort_key,
+                    "file": f.name,
+                    "session_id": sid,
+                    "model": data.get("model", "unknown"),
+                    "start": data.get("session_start", ""),
+                    "updated": data.get("last_updated", ""),
+                    "message_count": msg_count,
+                    "chat_count": len(chat_msgs),
+                    "preview": first_msg,
+                })
+            except Exception:
+                # Malformed session file — skip it silently, but let
+                # callers detect the miss via the missing count.
+                continue
+    sessions.sort(key=lambda s: s["_sort"], reverse=True)
+    for s in sessions:
+        s.pop("_sort", None)
     return sessions
 
 
 def get_session(filename):
-    """Load a single session."""
-    # Security: prevent path traversal
+    """Load a single session by filename (looked up in any candidate dir)."""
+    # Security: strict pattern on the filename.
     import re
     if not re.match(r'^session_[a-zA-Z0-9_\-]+\.json$', filename):
         return None
-    sdir = get_sessions_dir()
-    f = sdir / filename
-    if not f.exists() or not f.resolve().parent == sdir.resolve():
-        return None
-    with open(f) as fh:
-        data = json.load(fh)
-    # Filter to only user/assistant messages
-    messages = [m for m in data.get("messages", [])
-                if m.get("role") in ("user", "assistant")]
-    return {
-        "session_id": data.get("session_id", ""),
-        "model": data.get("model", ""),
-        "start": data.get("session_start", ""),
-        "messages": messages,
-    }
+    for sdir in _candidate_session_dirs():
+        f = sdir / filename
+        if not f.exists():
+            continue
+        # Path-traversal defence: resolved file must live directly inside sdir.
+        try:
+            if f.resolve().parent != sdir.resolve():
+                continue
+        except Exception:
+            continue
+        try:
+            with open(f, encoding="utf-8", errors="replace") as fh:
+                data = json.load(fh)
+        except Exception:
+            return None
+        messages = [m for m in data.get("messages", [])
+                    if m.get("role") in ("user", "assistant")]
+        return {
+            "session_id": data.get("session_id", ""),
+            "model": data.get("model", ""),
+            "start": data.get("session_start", ""),
+            "messages": messages,
+        }
+    return None
 
 
 HTML_PAGE = r"""<!DOCTYPE html>
@@ -409,16 +447,19 @@ class ChatHandler(SimpleHTTPRequestHandler):
 def main():
     server = HTTPServer(("127.0.0.1", PORT), ChatHandler)
     url = f"http://127.0.0.1:{PORT}"
-    sdir = get_sessions_dir()
-    count = len(list(sdir.glob("session_*.json"))) if sdir.exists() else 0
+    dirs = list(_candidate_session_dirs())
+    total = sum(len(list(d.glob("session_*.json"))) for d in dirs)
+
+    dir_listing = "\n".join(f"    {d}" for d in dirs) or "    (none found yet)"
 
     print(f"""
   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗
   ╠═╣╠═╣╠╦╝╠═╝║╣ ║   ║ ║ ║
   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  聊天记录
 
-  📂 会话目录: {sdir}
-  💬 共 {count} 条对话
+  📂 会话目录:
+{dir_listing}
+  💬 共 {total} 条对话
   🌐 查看: {url}
 """)
 

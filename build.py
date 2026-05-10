@@ -316,17 +316,31 @@ def step_nodejs(ctx):
     if node_dir.exists() and any(node_dir.rglob(exe)):
         ok("Node.js already present"); return
 
+    # Node.js uses x64 / arm64 (same as our label suffixes).
     node_arch = {"x64": "x64", "arm64": "arm64"}.get(arch, arch)
     if system == "Darwin":
         url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-darwin-{node_arch}.tar.gz"
     elif system == "Linux":
+        # Prebuilt Linux tarballs require glibc ≥ 2.28 (verified by node's
+        # release notes for v22.x). On older hosts the binary will fail
+        # with GLIBC_2.xx-not-found — that's a target-side issue we can't
+        # paper over here; document it in README.txt instead.
         url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-linux-{node_arch}.tar.gz"
-    else:
+    elif system == "Windows":
         # Node.js does not ship Windows arm64 prebuilt; use x64 under emulation.
         url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-win-x64.zip"
+    else:
+        warn(f"Unsupported system for Node.js fetch: {system}"); return
 
     archive = ROOT / "_node_tmp"
-    download(url, archive)
+    try:
+        download(url, archive)
+    except subprocess.CalledProcessError as e:
+        warn(f"Node.js download failed ({e.returncode}); skipping web UI.")
+        warn(f"  URL: {url}")
+        warn("  hermes-web-ui will not be bundled. You can install it later:")
+        warn("    npm install -g hermes-web-ui")
+        return
     node_dir.mkdir(parents=True, exist_ok=True)
 
     if system == "Windows":
@@ -351,14 +365,17 @@ def step_nodejs(ctx):
                         continue
                 safe.append(m)
             t.extractall(node_dir, members=safe)
+        # Nested dir name differs per platform; handle both forms.
         nested = node_dir / f"node-v{NODE_VERSION}-{system.lower()}-{node_arch}"
         if nested.exists():
             for item in nested.iterdir():
                 shutil.move(str(item), str(node_dir / item.name))
             nested.rmdir()
-        for f in (node_dir / "bin").iterdir():
-            try: f.chmod(0o755)
-            except Exception: pass
+        bin_dir = node_dir / "bin"
+        if bin_dir.exists():
+            for f in bin_dir.iterdir():
+                try: f.chmod(0o755)
+                except Exception: pass
 
     archive.unlink(missing_ok=True)
     ok(f"Node.js v{NODE_VERSION} ready")
@@ -409,6 +426,10 @@ _STATIC_ASSETS = [
     "Hermes.sh",
     "Hermes.bat",
     "Hermes-WSL.bat",
+    # Rebuild helpers — shipped so a user who carried a macOS-built zip
+    # onto a Linux box can rebuild the runtime without re-downloading.
+    "build.py",
+    "linux-rebuild.sh",
 ]
 
 
