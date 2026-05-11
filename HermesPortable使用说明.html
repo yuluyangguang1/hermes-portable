@@ -298,6 +298,36 @@
   .platform-card strong { display: block; font-size: 14px; margin-bottom: 4px; }
   .platform-card code { font-size: 12px; }
 
+  /* ===== Download cards ===== */
+  .download-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .dl-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid var(--slate-200);
+    border-radius: 10px;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow .2s, border-color .2s, transform .1s;
+  }
+  .dl-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+    text-decoration: none;
+  }
+  .dl-card:active { transform: translateY(1px); }
+  .dl-card .dl-icon { font-size: 26px; flex-shrink: 0; }
+  .dl-card .dl-text { flex: 1; min-width: 0; }
+  .dl-card .dl-title { font-weight: 600; color: var(--slate-800); font-size: 14px; margin-bottom: 2px; }
+  .dl-card .dl-meta { font-size: 12px; color: var(--slate-500); }
+  .dl-card .dl-arrow { color: var(--accent); font-size: 18px; }
+
   /* ===== Port badges ===== */
   .ports { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
   .port {
@@ -383,7 +413,7 @@
     .sidebar { position: static; max-height: none; margin-bottom: 20px; }
     .section { padding: 24px 20px; }
     .hero h1 { font-size: 28px; }
-    .platform-grid { grid-template-columns: 1fr; }
+    .platform-grid, .download-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -392,9 +422,9 @@
 <!-- ===== Hero ===== -->
 <div class="hero">
   <div class="hero-inner">
-    <div class="hero-badge">v0.12.0 &middot; MIT License</div>
+    <div class="hero-badge">v0.13.8 &middot; MIT License</div>
     <h1>HermesPortable</h1>
-    <p>Build once, use everywhere — 插上 U 盘，直接运行的 AI Agent 便携版</p>
+    <p>插上 U 盘就能用的 AI Agent — 无需安装、零配置、不留痕迹</p>
   </div>
 </div>
 
@@ -406,18 +436,18 @@
   <div class="toc-box">
     <div class="toc-title">目录导航</div>
     <ul class="toc-list">
-      <li><a href="#about">项目简介</a></li>
-      <li><a href="#build">构建便携包</a></li>
-      <li><a href="#run">启动与首次配置</a></li>
-      <li><a href="#commands">核心命令一览</a></li>
+      <li><a href="#about">它是什么</a></li>
+      <li><a href="#download">下载与解压</a></li>
+      <li><a href="#run">首次启动（三步上手）</a></li>
+      <li><a href="#commands">常用命令</a></li>
       <li><a href="#chat">对话与交互</a></li>
       <li><a href="#config">配置管理</a></li>
       <li><a href="#gateway">消息网关</a></li>
       <li><a href="#cron">定时任务</a></li>
       <li><a href="#skills">技能管理</a></li>
       <li><a href="#session">会话管理</a></li>
-      <li><a href="#update">更新与维护</a></li>
-      <li><a href="#file">文件目录结构</a></li>
+      <li><a href="#update">更新与备份</a></li>
+      <li><a href="#file">文件说明</a></li>
       <li><a href="#free">免费模型配置</a></li>
       <li><a href="#troubleshoot">常见问题</a></li>
     </ul>
@@ -431,129 +461,102 @@
 <div class="section" id="about">
   <div class="section-header">
     <div class="section-icon" style="background:#eef2ff;color:#4f46e5;">&#x1F4E6;</div>
-    <h2>项目简介</h2>
+    <h2>它是什么</h2>
   </div>
-  <p><strong>HermesPortable</strong> 是 <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent</a>（Nous Research 开发）的完全自包含便携版。它将 Python 运行时、依赖库、Node.js、配置面板和全部源代码打包到一个目录中，可直接从 U 盘在 macOS / Linux / Windows（WSL2）上运行，<strong>无需安装</strong>。</p>
+  <p><strong>HermesPortable</strong> 是 <a href="https://github.com/NousResearch/hermes-agent" target="_blank">Hermes Agent</a>（Nous Research 出品）的"开箱即用"版本。</p>
+  <p>它把 AI 助手、Python 运行时、依赖库，和一个图形化配置页面全部打包在一个文件夹里。<strong>你什么都不用装</strong>，下载、解压、双击，就能在 macOS、Linux、Windows 上直接运行。</p>
 
-  <h3>主要特性</h3>
+  <div class="callout callout-tip">
+    <span class="callout-icon">&#x2728;</span>
+    <div><strong>为什么叫"便携版"？</strong>解压到 U 盘，插到任何机器上都能直接用。关闭之后所有数据留在 U 盘里，宿主机不留一个字节。</div>
+  </div>
+
+  <h3>能做什么</h3>
   <table>
     <thead><tr><th>功能</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td>交互式 CLI</td><td>多行编辑、流式输出、斜杠命令</td></tr>
-      <tr><td>消息网关</td><td>Telegram / Discord / Slack / WhatsApp / Signal / Email</td></tr>
-      <tr><td>持久记忆</td><td>MEMORY.md + USER.md 自动管理上下文</td></tr>
-      <tr><td>内置工具</td><td>40+ 工具：终端、浏览器、搜索、文件操作、TTS、定时任务等</td></tr>
-      <tr><td>LLM 供应商</td><td>支持 15+ 供应商（OpenRouter、Anthropic、OpenAI、Google、DeepSeek 等）</td></tr>
-      <tr><td>子代理</td><td>子代理委托与并行工作流</td></tr>
-      <tr><td>终端后端</td><td>本地 / Docker / SSH / Singularity / Modal / Daytona</td></tr>
+      <tr><td>智能对话</td><td>多行输入、流式回复、斜杠命令</td></tr>
+      <tr><td>接入聊天软件</td><td>Telegram / Discord / Slack / WhatsApp / Signal / 邮件</td></tr>
+      <tr><td>持久记忆</td><td>自动记录关键信息，跨会话保留上下文</td></tr>
+      <tr><td>内置工具</td><td>40+ 工具：网页浏览、搜索、文件操作、语音、定时任务…</td></tr>
+      <tr><td>模型供应商</td><td>支持 15+ 家（OpenRouter、Anthropic、OpenAI、Google、DeepSeek 等）</td></tr>
+      <tr><td>子代理</td><td>分身协作、并行处理任务</td></tr>
     </tbody>
   </table>
 </div>
 
 <!-- 2 -->
-<div class="section" id="build">
+<div class="section" id="download">
   <div class="section-header">
-    <div class="section-icon" style="background:#ecfdf5;color:#059669;">&#x1F528;</div>
-    <h2>构建便携包</h2>
-  </div>
-  <p>构建需要 Python 3.8+、git、curl。</p>
-
-  <h3>macOS / Linux</h3>
-  <pre><code><span class="comment"># 构建到默认输出目录 dist/HermesPortable/</span>
-<span class="cmd">python3 build.py</span>
-
-<span class="comment"># 直接构建到 U 盘</span>
-<span class="cmd">python3 build.py /Volumes/MyUSB</span></code></pre>
-
-  <h3>Windows（在 WSL2 中）</h3>
-  <pre><code><span class="cmd">git clone https://github.com/yuluyangguang1/hermes-portable.git</span>
-<span class="cmd">cd hermes-portable</span>
-<span class="cmd">python3 build.py</span></code></pre>
-
-  <div class="callout callout-warn">
-    <span class="callout-icon">&#x1F6A8;</span>
-    <div><strong>Windows 用户首次构建前，必须先完成 WSL2 环境配置。</strong>WSL2 是 Windows 子系统，Hermes 依赖它运行 Linux 环境。以下是完整配置步骤：</div>
+    <div class="section-icon" style="background:#ecfdf5;color:#059669;">&#x2B07;</div>
+    <h2>下载与解压</h2>
   </div>
 
-  <h3>Windows 首次构建完整指南</h3>
-  <div class="steps">
-    <div class="step"><span class="step-num">1</span>
-      <span class="step-content">
-        <strong>启用 WSL2</strong><br>
-        以<strong>管理员身份</strong>打开 PowerShell，运行：
-        <pre><code><span class="cmd">wsl --install</span></code></pre>
-        该命令自动启用 WSL、安装 Linux 内核并设置 WSL2 为默认版本。安装完成后<strong>重启电脑</strong>。
+  <p>根据你的系统选择对应的压缩包。只下一个就够了。</p>
+
+  <div class="download-grid">
+    <a class="dl-card" href="https://github.com/yuluyangguang1/hermes-portable/releases/latest/download/HermesPortable-Windows.zip">
+      <span class="dl-icon">&#x1F5A5;</span>
+      <span class="dl-text">
+        <div class="dl-title">Windows 10 / 11</div>
+        <div class="dl-meta">HermesPortable-Windows.zip · 约 240 MB</div>
       </span>
-    </div>
-    <div class="step"><span class="step-num">2</span>
-      <span class="step-content">
-        <strong>安装 Ubuntu 发行版</strong><br>
-        重启后，系统会自动启动 Ubuntu 安装（如未启动，在 Microsoft Store 搜索 "Ubuntu" 安装）。首次打开需要设置 Linux 用户名和密码。
+      <span class="dl-arrow">&#x2192;</span>
+    </a>
+    <a class="dl-card" href="https://github.com/yuluyangguang1/hermes-portable/releases/latest/download/HermesPortable-macOS.zip">
+      <span class="dl-icon">&#x1F34E;</span>
+      <span class="dl-text">
+        <div class="dl-title">macOS（Apple Silicon / Intel）</div>
+        <div class="dl-meta">HermesPortable-macOS.zip · 约 300 MB</div>
       </span>
-    </div>
-    <div class="step"><span class="step-num">3</span>
-      <span class="step-content">
-        <strong>安装依赖工具</strong><br>
-        打开 Ubuntu 终端，依次运行：
-        <pre><code><span class="cmd">sudo apt update</span>
-<span class="cmd">sudo apt install -y python3 python3-pip git curl</span></code></pre>
+      <span class="dl-arrow">&#x2192;</span>
+    </a>
+    <a class="dl-card" href="https://github.com/yuluyangguang1/hermes-portable/releases/latest/download/HermesPortable-Linux.zip">
+      <span class="dl-icon">&#x1F427;</span>
+      <span class="dl-text">
+        <div class="dl-title">Linux（glibc 2.28+）</div>
+        <div class="dl-meta">HermesPortable-Linux.zip · 约 420 MB</div>
       </span>
-    </div>
-    <div class="step"><span class="step-num">4</span>
-      <span class="step-content">
-        <strong>克隆项目并构建</strong><br>
-        <pre><code><span class="cmd">git clone https://github.com/yuluyangguang1/hermes-portable.git</span>
-<span class="cmd">cd hermes-portable</span>
-<span class="cmd">python3 build.py</span></code></pre>
-        构建默认输出到 <code>dist/HermesPortable/</code>。
+      <span class="dl-arrow">&#x2192;</span>
+    </a>
+    <a class="dl-card" href="https://github.com/yuluyangguang1/hermes-portable/releases/latest/download/HermesPortable-Universal.zip">
+      <span class="dl-icon">&#x1F310;</span>
+      <span class="dl-text">
+        <div class="dl-title">三合一（U 盘多机共用）</div>
+        <div class="dl-meta">HermesPortable-Universal.zip · 约 860 MB</div>
       </span>
-    </div>
-    <div class="step"><span class="step-num">5</span>
-      <span class="step-content">
-        <strong>从 Windows 访问构建产物</strong><br>
-        WSL2 中的文件可以通过文件管理器访问。在 Ubuntu 终端运行：
-        <pre><code><span class="cmd">explorer.exe dist/HermesPortable</span></code></pre>
-        这会直接在 Windows 资源管理器中打开构建目录。也可以将 <code>dist/HermesPortable</code> 复制到 U 盘或任意 Windows 目录。
-      </span>
-    </div>
-    <div class="step"><span class="step-num">6</span>
-      <span class="step-content">
-        <strong>启动运行</strong><br>
-        在 Windows 资源管理器中双击 <code>Hermes.bat</code> 即可启动（会自动调用 WSL2）。
-      </span>
-    </div>
+      <span class="dl-arrow">&#x2192;</span>
+    </a>
   </div>
 
-  <div class="callout callout-info">
-    <span class="callout-icon">&#x1F4CD;</span>
-    <div>
-      <strong>WSL2 路径说明</strong>
-      <table style="margin:8px 0 0;font-size:13px;">
-        <thead><tr><th>WSL2 路径</th><th>Windows 路径</th></tr></thead>
-        <tbody>
-          <tr><td><code>~/hermes-portable/</code></td><td><code>\\wsl$\Ubuntu\home\用户名\hermes-portable</code></td></tr>
-          <tr><td><code>/mnt/c/</code></td><td><code>C:\</code></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  <p style="font-size:13px;color:var(--slate-500);">所有版本始终下载最新发布 &middot; <a href="https://github.com/yuluyangguang1/hermes-portable/releases" target="_blank">查看所有版本</a></p>
+
+  <h3>解压</h3>
+  <p>把下载的 zip 文件解压到一个<strong>方便访问</strong>的位置。推荐的位置：</p>
+  <table>
+    <thead><tr><th>系统</th><th>推荐位置</th></tr></thead>
+    <tbody>
+      <tr><td>Windows</td><td>U 盘根目录，或 <code>D:\HermesPortable</code></td></tr>
+      <tr><td>macOS</td><td>"应用程序" 文件夹，或桌面</td></tr>
+      <tr><td>Linux</td><td>用户主目录 <code>~/HermesPortable</code></td></tr>
+    </tbody>
+  </table>
 
   <div class="callout callout-warn">
     <span class="callout-icon">&#x26A0;</span>
     <div>
-      <strong>常见问题</strong>
+      <strong>Windows 用户请注意：</strong>
       <ul style="margin:6px 0 0 16px;font-size:14px;">
-        <li><code>wsl --install</code> 报错 → 先运行 <code>wsl --update</code> 确保内核为最新版</li>
-        <li>WSL2 中网络慢 → 检查 VPN 是否影响 WSL2 代理，可尝试 <code>wsl --shutdown</code> 后重启</li>
-        <li>磁盘空间不足 → WSL2 虚拟磁盘默认上限 256GB，运行 <code>wsl --system -d Ubuntu df -h</code> 查看使用情况</li>
-        <li>构建中途断开 → WSL2 终端窗口关闭会终止进程，建议在 <strong>Windows Terminal</strong> 中运行</li>
+        <li>不要放在路径太深的目录（Windows 有 260 字符路径限制）</li>
+        <li>不要放在中文路径里（比如 <code>桌面</code> 在系统内部是中文路径）—— 优先放到 <code>C:\HermesPortable</code> 或 U 盘根目录</li>
+        <li>不要放在 OneDrive / 坚果云 / iCloud Drive 等同步盘里（同步会破坏文件结构）</li>
       </ul>
     </div>
   </div>
 
-  <div class="callout callout-tip">
-    <span class="callout-icon">&#x2705;</span>
-    <div><strong>构建产物约 500MB</strong>，包含：独立 CPython 3.12、Node.js v23、hermes-agent 全部依赖、Web UI。</div>
+  <div class="callout callout-info">
+    <span class="callout-icon">&#x1F4A1;</span>
+    <div><strong>Universal 是什么？</strong>三合一包把三个系统的运行环境全部塞进一个 zip。适合想把 U 盘插到不同机器（一会 Mac、一会 Windows）共用的场景。如果你只在一台机器上用，下单平台版就够了，省空间。</div>
   </div>
 </div>
 
@@ -561,10 +564,17 @@
 <div class="section" id="run">
   <div class="section-header">
     <div class="section-icon" style="background:#fef2f2;color:#dc2626;">&#x1F680;</div>
-    <h2>启动与首次配置</h2>
+    <h2>首次启动（三步上手）</h2>
   </div>
 
+  <p>解压完成后，找到对应平台的启动器，<strong>双击它</strong>。你不需要打开终端、不需要输任何命令。</p>
+
   <div class="platform-grid">
+    <div class="platform-card">
+      <div class="icon">&#x1F5A5;</div>
+      <strong>Windows</strong>
+      <span>双击 <code>Hermes.bat</code></span>
+    </div>
     <div class="platform-card">
       <div class="icon">&#x1F34E;</div>
       <strong>macOS</strong>
@@ -573,69 +583,85 @@
     <div class="platform-card">
       <div class="icon">&#x1F427;</div>
       <strong>Linux</strong>
-      <span>终端运行 <code>./Hermes.sh</code></span>
-    </div>
-    <div class="platform-card">
-      <div class="icon">&#x1F5A5;</div>
-      <strong>Windows</strong>
-      <span>双击 <code>Hermes.bat</code></span>
+      <span>双击 <code>Hermes.sh</code> 或在终端运行</span>
     </div>
   </div>
 
-  <h3>首次启动流程</h3>
+  <h3>接下来会发生什么</h3>
   <div class="steps">
-    <div class="step"><span class="step-num">1</span><span class="step-content">插入 U 盘，运行对应平台的启动脚本</span></div>
-    <div class="step"><span class="step-num">2</span><span class="step-content">未配置 API Key 时，浏览器自动打开配置面板 <code>http://127.0.0.1:17520</code></span></div>
-    <div class="step"><span class="step-num">3</span><span class="step-content">在配置面板中填入所选 LLM 供应商的 API Key</span></div>
-    <div class="step"><span class="step-num">4</span><span class="step-content">点击"Start"，进入交互式对话</span></div>
+    <div class="step"><span class="step-num">1</span>
+      <span class="step-content">
+        <strong>启动器弹出一个黑色窗口</strong>，开始做一次性准备工作（大约 10 秒）。这期间请不要关闭它。
+      </span>
+    </div>
+    <div class="step"><span class="step-num">2</span>
+      <span class="step-content">
+        <strong>浏览器自动打开一个配置页面</strong>（地址 <code>http://127.0.0.1:17520</code>）。在这里你需要填入一个"API 钥匙"（API Key）—— 它是 Hermes 跟 AI 模型对话的通行证。
+        <div style="margin-top:8px;font-size:13px;color:var(--slate-500);">
+          不知道从哪里拿 API Key？直接跳到下面的 <a href="#free">免费模型配置</a>，里面有免费方案。最推荐用 <strong>OpenRouter</strong>，注册即可获取免费 Key。
+        </div>
+      </span>
+    </div>
+    <div class="step"><span class="step-num">3</span>
+      <span class="step-content">
+        在配置页面填好 Key 之后，点 <strong>"Save &amp; Start"</strong>（保存并启动）按钮。几秒后，对话窗口就在黑色终端里启动了，开始聊天吧。
+      </span>
+    </div>
   </div>
 
   <div class="callout callout-info">
     <span class="callout-icon">&#x1F310;</span>
     <div>
-      <strong>端口分配</strong>
+      <strong>程序会占用的端口：</strong>
       <div class="ports">
-        <span class="port">Gateway <span class="port-num">8642</span></span>
-        <span class="port">Web UI <span class="port-num">8648</span></span>
-        <span class="port">配置面板 <span class="port-num">17520</span></span>
+        <span class="port">配置页面 <span class="port-num">17520</span></span>
         <span class="port">对话查看 <span class="port-num">17521</span></span>
+        <span class="port">Web UI <span class="port-num">8648</span></span>
+        <span class="port">消息网关 <span class="port-num">8642</span></span>
       </div>
+      只在本机监听（<code>127.0.0.1</code>），外部访问不到。
     </div>
   </div>
+
+  <div class="callout callout-tip">
+    <span class="callout-icon">&#x1F510;</span>
+    <div><strong>零痕迹保证：</strong>启动器会在便携包目录里创建一个 <code>_home/</code> 沙箱，所有读写都在 U 盘里进行，宿主机的"我的文档"、配置文件夹完全不会被碰。拔掉 U 盘，什么都带走、什么都没留下。</div>
+  </div>
+
+  <h3>以后再次启动</h3>
+  <p>下次用的时候，<strong>直接双击同一个启动器就行</strong>。Hermes 会读取上次保存的配置，跳过浏览器配置页面，直接进入对话。</p>
 </div>
 
 <!-- 4 -->
 <div class="section" id="commands">
   <div class="section-header">
     <div class="section-icon" style="background:#fefce8;color:#ca8a04;">&#x1F4CB;</div>
-    <h2>核心命令一览</h2>
+    <h2>常用命令</h2>
   </div>
+
+  <p>进入对话之后，你可以在任何时候按 <code>Ctrl+C</code> 退出，然后在同一个终端里输入以下命令。</p>
 
   <table>
     <thead><tr><th>命令</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td><code>hermes</code></td><td>启动交互式对话 TUI</td></tr>
-      <tr><td><code>hermes -q "问题"</code></td><td>单次查询模式</td></tr>
-      <tr><td><code>hermes model</code></td><td>选择 LLM 供应商和模型</td></tr>
-      <tr><td><code>hermes setup</code></td><td>交互式初始配置向导</td></tr>
-      <tr><td><code>hermes gateway</code></td><td>消息网关管理</td></tr>
-      <tr><td><code>hermes config</code></td><td>配置管理</td></tr>
-      <tr><td><code>hermes status</code></td><td>查看所有组件状态</td></tr>
-      <tr><td><code>hermes doctor</code></td><td>诊断问题</td></tr>
-      <tr><td><code>hermes cron</code></td><td>定时任务管理</td></tr>
-      <tr><td><code>hermes skills</code></td><td>技能管理</td></tr>
-      <tr><td><code>hermes plugins</code></td><td>插件管理</td></tr>
-      <tr><td><code>hermes tools</code></td><td>启用 / 禁用工具</td></tr>
-      <tr><td><code>hermes sessions</code></td><td>会话管理</td></tr>
-      <tr><td><code>hermes memory</code></td><td>记忆管理</td></tr>
-      <tr><td><code>hermes auth</code></td><td>凭证管理</td></tr>
-      <tr><td><code>hermes backup</code></td><td>备份与恢复</td></tr>
+      <tr><td><code>hermes</code></td><td>启动交互式对话</td></tr>
+      <tr><td><code>hermes -q "问题"</code></td><td>单次提问，回答完就退出</td></tr>
+      <tr><td><code>hermes model</code></td><td>切换使用的 AI 模型</td></tr>
+      <tr><td><code>hermes setup</code></td><td>重新进入配置向导</td></tr>
+      <tr><td><code>hermes gateway</code></td><td>管理消息网关（Telegram 等）</td></tr>
+      <tr><td><code>hermes config</code></td><td>查看、修改配置</td></tr>
+      <tr><td><code>hermes status</code></td><td>查看所有组件的运行状态</td></tr>
+      <tr><td><code>hermes doctor</code></td><td>自动诊断问题</td></tr>
+      <tr><td><code>hermes cron</code></td><td>管理定时任务</td></tr>
+      <tr><td><code>hermes skills</code></td><td>管理技能（Skills）</td></tr>
+      <tr><td><code>hermes sessions</code></td><td>管理历史会话</td></tr>
+      <tr><td><code>hermes memory</code></td><td>管理持久记忆</td></tr>
+      <tr><td><code>hermes auth</code></td><td>管理各家 API Key</td></tr>
+      <tr><td><code>hermes backup</code></td><td>备份 / 恢复数据</td></tr>
       <tr><td><code>hermes logs</code></td><td>查看日志</td></tr>
-      <tr><td><code>hermes profile</code></td><td>配置文件管理（列表 / 创建 / 删除 / 导出 / 导入）</td></tr>
-      <tr><td><code>hermes dashboard</code></td><td>Web 仪表盘</td></tr>
-      <tr><td><code>hermes claw migrate</code></td><td>从 OpenClaw 迁移</td></tr>
-      <tr><td><code>hermes version</code></td><td>显示版本</td></tr>
-      <tr><td><code>hermes update</code></td><td>更新到最新版</td></tr>
+      <tr><td><code>hermes dashboard</code></td><td>打开 Web 仪表盘</td></tr>
+      <tr><td><code>hermes version</code></td><td>显示版本号</td></tr>
+      <tr><td><code>hermes update</code></td><td>更新 hermes-agent 到最新</td></tr>
     </tbody>
   </table>
 </div>
@@ -648,37 +674,42 @@
   </div>
 
   <h3>启动对话</h3>
-  <pre><code><span class="cmd">hermes</span>                          <span class="comment"># 进入交互式 TUI</span>
-<span class="cmd">hermes -q "帮我写一个冒泡排序"</span>    <span class="comment"># 单次查询</span>
-<span class="cmd">hermes --toolsets web,terminal</span>  <span class="comment"># 指定工具集启动</span></code></pre>
+  <pre><code><span class="cmd">hermes</span>                          <span class="comment"># 进入对话窗口</span>
+<span class="cmd">hermes -q "帮我写一个冒泡排序"</span>    <span class="comment"># 单次问答</span>
+<span class="cmd">hermes --toolsets web,terminal</span>  <span class="comment"># 只启用指定工具</span></code></pre>
 
-  <h3>TUI 内斜杠命令</h3>
+  <h3>对话窗口里的"斜杠命令"</h3>
+  <p>在对话里以 <code>/</code> 开头的就是斜杠命令，不会发给 AI 而是交给 Hermes 自己处理。</p>
   <table>
     <thead><tr><th>命令</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td><code>/new</code> <code>/reset</code></td><td>开始新对话</td></tr>
-      <tr><td><code>/model [provider:model]</code></td><td>切换模型</td></tr>
-      <tr><td><code>/personality [name]</code></td><td>切换人格</td></tr>
-      <tr><td><code>/retry</code></td><td>重试上一轮</td></tr>
+      <tr><td><code>/new</code> <code>/reset</code></td><td>清空上下文，开一个新对话</td></tr>
+      <tr><td><code>/model [供应商:模型]</code></td><td>切换 AI 模型</td></tr>
+      <tr><td><code>/personality [名字]</code></td><td>切换 AI 的"人格"（见下）</td></tr>
+      <tr><td><code>/retry</code></td><td>重新生成上一轮回复</td></tr>
       <tr><td><code>/undo</code></td><td>撤销上一轮</td></tr>
-      <tr><td><code>/compress</code></td><td>压缩上下文</td></tr>
+      <tr><td><code>/compress</code></td><td>压缩上下文（当对话太长时）</td></tr>
       <tr><td><code>/usage</code></td><td>查看 Token 用量</td></tr>
-      <tr><td><code>/insights [--days N]</code></td><td>查看使用洞察</td></tr>
-      <tr><td><code>/skills</code></td><td>浏览已安装技能</td></tr>
-      <tr><td><code>/stop</code></td><td>中断当前操作</td></tr>
-      <tr><td><code>/platforms</code></td><td>查看平台状态</td></tr>
-      <tr><td><code>/status</code></td><td>查看状态</td></tr>
-      <tr><td><code>/sethome</code></td><td>设置工作目录</td></tr>
-      <tr><td><code>/&lt;skill-name&gt;</code></td><td>运行指定技能</td></tr>
+      <tr><td><code>/insights [--days N]</code></td><td>查看过去几天的使用统计</td></tr>
+      <tr><td><code>/skills</code></td><td>查看已安装的技能</td></tr>
+      <tr><td><code>/stop</code></td><td>打断 AI 当前正在做的事</td></tr>
+      <tr><td><code>/sethome</code></td><td>设置 Hermes 的工作目录</td></tr>
     </tbody>
   </table>
 
-  <h3>可用人格</h3>
+  <h3>AI 的"人格"</h3>
+  <p>通过 <code>/personality</code> 切换 AI 的说话风格。比如 <code>/personality pirate</code> 让它变成海盗口吻。</p>
   <div class="tags">
-    <span class="tag">helpful</span><span class="tag">concise</span><span class="tag">technical</span>
-    <span class="tag">creative</span><span class="tag">teacher</span><span class="tag">pirate</span>
-    <span class="tag">shakespeare</span><span class="tag">surfer</span><span class="tag">noir</span>
-    <span class="tag">philosopher</span>
+    <span class="tag">helpful · 友善</span>
+    <span class="tag">concise · 简洁</span>
+    <span class="tag">technical · 技术</span>
+    <span class="tag">creative · 创意</span>
+    <span class="tag">teacher · 老师</span>
+    <span class="tag">pirate · 海盗</span>
+    <span class="tag">shakespeare · 莎士比亚</span>
+    <span class="tag">surfer · 冲浪客</span>
+    <span class="tag">noir · 黑色侦探</span>
+    <span class="tag">philosopher · 哲学家</span>
   </div>
 </div>
 
@@ -689,39 +720,42 @@
     <h2>配置管理</h2>
   </div>
 
-  <h3>config 子命令</h3>
+  <h3>最常用的办法：Web 配置页面</h3>
+  <p>在对话中按 <code>Ctrl+C</code> 退出后，运行 <code>hermes setup</code>，或者直接在浏览器打开 <code>http://127.0.0.1:17520</code>（需要先启动一次 Hermes），图形化修改所有配置。</p>
+
+  <h3>命令行修改</h3>
   <table>
     <thead><tr><th>命令</th><th>说明</th></tr></thead>
     <tbody>
       <tr><td><code>hermes config show</code></td><td>显示当前配置</td></tr>
-      <tr><td><code>hermes config edit</code></td><td>用编辑器打开配置文件</td></tr>
-      <tr><td><code>hermes config set key value</code></td><td>设置配置项</td></tr>
-      <tr><td><code>hermes config path</code></td><td>显示配置文件路径</td></tr>
-      <tr><td><code>hermes config check</code></td><td>检查配置是否正确</td></tr>
+      <tr><td><code>hermes config edit</code></td><td>用默认编辑器打开配置文件</td></tr>
+      <tr><td><code>hermes config set 键 值</code></td><td>设置单个配置项</td></tr>
+      <tr><td><code>hermes config path</code></td><td>显示配置文件的位置</td></tr>
+      <tr><td><code>hermes config check</code></td><td>检查配置是否有误</td></tr>
     </tbody>
   </table>
 
-  <h3>认证管理</h3>
+  <h3>API Key 管理</h3>
   <table>
     <thead><tr><th>命令</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td><code>hermes auth add</code></td><td>添加 API Key</td></tr>
-      <tr><td><code>hermes auth list</code></td><td>列出已保存凭证</td></tr>
-      <tr><td><code>hermes auth remove</code></td><td>删除凭证</td></tr>
-      <tr><td><code>hermes auth status</code></td><td>查看认证状态</td></tr>
+      <tr><td><code>hermes auth add</code></td><td>添加新的 API Key</td></tr>
+      <tr><td><code>hermes auth list</code></td><td>列出已保存的 Key</td></tr>
+      <tr><td><code>hermes auth remove</code></td><td>删除某个 Key</td></tr>
+      <tr><td><code>hermes auth status</code></td><td>查看 Key 是否有效</td></tr>
     </tbody>
   </table>
 
-  <h3>关键配置文件</h3>
+  <h3>关键文件</h3>
   <table>
-    <thead><tr><th>文件</th><th>用途</th></tr></thead>
+    <thead><tr><th>文件</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td><code>data/.env</code></td><td>API Key（必填）</td></tr>
+      <tr><td><code>data/.env</code></td><td>API Key 存放位置（必须配置）</td></tr>
       <tr><td><code>data/config.yaml</code></td><td>主配置文件</td></tr>
     </tbody>
   </table>
 
-  <h3>支持的 LLM 供应商</h3>
+  <h3>支持的 AI 供应商</h3>
   <div class="tags">
     <span class="tag">OpenRouter</span><span class="tag">Anthropic</span><span class="tag">OpenAI</span>
     <span class="tag">Google</span><span class="tag">DeepSeek</span><span class="tag">小米 MiMo</span>
@@ -729,8 +763,10 @@
     <span class="tag">Hugging Face</span><span class="tag">NVIDIA NIM</span><span class="tag">Arcee AI</span>
   </div>
 
-  <pre><code><span class="comment"># 切换模型示例</span>
+  <pre><code><span class="comment"># 交互式切换模型（推荐）</span>
 <span class="cmd">hermes model</span>
+
+<span class="comment"># 命令行直接指定</span>
 <span class="cmd">hermes config set model.default "anthropic/claude-opus-4.6"</span></code></pre>
 </div>
 
@@ -740,24 +776,23 @@
     <div class="section-icon" style="background:#fff7ed;color:#ea580c;">&#x1F517;</div>
     <h2>消息网关</h2>
   </div>
-  <p>通过消息网关，Hermes 可以在多平台上接收和回复消息。</p>
+  <p>让 Hermes 在 Telegram、Discord、Slack、WhatsApp、Signal、邮件里当你的 AI 机器人。朋友发消息给这些平台上的 bot，Hermes 会自动回。</p>
 
-  <h3>网关命令</h3>
   <table>
     <thead><tr><th>命令</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td><code>hermes gateway setup</code></td><td>配置消息平台</td></tr>
+      <tr><td><code>hermes gateway setup</code></td><td>图形化配置消息平台</td></tr>
       <tr><td><code>hermes gateway start</code></td><td>启动网关</td></tr>
       <tr><td><code>hermes gateway stop</code></td><td>停止网关</td></tr>
       <tr><td><code>hermes gateway restart</code></td><td>重启网关</td></tr>
-      <tr><td><code>hermes gateway status</code></td><td>查看网关状态</td></tr>
-      <tr><td><code>hermes gateway install</code></td><td>安装为系统服务</td></tr>
+      <tr><td><code>hermes gateway status</code></td><td>查看是否在运行</td></tr>
+      <tr><td><code>hermes gateway install</code></td><td>安装为系统后台服务（开机自启）</td></tr>
     </tbody>
   </table>
 
   <div class="callout callout-info">
     <span class="callout-icon">&#x1F511;</span>
-    <div>在 <code>data/.env</code> 中设置平台 Token：<code>TELEGRAM_BOT_TOKEN</code>、<code>DISCORD_BOT_TOKEN</code>、<code>SLACK_BOT_TOKEN</code> 等。</div>
+    <div>你需要把各平台的 Bot Token 填到 <code>data/.env</code>，例如：<code>TELEGRAM_BOT_TOKEN</code>、<code>DISCORD_BOT_TOKEN</code>、<code>SLACK_BOT_TOKEN</code>。<code>hermes gateway setup</code> 会引导你一步步来。</div>
   </div>
 </div>
 
@@ -767,16 +802,17 @@
     <div class="section-icon" style="background:#ecfdf5;color:#059669;">&#x23F0;</div>
     <h2>定时任务</h2>
   </div>
+  <p>让 Hermes 每天早上 8 点读新闻摘要给你、每周一汇总一周工作，就用这里的命令。</p>
 
   <table>
     <thead><tr><th>命令</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td><code>hermes cron create</code></td><td>创建定时任务</td></tr>
+      <tr><td><code>hermes cron create</code></td><td>创建一个定时任务</td></tr>
       <tr><td><code>hermes cron list</code></td><td>列出所有任务</td></tr>
       <tr><td><code>hermes cron edit</code></td><td>编辑任务</td></tr>
       <tr><td><code>hermes cron pause</code></td><td>暂停任务</td></tr>
       <tr><td><code>hermes cron resume</code></td><td>恢复任务</td></tr>
-      <tr><td><code>hermes cron run</code></td><td>立即执行任务</td></tr>
+      <tr><td><code>hermes cron run</code></td><td>立即跑一次</td></tr>
       <tr><td><code>hermes cron remove</code></td><td>删除任务</td></tr>
       <tr><td><code>hermes cron status</code></td><td>查看调度器状态</td></tr>
     </tbody>
@@ -789,7 +825,7 @@
     <div class="section-icon" style="background:#fef2f2;color:#e11d48;">&#x1F9E0;</div>
     <h2>技能管理</h2>
   </div>
-  <p>Hermes 支持技能（Skills）系统，可从经验中学习并创建新技能。</p>
+  <p>技能（Skills）是打包好的"做某件事的流程"。比如"整理我的邮箱"、"生成周报"。你可以从社区安装，也可以让 Hermes 从经验中自动创建。</p>
 
   <table>
     <thead><tr><th>命令</th><th>说明</th></tr></thead>
@@ -797,11 +833,11 @@
       <tr><td><code>hermes skills browse</code></td><td>浏览可用技能</td></tr>
       <tr><td><code>hermes skills search</code></td><td>搜索技能</td></tr>
       <tr><td><code>hermes skills install</code></td><td>安装技能</td></tr>
-      <tr><td><code>hermes skills list</code></td><td>列出已安装技能</td></tr>
+      <tr><td><code>hermes skills list</code></td><td>列出已安装</td></tr>
       <tr><td><code>hermes skills inspect</code></td><td>查看技能详情</td></tr>
       <tr><td><code>hermes skills update</code></td><td>更新技能</td></tr>
       <tr><td><code>hermes skills uninstall</code></td><td>卸载技能</td></tr>
-      <tr><td><code>hermes skills publish</code></td><td>发布技能</td></tr>
+      <tr><td><code>hermes skills publish</code></td><td>把自制技能发布到社区</td></tr>
     </tbody>
   </table>
 </div>
@@ -812,39 +848,52 @@
     <div class="section-icon" style="background:#f0f9ff;color:#0284c7;">&#x1F4C2;</div>
     <h2>会话管理</h2>
   </div>
+  <p>Hermes 会自动保存每次对话。下面的命令让你管理这些历史记录。</p>
 
   <table>
     <thead><tr><th>命令</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td><code>hermes sessions list</code></td><td>列出所有会话</td></tr>
-      <tr><td><code>hermes sessions export</code></td><td>导出会话</td></tr>
-      <tr><td><code>hermes sessions delete</code></td><td>删除会话</td></tr>
+      <tr><td><code>hermes sessions list</code></td><td>列出所有历史会话</td></tr>
+      <tr><td><code>hermes sessions export</code></td><td>导出会话到文件</td></tr>
+      <tr><td><code>hermes sessions delete</code></td><td>删除某个会话</td></tr>
       <tr><td><code>hermes sessions prune</code></td><td>清理旧会话</td></tr>
-      <tr><td><code>hermes sessions stats</code></td><td>会话统计</td></tr>
+      <tr><td><code>hermes sessions stats</code></td><td>查看统计</td></tr>
       <tr><td><code>hermes sessions rename</code></td><td>重命名会话</td></tr>
     </tbody>
   </table>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">&#x1F441;</span>
+    <div>想查看对话的可视化版本？启动 Hermes 后打开 <code>http://127.0.0.1:17521</code>，这是个专门的对话浏览器。</div>
+  </div>
 </div>
 
 <!-- 11 -->
 <div class="section" id="update">
   <div class="section-header">
     <div class="section-icon" style="background:#fdf4ff;color:#a855f7;">&#x1F504;</div>
-    <h2>更新与维护</h2>
+    <h2>更新与备份</h2>
   </div>
 
-  <h3>更新 hermes-agent</h3>
-  <pre><code><span class="cmd">python3 update.py status</span>    <span class="comment"># 查看当前版本</span>
-<span class="cmd">python3 update.py check</span>     <span class="comment"># 检查新版本</span>
-<span class="cmd">python3 update.py update</span>    <span class="comment"># 更新到最新版</span></code></pre>
+  <h3>更新到新版本（推荐：下载新 zip）</h3>
+  <p>有新版本发布时，最简单的方法就是：</p>
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span><span class="step-content">从<a href="https://github.com/yuluyangguang1/hermes-portable/releases" target="_blank">发布页</a>下载新 zip</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content"><strong>先把旧的 <code>data/</code> 文件夹复制出来备份</strong>（这里面有你的配置、API Key、对话历史、技能等所有个人数据）</span></div>
+    <div class="step"><span class="step-num">3</span><span class="step-content">删掉旧文件夹，解压新 zip</span></div>
+    <div class="step"><span class="step-num">4</span><span class="step-content">把备份的 <code>data/</code> 文件夹复制回新文件夹，<strong>覆盖</strong>新 zip 里的 <code>data/</code></span></div>
+    <div class="step"><span class="step-num">5</span><span class="step-content">双击启动器，一切照旧</span></div>
+  </div>
 
-  <h3>Linux 跨平台重建</h3>
-  <p>如果便携包在 macOS 上构建，需要在 Linux 使用时重建 Python 环境：</p>
-  <pre><code><span class="cmd">./linux-rebuild.sh</span>    <span class="comment"># 需要系统安装 Python 3.12</span></code></pre>
+  <h3>只更新内部 AI 引擎</h3>
+  <p>如果只是想把核心引擎 <code>hermes-agent</code> 升级到最新，而不换整个便携包，可以用：</p>
+  <pre><code><span class="cmd">hermes update</span></code></pre>
+  <p style="font-size:13px;color:var(--slate-500);">等同于在终端里运行 <code>python update.py update</code>。</p>
 
+  <h3>备份数据</h3>
   <div class="callout callout-tip">
     <span class="callout-icon">&#x1F4BE;</span>
-    <div>所有数据存储在 <code>data/</code> 目录，直接复制该目录即可完成备份。</div>
+    <div>所有个人数据（API Key、对话、记忆、配置）都在 <code>data/</code> 文件夹里。<strong>直接复制这个文件夹就是完整备份</strong>。想恢复就把它放回去。</div>
   </div>
 </div>
 
@@ -852,29 +901,34 @@
 <div class="section" id="file">
   <div class="section-header">
     <div class="section-icon" style="background:#fefce8;color:#ca8a04;">&#x1F4C1;</div>
-    <h2>文件目录结构</h2>
+    <h2>文件说明</h2>
   </div>
 
+  <p>解压后打开文件夹，你会看到：</p>
+
   <table>
-    <thead><tr><th>路径</th><th>说明</th></tr></thead>
+    <thead><tr><th>文件 / 文件夹</th><th>作用</th></tr></thead>
     <tbody>
-      <tr><td><code>Hermes.command</code></td><td>macOS 启动器（双击运行）</td></tr>
-      <tr><td><code>Hermes.sh</code></td><td>Linux 启动器</td></tr>
-      <tr><td><code>Hermes.bat</code></td><td>Windows 启动器</td></tr>
-      <tr><td><code>build.py</code></td><td>构建脚本</td></tr>
-      <tr><td><code>update.py</code></td><td>更新工具</td></tr>
-      <tr><td><code>config_server.py</code></td><td>Web 配置面板</td></tr>
-      <tr><td><code>chat_viewer.py</code></td><td>对话查看器</td></tr>
-      <tr><td><code>linux-rebuild.sh</code></td><td>Linux 重建脚本</td></tr>
-      <tr><td><code>data/.env</code></td><td>API Key 文件</td></tr>
+      <tr><td><code>Hermes.bat</code></td><td><strong>Windows 启动器</strong>（双击运行）</td></tr>
+      <tr><td><code>Hermes.command</code></td><td><strong>macOS 启动器</strong>（双击运行）</td></tr>
+      <tr><td><code>Hermes.sh</code></td><td><strong>Linux 启动器</strong></td></tr>
+      <tr><td><code>data/</code></td><td><strong>你的所有数据</strong>（Key、对话、记忆、设置）</td></tr>
+      <tr><td><code>data/.env</code></td><td>API Key 文件（可手动编辑）</td></tr>
       <tr><td><code>data/config.yaml</code></td><td>主配置</td></tr>
       <tr><td><code>data/sessions/</code></td><td>对话历史</td></tr>
       <tr><td><code>data/skills/</code></td><td>已安装技能</td></tr>
       <tr><td><code>data/memories/</code></td><td>持久记忆</td></tr>
       <tr><td><code>data/cron/</code></td><td>定时任务</td></tr>
-      <tr><td><code>data/logs/</code></td><td>日志文件</td></tr>
+      <tr><td><code>data/logs/</code></td><td>运行日志（排错用）</td></tr>
+      <tr><td><code>_home/</code></td><td>沙箱目录（首次启动自动创建）</td></tr>
+      <tr><td style="color:var(--slate-400);"><code>python/</code> <code>venv/</code> <code>node-*/</code></td><td style="color:var(--slate-400);">运行环境（别动）</td></tr>
     </tbody>
   </table>
+
+  <div class="callout callout-warn">
+    <span class="callout-icon">&#x1F6A7;</span>
+    <div>只在 <code>data/</code> 和 <code>_home/</code> 里会有你的个人文件。其他文件夹是内部的 Python / Node.js 运行环境，改了会损坏程序。</div>
+  </div>
 </div>
 
 <!-- 13 -->
@@ -883,85 +937,86 @@
     <div class="section-icon" style="background:#ecfdf5;color:#059669;">&#x1F381;</div>
     <h2>免费模型配置</h2>
   </div>
-  <p>以下方案均<strong>无需付费</strong>即可使用 LLM，适合体验和轻度使用。按推荐程度排序。</p>
+  <p>以下方案均<strong>无需付费</strong>即可使用 AI 模型，按推荐程度排序。第一次用的话，<strong>强烈建议从方案一开始</strong>。</p>
 
   <!-- 方案一 -->
-  <h3>方案一：OpenRouter（推荐）</h3>
-  <p>注册即可获取免费 API Key，支持多个免费模型。</p>
+  <h3>方案一：OpenRouter（最推荐）</h3>
+  <p>注册账号就给免费 Key，支持多个免费模型，最适合新手。</p>
   <div class="steps">
-    <div class="step"><span class="step-num">1</span><span class="step-content">前往 <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a> 注册并获取 API Key</span></div>
-    <div class="step"><span class="step-num">2</span><span class="step-content">编辑便携包 <code>data/.env</code> 文件，添加：<br><code>OPENROUTER_API_KEY=sk-or-v1-你的密钥</code></span></div>
-    <div class="step"><span class="step-num">3</span><span class="step-content">在配置面板或通过命令设置模型：<br><code>hermes config set model.default "openrouter/elephant-alpha"</code></span></div>
+    <div class="step"><span class="step-num">1</span><span class="step-content">前往 <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a> 注册账号（支持 Google / GitHub 登录）</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content">点 "Create Key" 创建一个 API Key，复制</span></div>
+    <div class="step"><span class="step-num">3</span><span class="step-content">在 Hermes 的 <strong>Web 配置页面</strong>（<code>http://127.0.0.1:17520</code>）的 "OpenRouter" 字段粘贴 Key，点保存即可。</span></div>
+    <div class="step"><span class="step-num">4</span><span class="step-content">或者手动编辑 <code>data/.env</code>，添加一行：<br><code>OPENROUTER_API_KEY=sk-or-v1-你的密钥</code></span></div>
   </div>
   <table>
-    <thead><tr><th>免费模型 ID</th><th>说明</th></tr></thead>
+    <thead><tr><th>免费模型</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td><code>openrouter/elephant-alpha</code></td><td>OpenRouter 自有模型，免费</td></tr>
-      <tr><td><code>openrouter/owl-alpha</code></td><td>OpenRouter 自有模型，免费</td></tr>
-      <tr><td><code>tencent/hy3-preview:free</code></td><td>腾讯 HY3 免费版</td></tr>
-      <tr><td><code>minimax/minimax-m2.5:free</code></td><td>MiniMax M2.5 免费版</td></tr>
-      <tr><td><code>nvidia/nemotron-3-super-120b-a12b:free</code></td><td>NVIDIA Nemotron 免费版</td></tr>
-      <tr><td><code>arcee-ai/trinity-large-preview:free</code></td><td>Arcee Trinity 免费版</td></tr>
+      <tr><td><code>openrouter/elephant-alpha</code></td><td>OpenRouter 自有模型</td></tr>
+      <tr><td><code>openrouter/owl-alpha</code></td><td>OpenRouter 自有模型</td></tr>
+      <tr><td><code>tencent/hy3-preview:free</code></td><td>腾讯 HY3</td></tr>
+      <tr><td><code>minimax/minimax-m2.5:free</code></td><td>MiniMax M2.5</td></tr>
+      <tr><td><code>nvidia/nemotron-3-super-120b-a12b:free</code></td><td>NVIDIA Nemotron</td></tr>
+      <tr><td><code>arcee-ai/trinity-large-preview:free</code></td><td>Arcee Trinity</td></tr>
     </tbody>
   </table>
   <div class="callout callout-tip">
     <span class="callout-icon">&#x1F4A1;</span>
-    <div>OpenRouter 会动态上线新的免费模型。在 Hermes 中运行 <code>hermes model</code>，选择 OpenRouter 后可浏览所有当前可用的免费模型。</div>
+    <div>OpenRouter 经常上新免费模型。在 Hermes 里运行 <code>hermes model</code>，选 OpenRouter 后就能看到当前所有免费模型。</div>
   </div>
 
   <!-- 方案二 -->
   <h3>方案二：Google Gemini 免费层</h3>
-  <p>Google 提供免费 API 额度，但有速率限制（可能触发 429 错误）。</p>
+  <p>Google 提供免费额度，模型质量高，但有请求频率限制（短时间请求过多会被限流）。</p>
 
   <h3 style="margin-top:12px;font-size:14px;">方式 A：API Key</h3>
   <div class="steps">
-    <div class="step"><span class="step-num">1</span><span class="step-content">前往 <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> 创建免费 API Key</span></div>
-    <div class="step"><span class="step-num">2</span><span class="step-content">编辑 <code>data/.env</code>，添加：<br><code>GOOGLE_API_KEY=你的密钥</code></span></div>
-    <div class="step"><span class="step-num">3</span><span class="step-content"><code>hermes config set model.default "gemini/gemini-3-flash-preview"</code></span></div>
+    <div class="step"><span class="step-num">1</span><span class="step-content">去 <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> 创建免费 API Key</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content">编辑 <code>data/.env</code>：<code>GOOGLE_API_KEY=你的密钥</code></span></div>
+    <div class="step"><span class="step-num">3</span><span class="step-content">运行 <code>hermes config set model.default "gemini/gemini-3-flash-preview"</code></span></div>
   </div>
 
-  <h3 style="margin-top:12px;font-size:14px;">方式 B：OAuth 免密钥</h3>
+  <h3 style="margin-top:12px;font-size:14px;">方式 B：浏览器登录，免 API Key</h3>
   <div class="steps">
-    <div class="step"><span class="step-num">1</span><span class="step-content">运行 <code>hermes model</code>，选择 <code>google-gemini-cli</code> 供应商</span></div>
-    <div class="step"><span class="step-num">2</span><span class="step-content">按提示完成浏览器 OAuth 授权即可，无需 API Key</span></div>
+    <div class="step"><span class="step-num">1</span><span class="step-content">运行 <code>hermes model</code>，选 <code>google-gemini-cli</code> 供应商</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content">按提示用浏览器完成 Google 登录，不用 API Key</span></div>
   </div>
   <table>
     <thead><tr><th>可用模型</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td><code>gemini-3.1-pro-preview</code></td><td>最强，免费层有限额</td></tr>
+      <tr><td><code>gemini-3.1-pro-preview</code></td><td>最强（额度有限）</td></tr>
       <tr><td><code>gemini-3-pro-preview</code></td><td>次强</td></tr>
-      <tr><td><code>gemini-3-flash-preview</code></td><td>速度快，推荐日常使用</td></tr>
+      <tr><td><code>gemini-3-flash-preview</code></td><td>快，日常推荐</td></tr>
       <tr><td><code>gemini-3.1-flash-lite-preview</code></td><td>最轻量</td></tr>
     </tbody>
   </table>
 
   <!-- 方案三 -->
   <h3>方案三：Nous Portal 免费层</h3>
-  <p>Hermes 官方提供的免费模型入口，通过 OAuth 登录。</p>
+  <p>Hermes 官方提供的免费模型入口，通过浏览器登录。</p>
   <div class="steps">
-    <div class="step"><span class="step-num">1</span><span class="step-content">运行 <code>hermes login</code> 或 <code>hermes model</code>，通过浏览器完成 OAuth 登录</span></div>
-    <div class="step"><span class="step-num">2</span><span class="step-content">系统自动检测免费层，仅显示可用的免费模型</span></div>
-    <div class="step"><span class="step-num">3</span><span class="step-content">选择模型后即可使用，无需手动配置 API Key</span></div>
+    <div class="step"><span class="step-num">1</span><span class="step-content">运行 <code>hermes login</code> 或 <code>hermes model</code>，选 Nous Portal 会跳转浏览器登录</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content">登录后自动检测免费层</span></div>
+    <div class="step"><span class="step-num">3</span><span class="step-content">选模型即可用</span></div>
   </div>
   <div class="callout callout-warn">
     <span class="callout-icon">&#x26A0;</span>
-    <div><strong>限制：</strong>免费层用户无法使用消息网关（Telegram / Discord 等机器人功能），仅支持 CLI 对话。</div>
+    <div><strong>限制：</strong>免费层用户不能用消息网关（Telegram / Discord 等机器人功能），只能用 CLI 对话。</div>
   </div>
-  <p>已知免费模型：<code>xiaomi/mimo-v2-pro</code>、<code>minimax/minimax-m2.5:free</code> 等。</p>
+  <p style="font-size:13px;">已知免费模型：<code>xiaomi/mimo-v2-pro</code>、<code>minimax/minimax-m2.5:free</code> 等。</p>
 
   <!-- 方案四 -->
   <h3>方案四：Hugging Face 推理服务</h3>
-  <p>Hugging Face 提供每月 $0.10 的免费额度，可调用多种开源模型。</p>
+  <p>每月 $0.10 的免费额度，可调用多种开源模型。</p>
   <div class="steps">
-    <div class="step"><span class="step-num">1</span><span class="step-content">前往 <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a> 创建 Token（勾选 "Make calls to Inference Providers"）</span></div>
-    <div class="step"><span class="step-num">2</span><span class="step-content">编辑 <code>data/.env</code>，添加：<br><code>HF_TOKEN=hf_你的令牌</code></span></div>
+    <div class="step"><span class="step-num">1</span><span class="step-content">去 <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a> 创建 Token（勾选 "Make calls to Inference Providers"）</span></div>
+    <div class="step"><span class="step-num">2</span><span class="step-content">编辑 <code>data/.env</code>：<code>HF_TOKEN=hf_你的令牌</code></span></div>
     <div class="step"><span class="step-num">3</span><span class="step-content"><code>hermes config set model.default "huggingface/deepseek-ai/DeepSeek-V3.2"</code></span></div>
   </div>
   <table>
-    <thead><tr><th>可用模型</th><th>类型</th></tr></thead>
+    <thead><tr><th>可用模型</th><th>说明</th></tr></thead>
     <tbody>
       <tr><td><code>deepseek-ai/DeepSeek-V3.2</code></td><td>通用大模型</td></tr>
-      <tr><td><code>Qwen/Qwen3.5-397B-A17B</code></td><td>超大参数模型</td></tr>
+      <tr><td><code>Qwen/Qwen3.5-397B-A17B</code></td><td>超大参数</td></tr>
       <tr><td><code>Qwen/Qwen3.5-35B-A3B</code></td><td>轻量高效</td></tr>
       <tr><td><code>moonshotai/Kimi-K2.5</code></td><td>Kimi 系列</td></tr>
       <tr><td><code>XiaomiMiMo/MiMo-V2-Flash</code></td><td>小米 MiMo</td></tr>
@@ -972,40 +1027,36 @@
 
   <!-- 方案五 -->
   <h3>方案五：Qwen OAuth（通义千问）</h3>
-  <p>通过 Qwen CLI 登录后免密钥使用。</p>
   <div class="steps">
-    <div class="step"><span class="step-num">1</span><span class="step-content">先安装 Qwen CLI 并运行 <code>qwen auth qwen-oauth</code> 完成登录</span></div>
+    <div class="step"><span class="step-num">1</span><span class="step-content">先装 Qwen CLI，运行 <code>qwen auth qwen-oauth</code> 登录</span></div>
     <div class="step"><span class="step-num">2</span><span class="step-content"><code>hermes config set model.default "qwen-oauth/qwen-max"</code></span></div>
   </div>
 
   <!-- 方案六 -->
-  <h3>方案六：本地部署（完全免费）</h3>
-  <p>在本机运行模型，无需任何 API Key，适合有显卡的用户。</p>
+  <h3>方案六：本地部署（完全免费、完全离线）</h3>
+  <p>在自己电脑上跑模型，不需要任何 API Key。适合有独立显卡的用户。</p>
   <table>
     <thead><tr><th>工具</th><th>配置</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td>Ollama</td><td><code>provider: "ollama"</code></td><td>最易上手，<code>ollama pull</code> 拉模型即可</td></tr>
-      <tr><td>LM Studio</td><td><code>provider: "lmstudio"</code></td><td>图形界面，本地运行 <code>http://127.0.0.1:1234</code></td></tr>
-      <tr><td>vLLM</td><td><code>provider: "vllm"</code></td><td>高性能推理，适合生产环境</td></tr>
-      <tr><td>llama.cpp</td><td><code>provider: "llamacpp"</code></td><td>轻量级 C++ 推理引擎</td></tr>
+      <tr><td>Ollama</td><td><code>provider: "ollama"</code></td><td>最易上手</td></tr>
+      <tr><td>LM Studio</td><td><code>provider: "lmstudio"</code></td><td>图形界面</td></tr>
+      <tr><td>vLLM</td><td><code>provider: "vllm"</code></td><td>高性能</td></tr>
+      <tr><td>llama.cpp</td><td><code>provider: "llamacpp"</code></td><td>轻量 C++</td></tr>
     </tbody>
   </table>
   <pre><code><span class="comment"># 以 Ollama 为例</span>
-<span class="comment"># 1. 安装 Ollama 后拉取模型</span>
 <span class="cmd">ollama pull llama3.1</span>
-
-<span class="comment"># 2. 配置 Hermes 使用 Ollama</span>
 <span class="cmd">hermes config set model.default "ollama/llama3.1"</span></code></pre>
 
   <div class="callout callout-info">
     <span class="callout-icon">&#x1F3AF;</span>
     <div>
-      <strong>方案选择建议：</strong>
+      <strong>怎么选？</strong>
       <ul style="margin:6px 0 0 16px;font-size:14px;">
-        <li><strong>零门槛</strong>：OpenRouter（注册即用）或 Nous Portal（OAuth 登录）</li>
-        <li><strong>高质量</strong>：Google Gemini 免费层（模型最强）</li>
-        <li><strong>多样化</strong>：Hugging Face（可选模型最多）</li>
-        <li><strong>完全离线</strong>：Ollama 本地部署（无网络也可用）</li>
+        <li><strong>新手零门槛</strong>：OpenRouter</li>
+        <li><strong>追求质量</strong>：Google Gemini</li>
+        <li><strong>模型多样</strong>：Hugging Face</li>
+        <li><strong>完全离线不联网</strong>：Ollama 本地部署</li>
       </ul>
     </div>
   </div>
@@ -1019,28 +1070,67 @@
   </div>
 
   <div class="faq-item">
+    <div class="faq-q">启动后黑窗口一闪而过就关了？</div>
+    <div class="faq-a">
+      通常是解压位置问题。请检查：
+      <ul style="margin:6px 0 0 16px;">
+        <li>路径里有没有中文字符</li>
+        <li>路径是否太深（Windows 有 260 字符限制）</li>
+        <li>是否放在 OneDrive 等同步盘里（同步会破坏文件）</li>
+      </ul>
+      把整个文件夹挪到 <code>C:\HermesPortable</code> 或 U 盘根目录再试。
+    </div>
+  </div>
+
+  <div class="faq-item">
     <div class="faq-q">启动后浏览器没有自动打开？</div>
-    <div class="faq-a">手动访问 <code>http://127.0.0.1:17520</code>，或运行 <code>hermes setup</code> 进入配置向导。</div>
+    <div class="faq-a">手动在浏览器打开 <code>http://127.0.0.1:17520</code>，或在终端里运行 <code>hermes setup</code>。</div>
   </div>
 
   <div class="faq-item">
-    <div class="faq-q">Linux 上提示 Python 不兼容？</div>
-    <div class="faq-a">便携包在 macOS 构建的 Python 无法在 Linux 上运行。请确保系统安装了 Python 3.12，然后运行 <code>./linux-rebuild.sh</code> 重建。</div>
+    <div class="faq-q">提示找不到 Python 或者 hermes_cli 模块？</div>
+    <div class="faq-a">这是旧版本 v0.13.6 / v0.13.7 的已知问题。请从 <a href="https://github.com/yuluyangguang1/hermes-portable/releases/latest" target="_blank">最新发布页</a>下载 <strong>v0.13.8 或更新</strong>的 zip 包，已修复。</div>
   </div>
 
   <div class="faq-item">
-    <div class="faq-q">Windows 上无法运行？</div>
-    <div class="faq-a">Windows 支持需要先安装 WSL2（Windows Subsystem for Linux），然后在 WSL2 终端中运行。</div>
+    <div class="faq-q">macOS 提示"无法打开，因为 Apple 无法检查其是否有恶意软件"？</div>
+    <div class="faq-a">
+      右键点击 <code>Hermes.command</code>，选"打开"（不是双击），在弹窗里再点一次"打开"。只需要这样做一次，以后就可以双击了。或者在系统设置 → 隐私与安全性 里放行。
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Linux 下双击 Hermes.sh 没反应？</div>
+    <div class="faq-a">
+      大部分 Linux 文件管理器默认不会双击执行脚本。打开终端，<code>cd</code> 到解压目录，然后运行 <code>./Hermes.sh</code>。
+      如果提示权限不够，先 <code>chmod +x Hermes.sh</code>。
+    </div>
   </div>
 
   <div class="faq-item">
     <div class="faq-q">API Key 配置在哪？</div>
-    <div class="faq-a">编辑 <code>data/.env</code> 文件，填入对应供应商的 Key，如 <code>ANTHROPIC_API_KEY=sk-xxx</code>。</div>
+    <div class="faq-a">最简单的办法是启动后自动打开的 Web 配置页面 <code>http://127.0.0.1:17520</code>。也可以手动编辑 <code>data/.env</code>，例如添加 <code>ANTHROPIC_API_KEY=sk-xxx</code>。</div>
   </div>
 
   <div class="faq-item">
-    <div class="faq-q">如何诊断问题？</div>
-    <div class="faq-a">运行 <code>hermes doctor</code> 自动诊断，或查看 <code>data/logs/</code> 下的日志文件。</div>
+    <div class="faq-q">配置好了但 AI 不回话 / 报错？</div>
+    <div class="faq-a">
+      运行 <code>hermes doctor</code> 自动诊断。如果还有问题，查看 <code>data/logs/</code> 里最新的日志文件，错误信息会写在里面。
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">想完全重置怎么办？</div>
+    <div class="faq-a">
+      删掉整个 <code>data/</code> 文件夹，然后重新启动。<strong>会丢失全部对话历史、技能和 Key</strong>，建议删除前备份。
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">能换到另一台电脑继续用吗？</div>
+    <div class="faq-a">
+      能。这就是便携版的意义——整个文件夹复制到 U 盘或新机器，双击启动器照样运行，所有对话、记忆、Key 都在。<strong>跨系统（如从 Mac 拷到 Windows）</strong>则需要下对应平台的 zip 或 Universal 三合一版。
+    </div>
   </div>
 </div>
 
@@ -1048,7 +1138,7 @@
 </div>
 
 <div class="footer">
-  HermesPortable &mdash; 基于 Hermes Agent v0.12.0 &nbsp;|&nbsp; MIT License
+  HermesPortable v0.13.8 &nbsp;|&nbsp; 基于 Hermes Agent &nbsp;|&nbsp; MIT License &nbsp;|&nbsp; <a href="https://github.com/yuluyangguang1/hermes-portable" target="_blank">GitHub</a>
 </div>
 
 <script>
