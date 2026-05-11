@@ -407,6 +407,22 @@ def step_nodejs(ctx):
                 except Exception: pass
 
     archive.unlink(missing_ok=True)
+
+    # Verify node / npm / npx actually made it out of the archive.
+    # This is cheap defense-in-depth: if any future change (tarfile
+    # filter, flatten logic, mirror hiccup) ever loses one of them
+    # again, fail the build immediately rather than silently shipping
+    # a zip without a working Web UI (as v0.13.0-0.13.3 did).
+    # Inspired by @KESHAOYE's PR #4.
+    if system == "Windows":
+        required = [node_dir / "node.exe", node_dir / "npm.cmd", node_dir / "npx.cmd"]
+    else:
+        required = [node_dir / "bin" / "node", node_dir / "bin" / "npm", node_dir / "bin" / "npx"]
+    missing = [p for p in required if not p.exists()]
+    if missing:
+        fail("Node.js extraction incomplete — missing:\n  "
+             + "\n  ".join(str(p) for p in missing))
+
     ok(f"Node.js v{NODE_VERSION} ready")
 
 
