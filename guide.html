@@ -260,8 +260,8 @@
     </g>
   </svg>
   <h1>Hermes Portable</h1>
-  <p class="tagline">插上 U 盘，打开即用的 AI Agent</p>
-  <span class="version">v0.9.0 · 零安装 · 跨平台</span>
+  <p class="tagline">下载即用，随处运行的 AI Agent</p>
+  <span class="version">v0.13.8 · 零安装 · 跨平台</span>
 </div>
 
 <div class="container">
@@ -272,8 +272,8 @@
 
   <ol class="steps">
     <li>
-      <strong>插上 U 盘</strong>
-      <p>将 <code>HermesPortable</code> 文件夹复制到 U 盘根目录（或任意位置）。</p>
+      <strong>解压到任意位置</strong>
+      <p>将 <code>HermesPortable</code> 文件夹放到桌面、本地硬盘、U 盘、移动硬盘都可以——放哪里就在哪里运行。</p>
     </li>
     <li>
       <strong>双击启动</strong>
@@ -311,7 +311,7 @@
     </li>
     <li>
       <strong>开始使用</strong>
-      <p>配置完成后，终端中即可与 Hermes 对话。所有数据存储在 U 盘的 <code>data/</code> 目录中。</p>
+      <p>配置完成后，终端中即可与 Hermes 对话。所有数据存储在程序目录下的 <code>data/</code> 文件夹里，跟着程序走。</p>
     </li>
   </ol>
 </section>
@@ -428,7 +428,7 @@ python build_windows.py
 
   <h3>在 macOS / Linux 上构建</h3>
   <pre><code>python3 build.py                    <span class="comment"># 输出到 dist/HermesPortable/</span>
-python3 build.py /Volumes/MyUSB     <span class="comment"># 直接输出到U盘</span></code></pre>
+python3 build.py /Volumes/MyUSB     <span class="comment"># 直接输出到 U 盘（或任意目录）</span></code></pre>
 
   <div class="callout warn">
     <p><strong>⚠️ 注意：</strong>Python 虚拟环境和依赖是平台特定的。macOS 构建的产物只能在 macOS 上运行。Windows 用户需要在 Windows 机器上运行 <code>build_windows.py</code>。</p>
@@ -524,7 +524,7 @@ venv/bin/pip install -e hermes-agent[all]</code></pre>
   <p>打开配置面板（<code>http://127.0.0.1:17520</code>），在「模型」标签页选择新模型，或直接编辑 <code>data/config.yaml</code> 中的 <code>model.default</code> 字段。</p>
 
   <h3>Q: 数据安全吗？</h3>
-  <p>所有数据存储在 U 盘的 <code>data/</code> 目录中，不写入宿主机。拔掉 U 盘后，宿主机上不会留下任何痕迹。建议定期备份 <code>data/</code> 目录。</p>
+  <p>所有数据存储在程序文件夹内的 <code>data/</code> 目录，不写入宿主机的 <code>~/.hermes</code> / <code>%USERPROFILE%</code>。删除 HermesPortable 文件夹后，宿主机不会留下任何痕迹。建议定期备份 <code>data/</code> 目录。</p>
 </section>
 
 <!-- ════════════════════ 技术栈 ════════════════════ -->

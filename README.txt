@@ -1,7 +1,10 @@
 Hermes Portable
 ===============
 
-  Plug-in-a-USB AI Agent — no installer, no admin rights, no host-side config.
+  A zero-install AI Agent you can put anywhere — no installer,
+  no admin rights, no host-side config. Drop the folder on your
+  Desktop, an external drive, or a USB stick, and run it from
+  there. All data stays inside the folder.
 
 How to run
 ----------

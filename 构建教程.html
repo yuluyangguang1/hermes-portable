@@ -47,7 +47,7 @@
 <div class="container">
 
 <h1>🛠️ Hermes Portable — 从零构建教程</h1>
-<p class="subtitle">面向完全不懂编程的用户，手把手教你构建自己的 AI Agent U盘</p>
+<p class="subtitle">面向完全不懂编程的用户，手把手教你从源码构建自己的 AI Agent 便携版</p>
 
 <!-- ════════════════════ 前置准备 ════════════════════ -->
 <h2>📦 第一步：安装必要工具</h2>
@@ -181,7 +181,7 @@
   <div class="step">
     <p><span class="step-num">2</span><span class="step-title">构建完成！</span></p>
     <div class="ok">构建产物在 <code>dist/HermesPortable/</code> 文件夹中。</div>
-    <p>把 <code>HermesPortable</code> 文件夹复制到U盘，双击 <code>Hermes.command</code> 即可使用。</p>
+    <p>把 <code>HermesPortable</code> 文件夹复制到任意位置（本地硬盘、U 盘、移动硬盘都行），双击 <code>Hermes.command</code> 即可使用。</p>
   </div>
 </div>
 
@@ -197,7 +197,7 @@
   <div class="step">
     <p><span class="step-num">2</span><span class="step-title">构建完成！</span></p>
     <div class="ok">构建产物在 <code>dist\HermesPortable\</code> 文件夹中。</div>
-    <p>把 <code>HermesPortable</code> 文件夹复制到U盘，双击 <code>Hermes.bat</code> 即可使用。</p>
+    <p>把 <code>HermesPortable</code> 文件夹复制到任意位置（本地硬盘、U 盘、移动硬盘都行），双击 <code>Hermes.bat</code> 即可使用。</p>
   </div>
 </div>
 
@@ -209,20 +209,21 @@
   </div>
 </div>
 
-<!-- ════════════════════ 直接输出到U盘 ════════════════════ -->
-<h2>💾 直接构建到U盘（可选）</h2>
-<p>如果你想直接把产物构建到U盘，而不是先构建再复制：</p>
+<!-- ════════════════════ 直接输出到指定位置 ════════════════════ -->
+<h2>💾 直接构建到指定位置（可选）</h2>
+<p>如果你想跳过"先构建、再复制"两步，直接把产物生成在目标位置（比如 U 盘或移动硬盘）：</p>
 
 <div class="step">
   <p><span class="step-title">macOS / Linux</span></p>
   <div class="cmd">python3 build.py /Volumes/你的U盘名</div>
+  <p>把路径换成任何你想要的位置都可以，比如 <code>~/HermesPortable</code>、<code>/mnt/backup/HermesPortable</code> 等。</p>
 </div>
 
 <div class="step">
   <p><span class="step-title">Windows</span></p>
-  <p>先用资源管理器打开U盘，在地址栏输入 <code>cmd</code> 回车，然后：</p>
+  <p>用资源管理器打开目标位置（U 盘、D 盘目录都行），在地址栏输入 <code>cmd</code> 回车，然后：</p>
   <div class="cmd">python build_windows.py</div>
-  <p>构建产物会直接生成在U盘的 <code>dist\HermesPortable\</code> 中。</p>
+  <p>构建产物会直接生成在当前目录的 <code>dist\HermesPortable\</code> 中。</p>
 </div>
 
 <!-- ════════════════════ 首次使用 ════════════════════ -->
@@ -246,7 +247,7 @@
 
 <div class="step">
   <p><span class="step-num">3</span><span class="step-title">开始对话</span></p>
-  <p>启动后终端中即可与 AI 对话。所有数据存储在U盘的 <code>data/</code> 目录中。</p>
+  <p>启动后终端中即可与 AI 对话。所有数据存储在程序文件夹内的 <code>data/</code> 目录，跟着程序走（宿主机上不会留下任何痕迹）。</p>
 </div>
 
 <!-- ════════════════════ 常见问题 ════════════════════ -->

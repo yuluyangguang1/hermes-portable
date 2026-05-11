@@ -424,7 +424,7 @@
   <div class="hero-inner">
     <div class="hero-badge">v0.13.8 &middot; MIT License</div>
     <h1>HermesPortable</h1>
-    <p>插上 U 盘就能用的 AI Agent — 无需安装、零配置、不留痕迹</p>
+    <p>下载即用、随处运行的 AI Agent — 无需安装、零配置、不留痕迹</p>
   </div>
 </div>
 
@@ -468,7 +468,7 @@
 
   <div class="callout callout-tip">
     <span class="callout-icon">&#x2728;</span>
-    <div><strong>为什么叫"便携版"？</strong>解压到 U 盘，插到任何机器上都能直接用。关闭之后所有数据留在 U 盘里，宿主机不留一个字节。</div>
+    <div><strong>"便携版"是什么意思？</strong>不需要安装、不依赖系统已有的 Python / Node.js。解压到哪里就在哪里运行——桌面、硬盘、U 盘、移动硬盘都行。所有数据保存在程序文件夹里，跟着程序走，宿主机不留一个字节。</div>
   </div>
 
   <h3>能做什么</h3>
@@ -522,7 +522,7 @@
     <a class="dl-card" href="https://github.com/yuluyangguang1/hermes-portable/releases/latest/download/HermesPortable-Universal.zip">
       <span class="dl-icon">&#x1F310;</span>
       <span class="dl-text">
-        <div class="dl-title">三合一（U 盘多机共用）</div>
+        <div class="dl-title">三合一（跨平台共用）</div>
         <div class="dl-meta">HermesPortable-Universal.zip · 约 860 MB</div>
       </span>
       <span class="dl-arrow">&#x2192;</span>
@@ -531,14 +531,14 @@
 
   <p style="font-size:13px;color:var(--slate-500);">所有版本始终下载最新发布 &middot; <a href="https://github.com/yuluyangguang1/hermes-portable/releases" target="_blank">查看所有版本</a></p>
 
-  <h3>解压</h3>
-  <p>把下载的 zip 文件解压到一个<strong>方便访问</strong>的位置。推荐的位置：</p>
+  <h3>解压到哪里？</h3>
+  <p>HermesPortable 可以放在<strong>任何位置</strong>——本地硬盘、U 盘、移动硬盘都行。放哪里就在哪里运行，数据也跟着程序走。下面是几个常见的放置建议：</p>
   <table>
-    <thead><tr><th>系统</th><th>推荐位置</th></tr></thead>
+    <thead><tr><th>使用场景</th><th>推荐位置</th></tr></thead>
     <tbody>
-      <tr><td>Windows</td><td>U 盘根目录，或 <code>D:\HermesPortable</code></td></tr>
-      <tr><td>macOS</td><td>"应用程序" 文件夹，或桌面</td></tr>
-      <tr><td>Linux</td><td>用户主目录 <code>~/HermesPortable</code></td></tr>
+      <tr><td>只在一台电脑上用（最常见）</td><td>本地硬盘，比如 <code>C:\HermesPortable</code>、<code>~/Applications/HermesPortable</code>、<code>~/HermesPortable</code></td></tr>
+      <tr><td>多台机器共用</td><td>U 盘或移动硬盘根目录；跨系统（Mac + Windows）请用 Universal 三合一包</td></tr>
+      <tr><td>临时体验</td><td>桌面任意位置都行（但 Windows 的中文"桌面"路径有坑，见下方注意）</td></tr>
     </tbody>
   </table>
 
@@ -548,7 +548,7 @@
       <strong>Windows 用户请注意：</strong>
       <ul style="margin:6px 0 0 16px;font-size:14px;">
         <li>不要放在路径太深的目录（Windows 有 260 字符路径限制）</li>
-        <li>不要放在中文路径里（比如 <code>桌面</code> 在系统内部是中文路径）—— 优先放到 <code>C:\HermesPortable</code> 或 U 盘根目录</li>
+        <li>不要放在中文路径里——中文版"桌面""文档"在系统里都是中文路径。优先放到 <code>C:\HermesPortable</code>、<code>D:\HermesPortable</code> 或 U 盘根目录</li>
         <li>不要放在 OneDrive / 坚果云 / iCloud Drive 等同步盘里（同步会破坏文件结构）</li>
       </ul>
     </div>
@@ -556,7 +556,7 @@
 
   <div class="callout callout-info">
     <span class="callout-icon">&#x1F4A1;</span>
-    <div><strong>Universal 是什么？</strong>三合一包把三个系统的运行环境全部塞进一个 zip。适合想把 U 盘插到不同机器（一会 Mac、一会 Windows）共用的场景。如果你只在一台机器上用，下单平台版就够了，省空间。</div>
+    <div><strong>Universal 是什么？</strong>三合一包把三个系统的运行环境全部塞进一个 zip。适合一份程序在多台不同系统的机器上共用——比如把 U 盘插到不同电脑（一会 Mac、一会 Windows），或者在移动硬盘里带着走。如果你只在一台机器的一个系统上用，下单平台版就够了，省空间。</div>
   </div>
 </div>
 
@@ -625,7 +625,7 @@
 
   <div class="callout callout-tip">
     <span class="callout-icon">&#x1F510;</span>
-    <div><strong>零痕迹保证：</strong>启动器会在便携包目录里创建一个 <code>_home/</code> 沙箱，所有读写都在 U 盘里进行，宿主机的"我的文档"、配置文件夹完全不会被碰。拔掉 U 盘，什么都带走、什么都没留下。</div>
+    <div><strong>零痕迹保证：</strong>启动器会在程序文件夹里创建一个 <code>_home/</code> 沙箱，所有读写都锁在程序目录内，宿主机的"我的文档"、用户配置文件夹完全不会被碰。删除 HermesPortable 文件夹（或拔掉 U 盘），什么都带走、什么都没留下。</div>
   </div>
 
   <h3>以后再次启动</h3>
@@ -1078,7 +1078,7 @@
         <li>路径是否太深（Windows 有 260 字符限制）</li>
         <li>是否放在 OneDrive 等同步盘里（同步会破坏文件）</li>
       </ul>
-      把整个文件夹挪到 <code>C:\HermesPortable</code> 或 U 盘根目录再试。
+      把整个文件夹挪到 <code>C:\HermesPortable</code>、<code>D:\HermesPortable</code> 或 U 盘根目录再试。
     </div>
   </div>
 
@@ -1129,7 +1129,7 @@
   <div class="faq-item">
     <div class="faq-q">能换到另一台电脑继续用吗？</div>
     <div class="faq-a">
-      能。这就是便携版的意义——整个文件夹复制到 U 盘或新机器，双击启动器照样运行，所有对话、记忆、Key 都在。<strong>跨系统（如从 Mac 拷到 Windows）</strong>则需要下对应平台的 zip 或 Universal 三合一版。
+      能。整个文件夹复制到任何位置都照样运行——本地硬盘、U 盘、移动硬盘、新电脑都行，所有对话、记忆、Key 都跟着走。<strong>跨系统（如从 Mac 拷到 Windows）</strong>则需要下对应平台的 zip，或者直接用 Universal 三合一版。
     </div>
   </div>
 </div>
