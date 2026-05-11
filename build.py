@@ -26,6 +26,20 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
+# ─── Windows: force UTF-8 on stdout/stderr ─────────────────────
+# GitHub Actions' Windows runner defaults the Python stdout codec to
+# cp1252, which cannot encode the box-drawing glyphs in our banner
+# ("╦╠╩…"). This crashed the Windows build with UnicodeEncodeError
+# before step_uv even started. Force UTF-8 for both streams.
+# Safe on other platforms too — they're usually already UTF-8.
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, OSError):
+        # Older Pythons or non-text streams — ignore.
+        pass
+
 # ─── Config ────────────────────────────────────────────────────
 HERMES_REPO = "https://github.com/NousResearch/hermes-agent.git"
 PYTHON_VERSION = "3.12"
