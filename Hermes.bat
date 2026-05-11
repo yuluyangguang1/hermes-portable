@@ -162,21 +162,39 @@ if exist "%HERE%\fix_shims.py" (
 )
 
 rem -- Single-instance lock (best-effort) -----------------
-rem cmd.exe has no cheap way to record its own PID, so this lock is a
-rem "stale-file" marker, not a PID check. If you see this error and are
-rem sure no other instance is running, just delete the lock file.
+rem We store the lock-holder's console PID (from title-based lookup) in
+rem the lock file. On re-entry we verify the PID is still alive. If the
+rem process is gone the lock is stale and we reclaim it automatically,
+rem so users never have to manually delete .hermes.lock after a crash or
+rem force-close.
 set "LOCK_FILE=%HERE%\data\.hermes.lock"
 if not exist "%HERE%\data" mkdir "%HERE%\data" >nul 2>&1
 
 if exist "%LOCK_FILE%" (
-    echo.
-    echo   Another Hermes launcher appears to already be running.
-    echo.
-    echo   If that is wrong, delete this file and try again:
-    echo     %LOCK_FILE%
-    echo.
-    timeout /t 5 /nobreak >nul
-    exit /b 1
+    rem Read the PID stored in the lock file
+    set "LOCK_PID="
+    for /f "usebackq delims=" %%P in ("%LOCK_FILE%") do (
+        if not defined LOCK_PID set "LOCK_PID=%%P"
+    )
+    set "LOCK_ALIVE=false"
+    if defined LOCK_PID (
+        rem Check whether that PID still exists as a running process
+        tasklist /FI "PID eq !LOCK_PID!" /NH 2>nul | findstr /R /C:"[0-9]" >nul 2>&1
+        if !errorlevel! equ 0 set "LOCK_ALIVE=true"
+    )
+    if "!LOCK_ALIVE!"=="true" (
+        echo.
+        echo   Another Hermes launcher appears to already be running.
+        echo.
+        echo   If that is wrong, delete this file and try again:
+        echo     %LOCK_FILE%
+        echo.
+        timeout /t 5 /nobreak >nul
+        exit /b 1
+    ) else (
+        rem Stale lock from a crashed or force-closed session -- reclaim
+        del "%LOCK_FILE%" >nul 2>&1
+    )
 )
 
 echo.
@@ -212,10 +230,21 @@ if !errorlevel! equ 0 (
     start "" /b cmd /c "hermes-web-ui start --port 8648 >nul 2>&1"
 )
 
-rem Record something identifiable for the lock (cmd does not expose its
-rem own PID without extra hacks; a random token is good enough to tell
-rem us "a launcher was started and did not clean up").
-echo %TIME%-%RANDOM% > "%LOCK_FILE%"
+rem Record our console PID in the lock file so future launches can
+rem detect stale locks. We find our own PID via a unique window title.
+set "HERMES_TITLE=HermesLauncher_%RANDOM%_%TIME%"
+title !HERMES_TITLE!
+set "MY_PID="
+for /f "tokens=2" %%A in ('tasklist /V /FI "WINDOWTITLE eq !HERMES_TITLE!" /NH 2^>nul ^| findstr /I "cmd"') do (
+    if not defined MY_PID set "MY_PID=%%A"
+)
+title Hermes Portable
+if defined MY_PID (
+    echo !MY_PID! > "%LOCK_FILE%"
+) else (
+    rem Fallback: write a marker that will always look stale on next check
+    echo 0 > "%LOCK_FILE%"
+)
 
 "%VENV_DIR%\Scripts\hermes.exe" %*
 set "EXITCODE=%errorlevel%"
