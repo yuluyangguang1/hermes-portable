@@ -232,6 +232,14 @@ if !errorlevel! equ 0 (
 
 rem Record our console PID in the lock file so future launches can
 rem detect stale locks. We find our own PID via a unique window title.
+rem
+rem IMPORTANT: `echo X > file` in cmd writes a TRAILING SPACE after X
+rem (cmd parses whitespace between the value and `>` as part of the
+rem echoed argument). The space would then fail the `tasklist /FI "PID
+rem eq 1234 "` match on re-entry, making every subsequent launch treat
+rem the lock as stale — effectively disabling the single-instance
+rem check. The `(echo X)>file` form trims the trailing space because
+rem the parenthesized block ends at `)`.
 set "HERMES_TITLE=HermesLauncher_%RANDOM%_%TIME%"
 title !HERMES_TITLE!
 set "MY_PID="
@@ -240,10 +248,10 @@ for /f "tokens=2" %%A in ('tasklist /V /FI "WINDOWTITLE eq !HERMES_TITLE!" /NH 2
 )
 title Hermes Portable
 if defined MY_PID (
-    echo !MY_PID! > "%LOCK_FILE%"
+    (echo !MY_PID!)> "%LOCK_FILE%"
 ) else (
     rem Fallback: write a marker that will always look stale on next check
-    echo 0 > "%LOCK_FILE%"
+    (echo 0)> "%LOCK_FILE%"
 )
 
 "%VENV_DIR%\Scripts\hermes.exe" %*
