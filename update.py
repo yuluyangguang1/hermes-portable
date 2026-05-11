@@ -19,7 +19,42 @@ from datetime import datetime
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 HERMES_DIR = SCRIPT_DIR / "hermes-agent"
-VENV_DIR = SCRIPT_DIR / "venv"
+
+
+def _detect_venv_dir():
+    """Pick the right venv for the current platform (works for both
+    single-platform and universal zip layouts)."""
+    import platform as _p
+    system = _p.system()
+    arch = _p.machine().lower()
+    if arch in ("x86_64", "amd64"): arch = "x64"
+    elif arch in ("aarch64", "arm64"): arch = "arm64"
+    label = {"Darwin": "macos", "Linux": "linux", "Windows": "windows"}.get(
+        system, system.lower()) + f"-{arch}"
+    for candidate in (SCRIPT_DIR / f"venv-{label}", SCRIPT_DIR / "venv"):
+        py = (candidate / "Scripts" / "python.exe") if system == "Windows" \
+            else (candidate / "bin" / "python")
+        if py.exists():
+            return candidate
+    return SCRIPT_DIR / "venv"
+
+
+VENV_DIR = _detect_venv_dir()
+
+# Keep extras in sync with build.py
+EXTRAS = "cron,messaging,cli,mcp,web,tts-premium"
+
+
+def _hermes_bin():
+    if sys.platform == "win32":
+        return VENV_DIR / "Scripts" / "hermes.exe"
+    return VENV_DIR / "bin" / "hermes"
+
+
+def _venv_python():
+    if sys.platform == "win32":
+        return VENV_DIR / "Scripts" / "python.exe"
+    return VENV_DIR / "bin" / "python"
 
 # ANSI colors
 G = "\033[92m"
@@ -32,8 +67,7 @@ X = "\033[0m"
 
 def get_local_version():
     """Get the locally installed hermes version."""
-    # Try reading from the installed package
-    hermes_bin = VENV_DIR / "bin" / "hermes"
+    hermes_bin = _hermes_bin()
     if not hermes_bin.exists():
         return None
     try:
@@ -185,20 +219,29 @@ def do_update():
     print(f"{G}✓ Cleaned{X}")
 
     print(f"\n{C}[3/3] Reinstalling dependencies...{X}")
-    py_venv = VENV_DIR / "bin" / "python"
+    py_venv = _venv_python()
     if not py_venv.exists():
-        py_venv = VENV_DIR / "Scripts" / "python.exe"
+        print(f"{R}✗ Could not find venv python at {py_venv}{X}")
+        return False
 
+    # Non-editable install, with extras. The portable layout is a read-only
+    # staging dir in practice; editable installs would write the folder's
+    # absolute path into site-packages and break the moment the package
+    # moves to a USB stick / another drive letter / another machine.
     r = subprocess.run(
-        [str(py_venv), "-m", "pip", "install", "-e", str(HERMES_DIR)],
+        [str(py_venv), "-m", "pip", "install",
+         f"{HERMES_DIR}[{EXTRAS}]", "--upgrade"],
         capture_output=True, text=True,
     )
     if r.returncode != 0:
-        print(f"{Y}⚠ pip install had warnings, trying with --no-deps...{X}")
-        subprocess.run(
-            [str(py_venv), "-m", "pip", "install", "-e", str(HERMES_DIR), "--no-deps"],
-            capture_output=True,
+        print(f"{Y}⚠ Install with extras failed; retrying core only …{X}")
+        r2 = subprocess.run(
+            [str(py_venv), "-m", "pip", "install", str(HERMES_DIR), "--upgrade"],
+            capture_output=True, text=True,
         )
+        if r2.returncode != 0:
+            print(f"{R}✗ Reinstall failed:{X}\n{r2.stderr[:500]}")
+            return False
 
     print(f"{G}✓ Dependencies updated{X}")
     print(f"\n{G}{B}  ✓ UPDATE COMPLETE{X}")

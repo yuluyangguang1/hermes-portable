@@ -15,7 +15,40 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 DATA_DIR = SCRIPT_DIR / "data"
-VENV_DIR = SCRIPT_DIR / "venv"
+
+
+def _detect_venv_dir():
+    """Pick the right venv for the current platform.
+
+    Universal zip ships venv-<platform>/; single-platform zip ships venv/.
+    We auto-detect so the config panel works in both layouts.
+    """
+    import platform as _p
+    system = _p.system()
+    arch = _p.machine().lower()
+    if arch in ("x86_64", "amd64"): arch = "x64"
+    elif arch in ("aarch64", "arm64"): arch = "arm64"
+
+    if system == "Darwin":
+        label = f"macos-{arch}"
+    elif system == "Linux":
+        label = f"linux-{arch}"
+    elif system == "Windows":
+        label = f"windows-{arch}"
+    else:
+        label = f"{system.lower()}-{arch}"
+
+    for candidate in (SCRIPT_DIR / f"venv-{label}", SCRIPT_DIR / "venv"):
+        py = (candidate / "Scripts" / "python.exe") if system == "Windows" \
+            else (candidate / "bin" / "python")
+        if py.exists():
+            return candidate
+    # Fallback: return the single-platform default even if missing,
+    # so downstream error messages stay informative.
+    return SCRIPT_DIR / "venv"
+
+
+VENV_DIR = _detect_venv_dir()
 ENV_FILE = DATA_DIR / ".env"
 CONFIG_FILE = DATA_DIR / "config.yaml"
 
@@ -114,11 +147,15 @@ CHANNELS = [
 def parse_env():
     keys = {}
     if ENV_FILE.exists():
-        for line in ENV_FILE.read_text().splitlines():
+        for line in ENV_FILE.read_text(encoding="utf-8", errors="replace").splitlines():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
-                keys[k.strip()] = v.strip()
+                v = v.strip()
+                # Strip matching surrounding quotes: KEY="value" → value
+                if len(v) >= 2 and v[0] == v[-1] and v[0] in ('"', "'"):
+                    v = v[1:-1]
+                keys[k.strip()] = v
     return keys
 
 def parse_yaml_safe(path):
@@ -162,7 +199,12 @@ def _yaml_dump_simple(d, indent=0):
         elif v is None:
             lines.append(f"{prefix}{k}:")
         else:
-            lines.append(f'{prefix}{k}: "{v}"')
+            # YAML double-quoted string: escape backslashes and quotes, and
+            # flatten newlines. Keeps the output parseable by any YAML reader.
+            s = str(v)
+            s = s.replace("\\", "\\\\").replace('"', '\\"')
+            s = s.replace("\n", "\\n").replace("\r", "\\r")
+            lines.append(f'{prefix}{k}: "{s}"')
     return lines
 
 
@@ -1320,7 +1362,10 @@ class ConfigHandler(SimpleHTTPRequestHandler):
     def _get_version(self):
         import urllib.request
         # Local version
-        hermes_bin = VENV_DIR / "bin" / "hermes"
+        if sys.platform == "win32":
+            hermes_bin = VENV_DIR / "Scripts" / "hermes.exe"
+        else:
+            hermes_bin = VENV_DIR / "bin" / "hermes"
         local = "unknown"
         if hermes_bin.exists():
             try:
@@ -1367,13 +1412,27 @@ class ConfigHandler(SimpleHTTPRequestHandler):
 
     def _run_update(self):
         update_script = SCRIPT_DIR / "update.py"
-        if update_script.exists():
-            py = sys.executable
-            try:
-                subprocess.run([py, str(update_script), "update"],
-                             cwd=str(SCRIPT_DIR), timeout=120)
-            except subprocess.TimeoutExpired:
-                pass
+        if not update_script.exists():
+            return
+        # Use the portable venv's python if we can find it, so update.py
+        # reinstalls into the same venv hermes runs from. Fall back to
+        # whatever `sys.executable` points at (usually the same anyway).
+        if sys.platform == "win32":
+            py = VENV_DIR / "Scripts" / "python.exe"
+        else:
+            py = VENV_DIR / "bin" / "python"
+        if not py.exists():
+            py = Path(sys.executable)
+        # No timeout: a fresh `pip install` of hermes-agent + its extras
+        # can easily take 5+ minutes on a cold cache; the old 120s
+        # ceiling silently aborted mid-install and left the venv in a
+        # half-broken state. The frontend polls /api/version for
+        # completion instead of relying on us returning.
+        try:
+            subprocess.run([str(py), str(update_script), "update"],
+                           cwd=str(SCRIPT_DIR))
+        except Exception:
+            pass
 
     def _test_provider(self, data):
         """Test an API key by making a minimal request."""
@@ -1414,7 +1473,9 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 "headers": {"x-goog-api-key": api_key},
             },
             "xiaomi": {
-                "url": "https://api.xiaoai.mi.com/v1/models",
+                # Xiaomi MiMo uses api.xiaomimimo.com (NOT api.xiaoai.mi.com —
+                # that's Xiaomi's smart-home assistant, unrelated).
+                "url": "https://api.xiaomimimo.com/v1/models",
                 "headers": {"Authorization": f"Bearer {api_key}"},
             },
             "nous": {
@@ -1491,15 +1552,37 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 safe_dir = str(SCRIPT_DIR).replace("'", "'\\''")
                 safe_home = str(DATA_DIR).replace("'", "'\\''")
                 safe_bin = str(hermes_bin).replace("'", "'\\''")
+                # AppleScript `do script` opens a *fresh* login shell, so we
+                # must re-apply the HOME hijack (sandbox = SCRIPT_DIR/_home).
+                # Otherwise hermes reads the host's real ~/.hermes, breaking
+                # the zero-trace promise.
+                safe_sandbox = str(SCRIPT_DIR / "_home").replace("'", "'\\''")
                 script = f'''tell application "Terminal"
                     activate
-                    do script "cd '{safe_dir}' && export HERMES_HOME='{safe_home}' && '{safe_bin}'"
+                    do script "cd '{safe_dir}' && export HOME='{safe_sandbox}' && export HERMES_HOME='{safe_home}' && '{safe_bin}'"
                 end tell'''
                 subprocess.run(["osascript", "-e", script])
             else:
                 env = os.environ.copy()
                 env["HERMES_HOME"] = str(DATA_DIR)
+                # HOME is already sandboxed by the launcher; subprocess.Popen
+                # inherits os.environ so no extra action needed here.
                 if sys.platform == "win32":
+                    # Inherit a proper PATH so hermes can reach venv tools,
+                    # node, and the portable python. Also force UTF-8 so
+                    # Chinese output doesn't blow up in the new console.
+                    scripts = VENV_DIR / "Scripts"
+                    node_dir = SCRIPT_DIR / "node-windows-x64"
+                    if not node_dir.exists():
+                        node_dir = SCRIPT_DIR / "node"
+                    python_dir = SCRIPT_DIR / "python-windows-x64"
+                    if not python_dir.exists():
+                        python_dir = SCRIPT_DIR / "python"
+                    path_parts = [str(scripts), str(node_dir), str(python_dir),
+                                  env.get("PATH", "")]
+                    env["PATH"] = os.pathsep.join(p for p in path_parts if p)
+                    env["PYTHONIOENCODING"] = "utf-8"
+                    env["PYTHONUTF8"] = "1"
                     # Launch in a new console window (like macOS gets its own Terminal)
                     subprocess.Popen([str(hermes_bin)], env=env, cwd=str(SCRIPT_DIR),
                                      creationflags=subprocess.CREATE_NEW_CONSOLE)

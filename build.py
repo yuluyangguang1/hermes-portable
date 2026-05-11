@@ -1,46 +1,86 @@
 #!/usr/bin/env python3
 """
-Hermes Portable - 构建脚本
-运行此脚本会生成一个完全自包含的 HermesPortable/ 文件夹，
-直接复制到U盘即可使用，无需任何安装步骤。
+Hermes Portable — single-entry build script.
 
-用法:
-  python3 build.py          # 构建到当前目录下的 dist/
-  python3 build.py /Volumes/U盘  # 构建到指定路径
+Produces a self-contained HermesPortable/ folder that can be copied to a
+USB stick or any other machine (same OS/arch) and run without installing
+anything on the host.
+
+Usage:
+  python3 build.py                        # platform-only layout → dist/HermesPortable/
+  python3 build.py --layout universal     # universal layout (venv-<platform>/, python-<platform>/)
+  python3 build.py /Volumes/U盘           # build into a specific location
+  python3 build.py --output DIR
+
+This is the *only* build script; there is no build_windows.py.
+Windows is a first-class target of this same file.
 """
+import argparse
 import os
-import sys
-import subprocess
 import platform
 import shutil
-import zipfile
+import subprocess
+import sys
 import tarfile
-from pathlib import Path
+import zipfile
 from datetime import datetime
+from pathlib import Path
 
 # ─── Config ────────────────────────────────────────────────────
 HERMES_REPO = "https://github.com/NousResearch/hermes-agent.git"
 PYTHON_VERSION = "3.12"
 EXTRAS = "cron,messaging,cli,mcp,web,tts-premium"
+NODE_VERSION = "22.16.0"
 
-# ─── ANSI Colors ───────────────────────────────────────────────
-G = "\033[92m"  # green
-R = "\033[91m"  # red
-Y = "\033[93m"  # yellow
-C = "\033[96m"  # cyan
-B = "\033[1m"   # bold
-X = "\033[0m"   # reset
+# ─── ANSI colors ───────────────────────────────────────────────
+G, R, Y, C, B, X = "\033[92m", "\033[91m", "\033[93m", "\033[96m", "\033[1m", "\033[0m"
+# Disable on Windows cmd that doesn't support ANSI
+if platform.system() == "Windows" and not os.environ.get("WT_SESSION"):
+    G = R = Y = C = B = X = ""
 
 def log(tag, color, msg):
     print(f"{color}[{tag}]{X} {msg}")
 
-def info(m):   log("·", C, m)
-def ok(m):     log("✓", G, m)
-def warn(m):   log("!", Y, m)
-def fail(m):   log("✗", R, m); sys.exit(1)
+def info(m): log("·", C, m)
+def ok(m):   log("✓", G, m)
+def warn(m): log("!", Y, m)
+def fail(m): log("✗", R, m); sys.exit(1)
 
-def banner():
-    system = f"{platform.system()} {platform.machine()}"
+def run(cmd, **kw):
+    return subprocess.run(cmd, check=True, **kw)
+
+def download(url, dest):
+    info(f"Downloading {url.split('/')[-1]} …")
+    run(["curl", "-fSL", "-o", str(dest), url])
+
+def detect_platform():
+    """Return (system, arch, platform_label).
+
+    platform_label matches what the launcher scripts look for:
+      macos-arm64, macos-x64, linux-x64, linux-arm64, windows-x64, windows-arm64
+    """
+    system = platform.system()
+    mach = platform.machine().lower()
+    if mach in ("x86_64", "amd64"):
+        arch = "x64"
+    elif mach in ("aarch64", "arm64"):
+        arch = "arm64"
+    elif mach in ("i386", "i686", "x86"):
+        arch = "x86"
+    else:
+        arch = mach
+
+    if system == "Darwin":
+        label = f"macos-{arch}"
+    elif system == "Linux":
+        label = f"linux-{arch}"
+    elif system == "Windows":
+        label = f"windows-{arch}"
+    else:
+        label = f"{system.lower()}-{arch}"
+    return system, arch, label
+
+def banner(label):
     print(f"""
 {B}{C}
   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗
@@ -48,55 +88,42 @@ def banner():
   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝{X}
 
   {B}Portable Builder{X}
-  Target: {C}{system}{X}
-  Python: {C}{PYTHON_VERSION}{X}
+  Target : {C}{label}{X}
+  Python : {C}{PYTHON_VERSION}{X}
+  Node.js: {C}{NODE_VERSION}{X}
 """)
-
-def run(cmd, **kw):
-    return subprocess.run(cmd, check=True, **kw)
-
-def download(url, dest):
-    """Download file using curl (available on all macOS/Linux)."""
-    run(["curl", "-fSL", "-o", str(dest), url])
-
-def detect_platform():
-    s = platform.system()
-    a = platform.machine().lower()
-    arch = "x86_64" if a in ("x86_64", "amd64") else "aarch64"
-    return s, arch
 
 # ═══════════════════════════════════════════════════════════════
 #  BUILD STEPS
 # ═══════════════════════════════════════════════════════════════
 
-def step_uv(ROOT):
-    """Copy or link uv into the portable folder."""
-    uv_bin = ROOT / ("uv.exe" if platform.system() == "Windows" else "uv")
+def step_uv(ctx):
+    """Copy or download uv into ROOT."""
+    ROOT, system, arch, _ = ctx["ROOT"], ctx["system"], ctx["arch"], ctx["label"]
+    uv_bin = ROOT / ("uv.exe" if system == "Windows" else "uv")
     if uv_bin.exists():
         ok("uv already present"); return
 
-    # Check system uv first
     system_uv = shutil.which("uv")
     if system_uv:
-        info(f"Copying uv from {system_uv} …")
+        info(f"Copying uv from {system_uv}")
         shutil.copy2(system_uv, uv_bin)
-        if platform.system() != "Windows":
+        if system != "Windows":
             uv_bin.chmod(0o755)
         ok("uv ready (from system)")
         return
 
-    system, arch = detect_platform()
+    # uv release URL naming
+    uv_arch = {"x64": "x86_64", "arm64": "aarch64", "x86": "i686"}.get(arch, arch)
     if system == "Darwin":
-        url = f"https://github.com/astral-sh/uv/releases/latest/download/uv-{arch}-apple-darwin.tar.gz"
+        url = f"https://github.com/astral-sh/uv/releases/latest/download/uv-{uv_arch}-apple-darwin.tar.gz"
     elif system == "Linux":
-        url = f"https://github.com/astral-sh/uv/releases/latest/download/uv-{arch}-unknown-linux-gnu.tar.gz"
-    else:
-        url = f"https://github.com/astral-sh/uv/releases/latest/download/uv-{arch}-pc-windows-msvc.zip"
+        url = f"https://github.com/astral-sh/uv/releases/latest/download/uv-{uv_arch}-unknown-linux-gnu.tar.gz"
+    else:  # Windows
+        url = f"https://github.com/astral-sh/uv/releases/latest/download/uv-{uv_arch}-pc-windows-msvc.zip"
 
     archive = ROOT / "_uv_tmp"
-    info("Downloading uv …")
     download(url, archive)
-
     if system == "Windows":
         with zipfile.ZipFile(archive) as z:
             for n in z.namelist():
@@ -106,7 +133,7 @@ def step_uv(ROOT):
     else:
         with tarfile.open(archive, "r:gz") as t:
             for m in t.getmembers():
-                if m.name.endswith("/uv"):
+                if m.name.endswith("/uv") or m.name == "uv":
                     f = t.extractfile(m)
                     uv_bin.write_bytes(f.read())
                     break
@@ -116,13 +143,18 @@ def step_uv(ROOT):
     ok("uv ready")
 
 
-def step_python(ROOT):
-    """Install a standalone Python into python/ via uv."""
-    py_dir = ROOT / "python"
-    uv = ROOT / ("uv.exe" if platform.system() == "Windows" else "uv")
-    if any(py_dir.rglob("python3*")):
-        ok("Python already present"); return
+def step_python(ctx):
+    """Install relocatable Python via uv."""
+    ROOT, system = ctx["ROOT"], ctx["system"]
+    py_dir = ROOT / ctx["python_name"]
+    uv = ROOT / ("uv.exe" if system == "Windows" else "uv")
 
+    # Already installed?
+    for pattern in ("python3*", "python.exe", "python3.exe"):
+        if any(py_dir.rglob(pattern)):
+            ok("Python already present"); return
+
+    py_dir.mkdir(parents=True, exist_ok=True)
     info(f"Installing Python {PYTHON_VERSION} …")
     env = os.environ.copy()
     env["UV_PYTHON_INSTALL_DIR"] = str(py_dir)
@@ -130,64 +162,58 @@ def step_python(ROOT):
         run([str(uv), "python", "install", PYTHON_VERSION, "--install-dir", str(py_dir)], env=env)
         ok(f"Python {PYTHON_VERSION} installed")
     except subprocess.CalledProcessError:
-        fail("uv python install failed. Cannot create portable Python — "
-             "symlinks to system Python break when copied to other machines.\n"
-             "  Fix: ensure internet access, or manually place Python in python/ dir.")
+        fail(
+            "uv python install failed. Cannot create a portable Python.\n"
+            "  • Ensure internet access is available during build.\n"
+            "  • System-Python copies are NOT portable across machines\n"
+            "    (symlinks + hardcoded paths in pyvenv.cfg break)."
+        )
 
 
-def _find_python(ROOT):
-    py_dir = ROOT / "python"
-    # Check symlinks first
-    for f in py_dir.iterdir():
-        if f.is_symlink() or f.is_file():
-            if f.name in ("python3.12", "python3", "python",
-                          "python3.12.exe", "python3.exe", "python.exe"):
-                return f.resolve() if f.is_symlink() else f
-    # Deep search
+def _find_python(ctx):
+    """Locate the python executable inside the portable python dir."""
+    py_dir = ctx["ROOT"] / ctx["python_name"]
+    candidates = (
+        "python3.12", "python3", "python",
+        "python3.12.exe", "python3.exe", "python.exe",
+    )
     for root, _, files in os.walk(py_dir):
         for f in files:
-            if f in ("python3.12", "python3", "python",
-                     "python3.12.exe", "python3.exe", "python.exe"):
+            if f in candidates:
                 p = Path(root) / f
-                if p.is_file(): return p
-    fail("Cannot find python binary after install")
+                if p.is_file():
+                    return p
+    fail("Cannot find python binary inside portable python dir")
 
 
 def _clean_hermes_src(src):
-    """Remove unnecessary files from hermes-agent to save space."""
-    import glob as globmod
-    # Remove __pycache__ dirs
     for d in src.rglob("__pycache__"):
         shutil.rmtree(d, ignore_errors=True)
-    # Remove .pyc files
     for f in src.rglob("*.pyc"):
         f.unlink(missing_ok=True)
-    # Remove release notes
-    for f in src.glob("RELEASE_*.md"):
-        f.unlink(missing_ok=True)
-    # Remove docs, docker, nix, test data
+    for pat in ("RELEASE_*.md",):
+        for f in src.glob(pat):
+            f.unlink(missing_ok=True)
     for name in ("docs", "docker", "datagen-config-examples",
                  ".pytest_cache", ".github", ".vscode", ".idea"):
         d = src / name
         if d.exists():
             shutil.rmtree(d, ignore_errors=True)
-    # Remove individual files
     for name in ("Dockerfile", "flake.lock", "flake.nix"):
         f = src / name
         if f.exists():
             f.unlink(missing_ok=True)
 
 
-def step_hermes(ROOT):
-    """Clone hermes-agent into hermes-agent/."""
+def step_hermes(ctx):
+    ROOT = ctx["ROOT"]
     src = ROOT / "hermes-agent"
     if src.exists() and (src / "run_agent.py").exists():
         ok("hermes-agent present"); return
 
-    # Try local copy first (faster, no network needed)
     local_src = Path.home() / ".hermes" / "hermes-agent"
     if local_src.exists() and (local_src / "run_agent.py").exists():
-        info("Copying hermes-agent from local installation …")
+        info("Copying hermes-agent from ~/.hermes/ …")
         shutil.copytree(local_src, src, ignore=shutil.ignore_patterns(
             "__pycache__", ".git", "node_modules", "venv", "*.pyc",
             "tests", ".pytest_cache", "*.egg-info",
@@ -201,50 +227,48 @@ def step_hermes(ROOT):
     info("Cloning hermes-agent from GitHub …")
     try:
         run(["git", "clone", "--depth", "1", HERMES_REPO, str(src)])
-        # Remove unnecessary files after clone
         _clean_hermes_src(src)
         ok("hermes-agent cloned")
     except subprocess.CalledProcessError:
-        fail("Cannot clone hermes-agent. Check your internet connection, "
+        fail("Cannot clone hermes-agent. Check internet connection, "
              "or ensure ~/.hermes/hermes-agent exists.")
 
 
-def step_venv(ROOT):
-    """Create venv and install deps (offline-ready after this)."""
-    venv = ROOT / "venv"
-    uv  = ROOT / ("uv.exe" if platform.system() == "Windows" else "uv")
+def step_venv(ctx):
+    """Create venv via `uv venv` (relocatable) and install deps non-editable."""
+    ROOT, system = ctx["ROOT"], ctx["system"]
+    venv = ROOT / ctx["venv_name"]
+    uv = ROOT / ("uv.exe" if system == "Windows" else "uv")
     src = ROOT / "hermes-agent"
-    py  = _find_python(ROOT)
+    py = _find_python(ctx)
 
-    # Create venv
     if not venv.exists():
-        info("Creating virtual environment …")
-        run([str(uv), "venv", str(venv), "--python", str(py)])
+        info("Creating virtual environment via uv (relocatable) …")
+        run([str(uv), "venv", str(venv), "--python", str(py), "--relocatable"])
         ok("venv created")
 
-    # Python inside venv
-    if platform.system() == "Windows":
-        py_venv = venv / "Scripts" / "python.exe"
-    else:
-        py_venv = venv / "bin" / "python"
+    py_venv = (venv / "Scripts" / "python.exe") if system == "Windows" \
+        else (venv / "bin" / "python")
 
-    info(f"Installing hermes-agent[{EXTRAS}] — may take a few minutes …")
+    info(f"Installing hermes-agent[{EXTRAS}] (non-editable) …")
+    # IMPORTANT: no `-e` flag. editable installs write absolute paths into
+    # site-packages/*.pth and break the moment the folder moves (USB key
+    # drive letter changes, /Volumes/USB name changes, etc.).
     try:
-        run([str(uv), "pip", "install", "-e", f"{src}[{EXTRAS}]",
+        run([str(uv), "pip", "install", f"{src}[{EXTRAS}]",
              "--python", str(py_venv)])
     except subprocess.CalledProcessError:
         warn("Full extras failed, falling back to core …")
-        run([str(uv), "pip", "install", "-e", str(src),
+        run([str(uv), "pip", "install", str(src),
              "--python", str(py_venv)])
     ok("Dependencies installed")
 
 
-def step_data(ROOT):
-    """Create data/ with default config if missing."""
+def step_data(ctx):
+    ROOT = ctx["ROOT"]
     data = ROOT / "data"
-    dirs = ["sessions", "skills", "logs", "memories", "cron",
-            "plugins", "audio_cache", "image_cache", "checkpoints"]
-    for d in dirs:
+    for d in ("sessions", "skills", "logs", "memories", "cron",
+              "plugins", "audio_cache", "image_cache", "checkpoints"):
         (data / d).mkdir(parents=True, exist_ok=True)
 
     envf = data / ".env"
@@ -260,7 +284,6 @@ def step_data(ROOT):
             "# DEEPSEEK_API_KEY=...\n"
             "# GOOGLE_API_KEY=...\n"
         )
-
     cfg = data / "config.yaml"
     if not cfg.exists():
         cfg.write_text(
@@ -286,33 +309,43 @@ def step_data(ROOT):
     ok("data/ ready")
 
 
-NODE_VERSION = "22.16.0"
-
-def step_nodejs(ROOT):
-    """Download Node.js binary for hermes-web-ui."""
-    node_dir = ROOT / "node"
-    if node_dir.exists() and any(node_dir.rglob("node" if platform.system() != "Windows" else "node.exe")):
+def step_nodejs(ctx):
+    ROOT, system, arch = ctx["ROOT"], ctx["system"], ctx["arch"]
+    node_dir = ROOT / ctx["node_name"]
+    exe = "node.exe" if system == "Windows" else "node"
+    if node_dir.exists() and any(node_dir.rglob(exe)):
         ok("Node.js already present"); return
 
-    system, arch = detect_platform()
-    # Node.js uses different arch names: x64 instead of x86_64, arm64 instead of aarch64
-    node_arch = "x64" if arch == "x86_64" else "arm64"
+    # Node.js uses x64 / arm64 (same as our label suffixes).
+    node_arch = {"x64": "x64", "arm64": "arm64"}.get(arch, arch)
     if system == "Darwin":
         url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-darwin-{node_arch}.tar.gz"
     elif system == "Linux":
+        # Prebuilt Linux tarballs require glibc ≥ 2.28 (verified by node's
+        # release notes for v22.x). On older hosts the binary will fail
+        # with GLIBC_2.xx-not-found — that's a target-side issue we can't
+        # paper over here; document it in README.txt instead.
         url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-linux-{node_arch}.tar.gz"
-    else:
+    elif system == "Windows":
+        # Node.js does not ship Windows arm64 prebuilt; use x64 under emulation.
         url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-win-x64.zip"
+    else:
+        warn(f"Unsupported system for Node.js fetch: {system}"); return
 
     archive = ROOT / "_node_tmp"
-    info(f"Downloading Node.js v{NODE_VERSION} …")
-    download(url, archive)
-
+    try:
+        download(url, archive)
+    except subprocess.CalledProcessError as e:
+        warn(f"Node.js download failed ({e.returncode}); skipping web UI.")
+        warn(f"  URL: {url}")
+        warn("  hermes-web-ui will not be bundled. You can install it later:")
+        warn("    npm install -g hermes-web-ui")
+        return
     node_dir.mkdir(parents=True, exist_ok=True)
+
     if system == "Windows":
         with zipfile.ZipFile(archive) as z:
             z.extractall(node_dir)
-        # Move contents from nested dir
         nested = node_dir / f"node-v{NODE_VERSION}-win-x64"
         if nested.exists():
             for item in nested.iterdir():
@@ -320,310 +353,175 @@ def step_nodejs(ROOT):
             nested.rmdir()
     else:
         with tarfile.open(archive, "r:gz") as t:
-            # Security: filter out path traversal entries
-            safe_members = [m for m in t.getmembers()
-                           if not m.name.startswith("/") and ".." not in m.name]
-            t.extractall(node_dir, members=safe_members)
+            safe = []
+            for m in t.getmembers():
+                n = m.name
+                if n.startswith("/") or ".." in n.split("/"):
+                    continue
+                if m.issym() or m.islnk():
+                    # Only accept symlinks that stay inside the archive
+                    target = m.linkname
+                    if target.startswith("/") or ".." in target.split("/"):
+                        continue
+                safe.append(m)
+            t.extractall(node_dir, members=safe)
+        # Nested dir name differs per platform; handle both forms.
         nested = node_dir / f"node-v{NODE_VERSION}-{system.lower()}-{node_arch}"
         if nested.exists():
             for item in nested.iterdir():
                 shutil.move(str(item), str(node_dir / item.name))
             nested.rmdir()
+        bin_dir = node_dir / "bin"
+        if bin_dir.exists():
+            for f in bin_dir.iterdir():
+                try: f.chmod(0o755)
+                except Exception: pass
 
     archive.unlink(missing_ok=True)
-    if system != "Windows":
-        for f in (node_dir / "bin").iterdir():
-            f.chmod(0o755)
     ok(f"Node.js v{NODE_VERSION} ready")
 
 
-def step_webui(ROOT):
-    """Install hermes-web-ui via npm."""
-    system = platform.system()
+def step_webui(ctx):
+    ROOT, system = ctx["ROOT"], ctx["system"]
+    node_dir = ROOT / ctx["node_name"]
     if system == "Windows":
-        npm = ROOT / "node" / "npm.cmd"
-        node = ROOT / "node" / "node.exe"
+        npm = node_dir / "npm.cmd"
     else:
-        npm = ROOT / "node" / "bin" / "npm"
-        node = ROOT / "node" / "bin" / "node"
-
+        npm = node_dir / "bin" / "npm"
     if not npm.exists():
-        warn("npm not found, skipping hermes-web-ui install"); return
+        warn("npm not found; skipping hermes-web-ui install"); return
 
-    # Check if already installed
-    webui_bin = ROOT / "node" / "bin" / "hermes-web-ui" if system != "Windows" else ROOT / "node" / "hermes-web-ui.cmd"
+    # Already installed?
+    if system == "Windows":
+        webui_bin = node_dir / "hermes-web-ui.cmd"
+    else:
+        webui_bin = node_dir / "bin" / "hermes-web-ui"
     if webui_bin.exists():
         ok("hermes-web-ui already installed"); return
 
     info("Installing hermes-web-ui …")
     env = os.environ.copy()
-    env["PATH"] = str(ROOT / "node" / "bin") + os.pathsep + env.get("PATH", "")
-    # Use npm prefix to install into portable node dir
-    run([str(npm), "install", "-g", "hermes-web-ui",
-         "--prefix", str(ROOT / "node")], env=env)
-    ok("hermes-web-ui installed")
+    bin_path = node_dir / ("" if system == "Windows" else "bin")
+    env["PATH"] = str(bin_path) + os.pathsep + env.get("PATH", "")
+    try:
+        run([str(npm), "install", "-g", "hermes-web-ui",
+             "--prefix", str(node_dir)], env=env)
+        ok("hermes-web-ui installed")
+    except subprocess.CalledProcessError:
+        warn("hermes-web-ui install failed; launcher will skip it gracefully")
 
 
-def step_launchers(ROOT):
-    """Write launcher scripts that set HERMES_HOME and go."""
-    # Copy helper scripts and Windows build script
-    for fname in ("config_server.py", "chat_viewer.py", "update.py", "guide.html", "favicon.svg", "HermesPortable使用说明.html"):
-        src = Path(__file__).parent / fname
-        if src.exists():
-            shutil.copy2(src, ROOT / fname)
-
-    # Copy update scripts (user-facing, not build scripts)
-    for fname in ("update.py", "update.sh"):
-        src = Path(__file__).parent / fname
-        if src.exists():
-            shutil.copy2(src, ROOT / fname)
-            if fname.endswith(".sh"):
-                (ROOT / fname).chmod(0o755)
-
-    # ── Native Windows (no WSL needed!) ──
-    (ROOT / "Hermes.bat").write_text(
-        "@echo off\r\n"
-        "setlocal enabledelayedexpansion\r\n"
-        'set "HERE=%~dp0"\r\n'
-        'set "HERMES_HOME=%HERE%data"\r\n'
-        'set "PATH=%HERE%venv\\Scripts;%HERE%node;%HERE%python;%PATH%"\r\n'
-        "\r\n"
-        "echo.\r\n"
-        "echo   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗\r\n"
-        "echo   ╠═╣╠═╣╠╦╝╠═╝║╣ ║   ║ ║ ║\r\n"
-        "echo   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  Portable\r\n"
-        "echo.\r\n"
-        "\r\n"
-        "REM Check if native venv exists\r\n"
-        'if not exist "%HERE%venv\\Scripts\\hermes.exe" (\r\n'
-        "    echo   [ERROR] 未找到 venv\\Scripts\\hermes.exe\r\n"
-        "    echo.\r\n"
-        "    echo   请先运行构建脚本生成完整环境\r\n"
-        "    echo.\r\n"
-        "    pause\r\n"
-        "    exit /b 1\r\n"
-        ")\r\n"
-        "\r\n"
-        "REM Check if API key is configured\r\n"
-        'set "HAS_KEY=false"\r\n'
-        'if exist "%HERE%data\\.env" (\r\n'
-        '    findstr /R "^[A-Z_]*_API_KEY=." "%HERE%data\\.env" >nul 2>&1\r\n'
-        "    if !errorlevel! equ 0 set \"HAS_KEY=true\"\r\n"
-        ")\r\n"
-        "\r\n"
-        'if "%HAS_KEY%"=="false" (\r\n'
-        "    echo   首次使用！正在打开配置面板...\r\n"
-        "    echo   请在浏览器中完成 API Key 配置。\r\n"
-        "    echo.\r\n"
-        '    start "" "http://127.0.0.1:17520"\r\n'
-        '    "%HERE%venv\\Scripts\\python.exe" "%HERE%config_server.py"\r\n'
-        "    goto :eof\r\n"
-        ")\r\n"
-        "\r\n"
-        'if "%1"=="--config" (\r\n'
-        '    start "" "http://127.0.0.1:17520"\r\n'
-        '    "%HERE%venv\\Scripts\\python.exe" "%HERE%config_server.py"\r\n'
-        "    goto :eof\r\n"
-        ")\r\n"
-        "\r\n"
-        "REM Start hermes-web-ui in background (if installed)\r\n"
-        'set "WEBUI_OK=false"\r\n'
-        "where hermes-web-ui >nul 2>&1\r\n"
-        "if !errorlevel! equ 0 (\r\n"
-        "    start /b hermes-web-ui start --port 8648 >nul 2>&1\r\n"
-        '    set "WEBUI_OK=true"\r\n'
-        ")\r\n"
-        "\r\n"
-        '"%HERE%venv\\Scripts\\hermes.exe" %*\r\n'
-    )
-
-    # ── Windows WSL2 fallback launcher ──
-    (ROOT / "Hermes-WSL.bat").write_text(
-        "@echo off\r\n"
-        "setlocal enabledelayedexpansion\r\n"
-        'set "HERE=%~dp0"\r\n'
-        "\r\n"
-        "REM Check WSL availability\r\n"
-        "wsl --version >nul 2>&1\r\n"
-        "if !errorlevel! neq 0 (\r\n"
-        "    echo.\r\n"
-        "    echo  此启动器需要 WSL2。请使用原生版本: Hermes.bat\r\n"
-        "    echo.\r\n"
-        "    pause\r\n"
-        "    exit /b 1\r\n"
-        ")\r\n"
-        "\r\n"
-        'for /f "usebackq delims=" %%I in (`wsl wslpath "%HERE%"`) do set WSL_HERE=%%I\r\n'
-        "\r\n"
-        "echo.\r\n"
-        "echo   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗\r\n"
-        "echo   ╠═╣╠═╣╠╦╝╠═╝║╣ ║   ║ ║ ║\r\n"
-        "echo   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  Portable (WSL2)\r\n"
-        "echo.\r\n"
-        "\r\n"
-        'wsl test -f "%WSL_HERE%/data/.env" ^&^& wsl grep -qE "^[A-Z_]+_API_KEY=.{10,}" "%WSL_HERE%/data/.env"\r\n'
-        "if !errorlevel! neq 0 (\r\n"
-        "    echo   首次使用！正在打开配置面板...\r\n"
-        "    start http://127.0.0.1:17520\r\n"
-        "    wsl bash -c \"cd '%WSL_HERE%' && export HERMES_HOME='%WSL_HERE%/data' && '%WSL_HERE%/venv/bin/python' '%WSL_HERE%/config_server.py'\"\r\n"
-        "    goto :eof\r\n"
-        ")\r\n"
-        "\r\n"
-        'if "%1"=="--config" (\r\n'
-        "    start http://127.0.0.1:17520\r\n"
-        "    wsl bash -c \"cd '%WSL_HERE%' && export HERMES_HOME='%WSL_HERE%/data' && '%WSL_HERE%/venv/bin/python' '%WSL_HERE%/config_server.py'\"\r\n"
-        "    goto :eof\r\n"
-        ")\r\n"
-        "\r\n"
-        'wsl bash -c "cd \'%WSL_HERE%\' && export HERMES_HOME=\'%WSL_HERE%/data\' && export PATH=\'%WSL_HERE%/node/bin:$PATH\' && \'%WSL_HERE%/venv/bin/hermes\' %*"\r\n'
-    )
-
-    # ── Windows config-only launcher ──
-    (ROOT / "Hermes-Config.bat").write_text(
-        "@echo off\r\n"
-        "setlocal\r\n"
-        'set "HERE=%~dp0"\r\n'
-        'set "HERMES_HOME=%HERE%data"\r\n'
-        'set "PATH=%HERE%venv\\Scripts;%HERE%node;%HERE%python;%PATH%"\r\n'
-        'start "" "http://127.0.0.1:17520"\r\n'
-        '"%HERE%venv\\Scripts\\python.exe" "%HERE%config_server.py"\r\n'
-    )
-    # ── Unix ──
-    sh = ROOT / "Hermes.command"       # .command double-clickable on macOS
-    sh.write_text(
-        "#!/usr/bin/env bash\n"
-        "set -euo pipefail\n"
-        'HERE="$(cd "$(dirname "$0")" && pwd)"\n'
-        'export HERMES_HOME="$HERE/data"\n'
-        'export PATH="$HERE/venv/bin:$HERE/node/bin:$HERE/python:$PATH"\n'
-        'cd "$HERE"\n'
-        '\n'
-        'WEBUI_PID=""\n'
-        '\n'
-        'cleanup() {\n'
-        '    if [ -n "$WEBUI_PID" ] && kill -0 "$WEBUI_PID" 2>/dev/null; then\n'
-        '        kill "$WEBUI_PID" 2>/dev/null || true\n'
-        '    fi\n'
-        '}\n'
-        'trap cleanup EXIT INT TERM\n'
-        '\n'
-        '# Check if API key is configured\n'
-        'HAS_KEY=false\n'
-        'if [ -f "$HERE/data/.env" ]; then\n'
-        '    if grep -qE \'^[A-Z_]+_API_KEY=.{10,}\' "$HERE/data/.env" 2>/dev/null; then\n'
-        '        HAS_KEY=true\n'
-        '    fi\n'
-        'fi\n'
-        '\n'
-        'if [ "$HAS_KEY" = false ]; then\n'
-        '    echo ""\n'
-        '    echo "  ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗"\n'
-        '    echo "  ╠═╣╠═╣╠╦╝╠═╝║╣ ║   ║ ║ ║"\n'
-        '    echo "  ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  Portable"\n'
-        '    echo ""\n'
-        '    echo "  首次使用！正在打开配置面板..."\n'
-        '    echo "  请在浏览器中完成 API Key 配置。"\n'
-        '    echo "  配置完成后，点击「启动」按钮即可。"\n'
-        '    echo ""\n'
-        '    if command -v open &>/dev/null; then\n'
-        '        open "http://127.0.0.1:17520"\n'
-        '    elif command -v xdg-open &>/dev/null; then\n'
-        '        xdg-open "http://127.0.0.1:17520"\n'
-        '    fi\n'
-        '    exec "$HERE/venv/bin/python" "$HERE/config_server.py"\n'
-        'fi\n'
-        '\n'
-        'exec "$HERE/venv/bin/hermes" "$@"\n'
-    )
-    sh.chmod(0o755)
-
-    # Also a plain .sh for Linux terminals
-    sh2 = ROOT / "Hermes.sh"
-    sh2.write_text(sh.read_text())
-    sh2.chmod(0o755)
-
-    ok("Launchers written")
+# Files that must be *copied verbatim* from the repo into the portable folder.
+# This is the single source of truth — no more inlined bat/sh strings.
+_STATIC_ASSETS = [
+    "config_server.py",
+    "chat_viewer.py",
+    "update.py",
+    "update.sh",
+    "guide.html",
+    "favicon.svg",
+    "HermesPortable使用说明.html",
+    # Launchers
+    "Hermes.command",
+    "Hermes.sh",
+    "Hermes.bat",
+    "Hermes-WSL.bat",
+    # Rebuild helpers — shipped so a user who carried a macOS-built zip
+    # onto a Linux box can rebuild the runtime without re-downloading.
+    "build.py",
+    "linux-rebuild.sh",
+]
 
 
-def step_cleanup(ROOT):
-    """Final cleanup pass — remove __pycache__, .DS_Store, test files."""
+def step_launchers(ctx):
+    ROOT = ctx["ROOT"]
+    repo = Path(__file__).parent
+    for fname in _STATIC_ASSETS:
+        src = repo / fname
+        if not src.exists():
+            warn(f"missing in repo: {fname}")
+            continue
+        dst = ROOT / fname
+        shutil.copy2(src, dst)
+        # executable bits for unix launchers / scripts
+        if fname.endswith((".sh", ".command")):
+            try: dst.chmod(0o755)
+            except Exception: pass
+    ok("Launchers copied from repo")
+
+
+def step_cleanup(ctx):
+    ROOT = ctx["ROOT"]
     info("Cleaning build artifacts …")
     removed = 0
-    # __pycache__ everywhere
     for d in ROOT.rglob("__pycache__"):
-        shutil.rmtree(d, ignore_errors=True)
-        removed += 1
-    # .pyc files
+        shutil.rmtree(d, ignore_errors=True); removed += 1
     for f in ROOT.rglob("*.pyc"):
-        f.unlink(missing_ok=True)
-        removed += 1
-    # .DS_Store
+        f.unlink(missing_ok=True); removed += 1
     for f in ROOT.rglob(".DS_Store"):
-        f.unlink(missing_ok=True)
-        removed += 1
-    # .egg-info
+        f.unlink(missing_ok=True); removed += 1
     for d in ROOT.rglob("*.egg-info"):
-        shutil.rmtree(d, ignore_errors=True)
-        removed += 1
-    # Test files in venv site-packages
-    venv = ROOT / "venv"
+        shutil.rmtree(d, ignore_errors=True); removed += 1
+    # Trim site-packages tests
+    venv = ROOT / ctx["venv_name"]
     if venv.exists():
-        site = venv / ("Lib" if platform.system() == "Windows" else "lib") / f"python{PYTHON_VERSION}" / "site-packages"
+        lib = "Lib" if ctx["system"] == "Windows" else "lib"
+        site = venv / lib / f"python{PYTHON_VERSION}" / "site-packages"
         if site.exists():
-            for d in site.rglob("__tests__"):
-                shutil.rmtree(d, ignore_errors=True)
-                removed += 1
             for d in site.rglob("tests"):
-                if d.name == "tests" and d.is_dir():
-                    shutil.rmtree(d, ignore_errors=True)
-                    removed += 1
+                if d.is_dir():
+                    shutil.rmtree(d, ignore_errors=True); removed += 1
+            for d in site.rglob("__tests__"):
+                shutil.rmtree(d, ignore_errors=True); removed += 1
     ok(f"Cleaned {removed} artifacts")
 
 
-def step_readme(ROOT):
+def step_readme(ctx):
+    ROOT = ctx["ROOT"]
+    label = ctx["label"]
+    venv_name = ctx["venv_name"]
     (ROOT / "README.txt").write_text(
-        "╔══════════════════════════════════════════╗\n"
-        "║         HERMES  PORTABLE  v0.11.0           ║\n"
-        "║       插上U盘，打开即用的 AI Agent       ║\n"
-        "╚══════════════════════════════════════════╝\n"
+        "Hermes Portable\n"
+        "===============\n\n"
+        f"  Built for : {label}\n"
+        f"  Build time: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
+        f"  venv dir  : {venv_name}/\n"
         "\n"
-        "【支持平台】\n"
-        "  macOS 10.15+ (Catalina)  →  Hermes.command  双击即用\n"
-        "  Linux (glibc 2.17+)      →  ./Hermes.sh     终端运行\n"
-        "  Windows 10/11            →  Hermes.bat       双击即用（原生支持，Early Beta）\n"
+        "How to run\n"
+        "----------\n"
+        "  macOS    →  double-click  Hermes.command\n"
+        "  Linux    →  ./Hermes.sh  (from a terminal)\n"
+        "  Windows  →  double-click  Hermes.bat\n"
         "\n"
-        "【首次使用】\n"
-        "  双击启动即可，首次会自动打开配置面板：\n"
-        "     macOS    →  Hermes.command  (双击即可)\n"
-        "     Linux    →  ./Hermes.sh\n"
-        "     Windows  →  Hermes.bat  (双击即可)\n"
+        "First run opens a config panel at http://127.0.0.1:17520 for\n"
+        "you to paste an API key. After that it launches Hermes directly.\n"
         "\n"
-        "  在配置面板中填入 API Key，点击「启动」即可使用。\n"
+        "Windows notes\n"
+        "-------------\n"
+        "  • Native Windows support is Early Beta. If you hit issues, try\n"
+        "    Hermes-WSL.bat (requires WSL2 + a Linux venv in the folder).\n"
+        "  • SmartScreen will warn \"Unknown publisher\" on first run.\n"
+        "    Click \"More info\" → \"Run anyway\".\n"
+        "  • Long paths (>260 chars) can break Python package loading;\n"
+        "    prefer a short path like C:\\HP or D:\\HP.\n"
         "\n"
-        "【目录说明】\n"
-        "  data/             所有用户数据（配置/会话/技能）\n"
-        "  data/.env         API 密钥\n"
-        "  data/config.yaml  配置文件\n"
-        "  venv/             Python 依赖（勿动）\n"
-        "  python/           Python 运行时（勿动）\n"
-        "  hermes-agent/     Hermes 源码（勿动）\n"
-        "  config_server.py  Web 配置面板\n"
-        "  chat_viewer.py    聊天记录查看器\n"
-        "  guide.html        操作说明（浏览器打开）\n"
-        "  HermesPortable使用说明.html  中文使用说明\n"
+        "Universal zip\n"
+        "-------------\n"
+        "  The Universal zip contains venv-<platform>/ and python-<platform>/\n"
+        "  dirs for macOS, Linux, and Windows. Each launcher auto-picks the\n"
+        "  right one; you don't need to do anything.\n"
         "\n"
-        "【Windows 备选】\n"
-        "  如果 Hermes.bat 原生运行遇到问题，可使用 Hermes-WSL.bat 通过 WSL2 运行。\n"
+        "Data\n"
+        "----\n"
+        "  data/             all user state (sessions / skills / logs)\n"
+        "  data/.env         API keys\n"
+        "  data/config.yaml  settings\n"
         "\n"
-        "【更新 Hermes】\n"
-        "  cd hermes-agent && git pull && cd ..\n"
-        "  venv/bin/pip install -e hermes-agent[all]\n"
-        "\n"
-        "【备份】\n"
-        "  只需备份 data/ 目录即可。\n"
-        "\n"
-        "【大小】\n"
-        "  当前约 210 MB，U 盘建议 1 GB 以上。\n"
+        "Update\n"
+        "------\n"
+        "  Open the config panel → bottom right → Check for Updates.\n"
+        "  Or from a terminal:\n"
+        "    python update.py update\n"
     )
     ok("README.txt written")
 
@@ -632,67 +530,91 @@ def step_readme(ROOT):
 #  MAIN
 # ═══════════════════════════════════════════════════════════════
 
-def main():
-    banner()
+STEPS = [
+    ("Downloading uv",               step_uv),
+    ("Installing portable Python",   step_python),
+    ("Cloning hermes-agent",         step_hermes),
+    ("Creating venv + deps",         step_venv),
+    ("Setting up data/",             step_data),
+    ("Downloading Node.js",          step_nodejs),
+    ("Installing hermes-web-ui",     step_webui),
+    ("Copying launchers",            step_launchers),
+    ("Writing README",               step_readme),
+    ("Cleaning",                     step_cleanup),
+]
 
-    # Determine output directory
-    if len(sys.argv) > 1:
-        ROOT = Path(sys.argv[1]).resolve() / "HermesPortable"
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Build Hermes Portable")
+    p.add_argument("--layout", choices=("platform", "universal"), default="platform",
+                   help="'platform' puts deps in venv/python (default); "
+                        "'universal' puts deps in venv-<platform>/python-<platform>/ "
+                        "so multiple builds can be merged into one USB package.")
+    p.add_argument("--output", "-o", default=None,
+                   help="Output directory (default: dist/HermesPortable)")
+    p.add_argument("positional", nargs="?", default=None,
+                   help="Alias for --output (kept for backwards compatibility)")
+    return p.parse_args()
+
+
+def main():
+    args = parse_args()
+    system, arch, label = detect_platform()
+    banner(label)
+
+    # Compute output root
+    out = args.output or args.positional
+    if out:
+        ROOT = Path(out).resolve()
+        if ROOT.name != "HermesPortable":
+            ROOT = ROOT / "HermesPortable"
     else:
         ROOT = Path(__file__).parent / "dist" / "HermesPortable"
-
     ROOT.mkdir(parents=True, exist_ok=True)
-    (ROOT / "data").mkdir(exist_ok=True)
 
-    info(f"Build target: {ROOT}")
+    # Platform-suffixed dir names for universal layout
+    if args.layout == "universal":
+        venv_name = f"venv-{label}"
+        python_name = f"python-{label}"
+        node_name = f"node-{label}"
+    else:
+        venv_name = "venv"
+        python_name = "python"
+        node_name = "node"
+
+    ctx = {
+        "ROOT": ROOT,
+        "system": system,
+        "arch": arch,
+        "label": label,
+        "venv_name": venv_name,
+        "python_name": python_name,
+        "node_name": node_name,
+    }
+
+    info(f"Output : {ROOT}")
+    info(f"Layout : {args.layout}")
     print()
 
-    steps = [
-        ("Downloading uv (package manager)",      step_uv),
-        ("Installing portable Python",             step_python),
-        ("Cloning hermes-agent",                   step_hermes),
-        ("Creating venv & installing deps",        step_venv),
-        ("Setting up data directory",              step_data),
-        ("Downloading Node.js",                    step_nodejs),
-        ("Installing hermes-web-ui",               step_webui),
-        ("Writing launcher scripts",               step_launchers),
-        ("Writing README",                         step_readme),
-        ("Cleaning build artifacts",               step_cleanup),
-    ]
-
-    for i, (desc, fn) in enumerate(steps, 1):
-        print(f"{B}[{i}/{len(steps)}] {desc}{X}")
+    for i, (desc, fn) in enumerate(STEPS, 1):
+        print(f"{B}[{i}/{len(STEPS)}] {desc}{X}")
         try:
-            fn(ROOT)
+            fn(ctx)
         except subprocess.CalledProcessError as e:
+            print(f"  cmd={e.cmd}", file=sys.stderr)
             fail(f"Step '{desc}' failed with exit code {e.returncode}")
+        except SystemExit:
+            raise
         except Exception as e:
+            import traceback; traceback.print_exc()
             fail(f"Step '{desc}' failed: {e}")
         print()
 
-    # Summary
-    total_size = sum(f.stat().st_size for f in ROOT.rglob("*") if f.is_file())
-    total_mb = total_size / (1024 * 1024)
-
-    print(f"""
-{G}{B}
-  ╔═══════════════════════════════════════╗
-  ║        BUILD COMPLETE  ✓             ║
-  ╚═══════════════════════════════════════╝
-{X}
-  Output : {C}{ROOT}{X}
-  Size   : {C}{total_mb:.0f} MB{X}
-
-  {B}下一步:{X}
-  1. 把 {C}HermesPortable/{X} 整个文件夹复制到U盘
-  2. 编辑 {C}data/.env{X} 填入 API Key
-  3. 双击启动：
-     • macOS   → Hermes.command
-     • Windows → Hermes.bat
-     • Linux   → ./Hermes.sh
-
-  🚀 零安装，即插即用！
-""")
+    total_bytes = sum(f.stat().st_size for f in ROOT.rglob("*") if f.is_file())
+    print(f"{G}{B}  ✓ Build complete{X}")
+    print(f"  Location: {C}{ROOT}{X}")
+    print(f"  Size    : {C}{total_bytes / 1e6:.0f} MB{X}")
+    print(f"  Launchers: {C}Hermes.command / Hermes.sh / Hermes.bat{X}\n")
 
 
 if __name__ == "__main__":

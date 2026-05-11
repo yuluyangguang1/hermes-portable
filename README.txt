@@ -1,42 +1,69 @@
-╔══════════════════════════════════════════╗
-║         HERMES  PORTABLE  v0.11.0           ║
-║       插上U盘，打开即用的 AI Agent       ║
-╚══════════════════════════════════════════╝
+Hermes Portable
+===============
 
-【支持平台】
-  macOS 10.15+ (Catalina)  →  Hermes.command  双击即用
-  Linux (glibc 2.17+)      →  ./Hermes.sh     终端运行
-  Windows 10/11            →  Hermes.bat       双击即用（原生支持，Early Beta）
+  Plug-in-a-USB AI Agent — no installer, no admin rights, no host-side config.
 
-【首次使用】
-  双击启动即可，首次会自动打开配置面板：
-     macOS    →  Hermes.command  (双击即可)
-     Linux    →  ./Hermes.sh
-     Windows  →  Hermes.bat  (双击即可)
+How to run
+----------
+  macOS    →  double-click  Hermes.command
+  Linux    →  ./Hermes.sh   (from a terminal)
+  Windows  →  double-click  Hermes.bat
 
-  在配置面板中填入 API Key，点击「启动」即可使用。
+On first run a config panel opens at http://127.0.0.1:17520 for
+you to paste an API key. After that, the launcher starts Hermes directly.
 
-【目录说明】
-  data/             所有用户数据（配置/会话/技能）
-  data/.env         API 密钥
-  data/config.yaml  配置文件
-  venv/             Python 依赖（勿动）
-  python/           Python 运行时（勿动）
-  hermes-agent/     Hermes 源码（勿动）
-  config_server.py  Web 配置面板
-  chat_viewer.py    聊天记录查看器
-  guide.html        操作说明（浏览器打开）
-  HermesPortable使用说明.html  中文使用说明
+Package layouts
+---------------
+  Platform zip (HermesPortable-macOS.zip / Linux / Windows):
+      venv/, python/, node/             ← generic names, launcher finds them
 
-【Windows 备选】
-  如果 Hermes.bat 原生运行遇到问题，可使用 Hermes-WSL.bat 通过 WSL2 运行。
+  Universal zip (HermesPortable-Universal.zip):
+      venv-macos-arm64/, python-macos-arm64/, node-macos-arm64/
+      venv-linux-x64/,   python-linux-x64/,   node-linux-x64/
+      venv-windows-x64/, python-windows-x64/, node-windows-x64/
+      → same launchers auto-pick the right set for the host
 
-【更新 Hermes】
-  cd hermes-agent && git pull && cd ..
-  venv/bin/pip install -e hermes-agent[all]
+You never need to touch those directories. Use `data/` for everything.
 
-【备份】
-  只需备份 data/ 目录即可。
+Windows notes
+-------------
+  • Windows native support is Early Beta.
+  • SmartScreen will warn "Unknown publisher" on first run —
+    click "More info" → "Run anyway".
+  • If anything misbehaves, try Hermes-WSL.bat (WSL2 fallback).
+    The Universal zip carries a Linux venv that WSL can use directly.
+  • Prefer short install paths (e.g. C:\HP) — long paths can trip up
+    older Python packages on Windows.
 
-【大小】
-  当前约 210 MB，U 盘建议 1 GB 以上。
+macOS notes
+-----------
+  • GitHub CI builds on macos-latest, which is ARM64 (Apple Silicon).
+    Intel Mac users should either build from source (`python3 build.py`)
+    or use the Universal zip once both arch builds land in it.
+
+Linux notes
+-----------
+  • Requires glibc ≥ 2.28 (Ubuntu 20.04+, Debian 11+, RHEL 8+).
+    Node.js 22.x's prebuilt binaries won't run on older glibc.
+  • If `Hermes.sh` fails with `GLIBC_2.xx not found`, run
+    `./linux-rebuild.sh` on the target machine to rebuild the runtime.
+
+Data layout
+-----------
+  data/             all user state (sessions, skills, logs)
+  data/.env         API keys
+  data/config.yaml  settings
+
+Update
+------
+  Open the config panel (any launcher with --config, or first run) and
+  click "Check for Updates" in the bottom right.
+  Or from a terminal:
+      python update.py update
+
+Building from source
+--------------------
+  python3 build.py                     (platform zip for current OS)
+  python3 build.py --layout universal  (per-platform-suffixed dirs, for Universal)
+
+License: MIT
