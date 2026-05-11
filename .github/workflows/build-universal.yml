@@ -122,9 +122,15 @@ jobs:
       # venv. The single-platform zips are build.yml's job, not ours.
       # This job only produces HermesPortable-Universal.zip.
 
+      # IMPORTANT: do NOT set body_path or generate_release_notes here.
+      # build.yml writes the release body; if this workflow also wrote
+      # one, the last job to finish wins — and because softprops
+      # *appends* to existing bodies on update, v0.13.2/0.13.3 ended up
+      # with "Full Changelog: …" duplicated twice.
+      # This step only uploads the Universal zip; body stays whatever
+      # build.yml composed.
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             HermesPortable-Universal.zip
-          generate_release_notes: true
           fail_on_unmatched_files: false

@@ -77,11 +77,63 @@ jobs:
             fi
           done
 
+      # Build a consistent, informative release body. softprops'
+      # generate_release_notes=true appends GitHub's auto-summary
+      # (commits + PRs) *below* this body. Keeping the stable parts
+      # (download table, platform requirements, first-run guide) in
+      # the body means every release has the same useful shape even
+      # if no humans are around to write notes.
+      - name: Compose release notes
+        run: |
+          set -e
+          TAG="${GITHUB_REF#refs/tags/}"
+          {
+            echo "# Hermes Portable $TAG"
+            echo
+            echo "> Plug-in-a-USB [Hermes Agent](https://github.com/NousResearch/hermes-agent) · zero-install, zero-trace, cross-platform"
+            echo "> 插上U盘即用 · 零安装 · 零痕迹 · 三平台原生"
+            echo
+            echo "## 下载 Downloads"
+            echo
+            echo "| 平台 | 文件 | 启动方式 |"
+            echo "|---|---|---|"
+            echo "| **macOS** (arm64/x64) | [HermesPortable-macOS.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-macOS.zip) | 双击 \`Hermes.command\` |"
+            echo "| **Linux** (glibc 2.28+) | [HermesPortable-Linux.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Linux.zip) | \`./Hermes.sh\` |"
+            echo "| **Windows** 10/11 (Early Beta) | [HermesPortable-Windows.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Windows.zip) | 双击 \`Hermes.bat\` |"
+            echo "| 🌍 **Universal** (三合一 / all three) | [HermesPortable-Universal.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Universal.zip) | U 盘多机共用 / USB for any box |"
+            echo
+            echo "## 首次使用 Quick start"
+            echo
+            echo "1. 解压到 U 盘或任意目录（Windows 避免深路径，260 字符限制）"
+            echo "2. 双击对应平台的启动器"
+            echo "3. 首次启动自动打开 <http://127.0.0.1:17520> ，填 API Key → 保存 → 启动"
+            echo
+            echo "## 零痕迹保证 Zero-trace guarantee"
+            echo
+            echo "启动器在 U 盘里建 \`_home/\` 沙箱，劫持 \`HOME\` / \`USERPROFILE\`，所有走 \`~/.hermes\` 的读写都落到 U 盘的 \`data/\` 里。宿主机的真 \`~/.hermes\` / \`%USERPROFILE%\\.hermes\` 从不接触——拔 U 盘，什么都带走，什么都没留下。"
+            echo
+            echo "## SHA-256"
+            echo
+            echo "\`\`\`"
+            sha256sum HermesPortable-*.zip 2>/dev/null || shasum -a 256 HermesPortable-*.zip
+            echo "\`\`\`"
+            echo
+            echo "> Universal 包由 \`.github/workflows/build-universal.yml\` 单独构建并上传到本 release。"
+            echo
+            echo "---"
+            echo
+          } > release-notes.md
+          echo "===== release-notes.md ====="
+          cat release-notes.md
+
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             HermesPortable-macOS.zip
             HermesPortable-Linux.zip
             HermesPortable-Windows.zip
+          body_path: release-notes.md
+          # generate_release_notes places GitHub's auto-summary
+          # (commits + PRs since last tag) *after* body_path content.
           generate_release_notes: true
           fail_on_unmatched_files: false
