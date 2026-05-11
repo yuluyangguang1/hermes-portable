@@ -1,16 +1,25 @@
 @echo off
+rem IMPORTANT: this file MUST stay pure ASCII.
+rem cmd.exe parses .bat files using the system ACP (e.g. GBK on a Chinese
+rem Windows), NOT whatever codepage `chcp` sets. Any non-ASCII character
+rem (even inside rem comments) can be chopped mid-sequence and produce
+rem stray ')' or '"' bytes that prematurely close if-blocks, turning the
+rem rest of the script into garbage commands. Seen in the wild: GitHub
+rem issue where a Chinese Windows user's Hermes.bat auto-launched
+rem build.py because a rem-line's '===' (originally U+2550 box-drawing)
+rem leaked as an unbalanced paren. Use only plain ASCII here.
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
-rem ═══════════════════════════════════════════════════════
-rem  Hermes Portable — Windows native launcher
-rem ═══════════════════════════════════════════════════════
+rem =======================================================
+rem  Hermes Portable - Windows native launcher
+rem =======================================================
 
 set "HERE=%~dp0"
 rem %~dp0 ends with backslash; strip it for consistency
 if "%HERE:~-1%"=="\" set "HERE=%HERE:~0,-1%"
 
-rem ── Multi-layout venv detection ────────────────────────
+rem -- Multi-layout venv detection ------------------------
 rem  Universal / per-platform layouts all supported:
 rem    HermesPortable\venv-windows-x64\Scripts\hermes.exe   (Universal)
 rem    HermesPortable\venv\Scripts\hermes.exe               (platform-only)
@@ -24,13 +33,18 @@ if exist "%HERE%\venv-windows-x64\Scripts\hermes.exe" (
     echo.
     echo   [ERROR] Windows venv not found.
     echo.
-    echo   Expected one of:
+    echo   Looks like this is the source repo, not a release zip.
+    echo   Expected one of these to exist next to Hermes.bat:
     echo     %HERE%\venv-windows-x64\Scripts\hermes.exe
     echo     %HERE%\venv\Scripts\hermes.exe
     echo.
-    echo   If you downloaded the Universal zip, make sure the Windows
-    echo   sub-archive was extracted. Otherwise rebuild with:
+    echo   Fix: download HermesPortable-Windows.zip from
+    echo     https://github.com/yuluyangguang1/hermes-portable/releases
+    echo   and double-click the Hermes.bat inside the extracted folder.
+    echo.
+    echo   Or rebuild from source in a separate cmd window:
     echo     python build.py
+    echo   then use dist\HermesPortable\Hermes.bat instead.
     echo.
     pause
     exit /b 1
@@ -45,15 +59,15 @@ if exist "%HERE%\node-windows-x64" (
     set "NODE_DIR="
 )
 
-rem ── HOME hijack sandbox ────────────────────────────────
+rem -- HOME hijack sandbox --------------------------------
 rem  %HERE%\_home acts as a private HOME. %HERE%\_home\.hermes is a
 rem  directory junction (mklink /J) pointing to %HERE%\data, so any
 rem  tool that reads or writes %USERPROFILE%\.hermes (hermes-web-ui,
-rem  some plugins, …) lands inside the portable folder instead.
+rem  some plugins, ...) lands inside the portable folder instead.
 rem  The host's real %USERPROFILE%\.hermes is never touched.
 rem
 rem  Junctions work on NTFS without admin. If the U-stick is formatted
-rem  FAT32/exFAT, junctions are not supported — we fall back to a
+rem  FAT32/exFAT, junctions are not supported -- we fall back to a
 rem  symlink (needs Developer Mode or admin). If both fail we bail out.
 if not exist "%HERE%\data" mkdir "%HERE%\data" >nul 2>&1
 set "SANDBOX=%HERE%\_home"
@@ -61,9 +75,9 @@ if not exist "%SANDBOX%" mkdir "%SANDBOX%" >nul 2>&1
 
 set "LINK=%SANDBOX%\.hermes"
 rem  Detect what's currently at LINK:
-rem    missing            → create junction
-rem    reparse point      → already a link, leave as-is (idempotent)
-rem    real directory     → refuse to clobber, tell user
+rem    missing           -> create junction
+rem    reparse point     -> already a link, leave as-is (idempotent)
+rem    real directory    -> refuse to clobber, tell user
 if exist "%LINK%" (
     rem Check reparse-point attribute (junctions + symlinks both have it)
     dir /AL "%SANDBOX%" 2>nul | findstr /I /C:".hermes" >nul
@@ -87,7 +101,7 @@ if exist "%LINK%" (
         if !errorlevel! neq 0 (
             echo.
             echo   [ERROR] Could not create link:
-            echo     %LINK%  ^>  %HERE%\data
+            echo     %LINK%  -^>  %HERE%\data
             echo.
             echo   Your drive may be FAT32/exFAT and not support junctions.
             echo   Try one of:
@@ -100,8 +114,8 @@ if exist "%LINK%" (
     )
 )
 
-rem ── Environment ────────────────────────────────────────
-rem  Override HOME *and* USERPROFILE — different libs read different
+rem -- Environment ----------------------------------------
+rem  Override HOME *and* USERPROFILE -- different libs read different
 rem  vars (Python's os.path.expanduser on Windows prefers USERPROFILE,
 rem  Node/npm frequently reads HOME).
 set "HOME=%SANDBOX%"
@@ -115,7 +129,7 @@ if defined NODE_DIR (
     set "PATH=%VENV_DIR%\Scripts;%PYTHON_DIR%;%PATH%"
 )
 
-rem ── Single-instance lock (best-effort) ─────────────────
+rem -- Single-instance lock (best-effort) -----------------
 rem cmd.exe has no cheap way to record its own PID, so this lock is a
 rem "stale-file" marker, not a PID check. If you see this error and are
 rem sure no other instance is running, just delete the lock file.
@@ -138,7 +152,7 @@ echo   Hermes Portable
 echo   ---------------
 echo.
 
-rem ── First-run detection ────────────────────────────────
+rem -- First-run detection --------------------------------
 set "HAS_KEY=false"
 if exist "%HERE%\data\.env" (
     findstr /R "^[A-Z_][A-Z_]*_API_KEY=..........*" "%HERE%\data\.env" >nul 2>&1

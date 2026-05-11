@@ -1,17 +1,20 @@
 @echo off
+rem IMPORTANT: this file MUST stay pure ASCII (see Hermes.bat top of file).
+rem Non-ASCII in rem comments on a GBK Windows can chop into stray ')' or
+rem '"' bytes and break the if-block parser.
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
-rem ═══════════════════════════════════════════════════════
-rem  Hermes Portable — WSL2 fallback launcher
+rem =======================================================
+rem  Hermes Portable - WSL2 fallback launcher
 rem  Only use this if Hermes.bat (native) fails on your
 rem  Windows setup. Requires WSL2 + Ubuntu or similar.
-rem ═══════════════════════════════════════════════════════
+rem =======================================================
 
 set "HERE=%~dp0"
 if "%HERE:~-1%"=="\" set "HERE=%HERE:~0,-1%"
 
-rem ── WSL availability ────────────────────────────────────
+rem -- WSL availability -----------------------------------
 wsl --version >nul 2>&1
 if !errorlevel! neq 0 (
     echo.
@@ -24,8 +27,8 @@ if !errorlevel! neq 0 (
     exit /b 1
 )
 
-rem ── HOME hijack sandbox ────────────────────────────────
-rem  Create the junction from the Windows side — WSL2 follows NTFS
+rem -- HOME hijack sandbox --------------------------------
+rem  Create the junction from the Windows side -- WSL2 follows NTFS
 rem  reparse points transparently through /mnt/c/..., so a single
 rem  sandbox works for both launchers. See Hermes.bat for the long
 rem  explanation; the logic below is a condensed version.
@@ -59,7 +62,7 @@ if exist "%LINK%" (
     )
 )
 
-rem ── Convert Windows path to WSL path ────────────────────
+rem -- Convert Windows path to WSL path -------------------
 for /f "usebackq delims=" %%I in (`wsl wslpath "%HERE%"`) do set "WSL_HERE=%%I"
 if not defined WSL_HERE (
     echo   [ERROR] Could not convert path: %HERE%
@@ -67,7 +70,7 @@ if not defined WSL_HERE (
     exit /b 1
 )
 
-rem ── Pick a Linux venv directory ────────────────────────
+rem -- Pick a Linux venv directory ------------------------
 set "WSL_VENV="
 for %%D in (venv-linux-x64 venv) do (
     wsl test -x "%WSL_HERE%/%%D/bin/hermes" 2>nul
@@ -95,7 +98,7 @@ echo   Hermes Portable (via WSL2)
 echo   --------------------------
 echo.
 
-rem ── First-run / explicit config mode ───────────────────
+rem -- First-run / explicit config mode -------------------
 rem Escape single quotes in WSL_HERE to prevent injection into bash -c
 set "WSL_HERE_SAFE=!WSL_HERE:'='\''!"
 set "WSL_VENV_SAFE=!WSL_VENV:'='\''!"
