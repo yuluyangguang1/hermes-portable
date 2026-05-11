@@ -129,6 +129,38 @@ if defined NODE_DIR (
     set "PATH=%VENV_DIR%\Scripts;%PYTHON_DIR%;%PATH%"
 )
 
+rem -- Self-heal launcher shims --------------------------
+rem  uv creates Windows entry-point .exe files as "trampolines" whose
+rem  target Python path is stored in a PE resource (UV_PYTHON_PATH).
+rem  On release zips built by GitHub Actions, that path is the CI
+rem  runner's absolute path (D:\a\hermes-portable\...) and does not
+rem  exist on the user's machine, producing:
+rem      No Python at 'D:\a\...\python.exe'
+rem  fix_shims.py rewrites those resources to a path relative to the
+rem  trampoline's own directory, making them self-healing forever
+rem  (future folder moves across drive letters don't need a re-fix).
+rem
+rem  We drive fix_shims.py with the portable python directly (the real
+rem  python-build-standalone binary under %PYTHON_DIR%) rather than
+rem  venv\Scripts\python.exe, because the latter is itself a uv
+rem  trampoline and might be broken too.
+if exist "%HERE%\fix_shims.py" (
+    rem Locate the portable python.exe under %PYTHON_DIR%. It lives
+    rem inside a cpython-3.12-... subdirectory we don't know the exact
+    rem name of, so glob for it.
+    set "PORTABLE_PY="
+    for /f "delims=" %%F in ('dir /b /s "%PYTHON_DIR%\python.exe" 2^>nul') do (
+        if not defined PORTABLE_PY set "PORTABLE_PY=%%F"
+    )
+    if defined PORTABLE_PY (
+        "!PORTABLE_PY!" "%HERE%\fix_shims.py" 2>nul
+    ) else if exist "%VENV_DIR%\Scripts\python.exe" (
+        rem Fallback: venv's python (also a trampoline, but usually
+        rem works because uv venv --relocatable stores a relative path).
+        "%VENV_DIR%\Scripts\python.exe" "%HERE%\fix_shims.py" 2>nul
+    )
+)
+
 rem -- Single-instance lock (best-effort) -----------------
 rem cmd.exe has no cheap way to record its own PID, so this lock is a
 rem "stale-file" marker, not a PID check. If you see this error and are
