@@ -113,8 +113,14 @@ if [ -f "$HERE/fix_shims.py" ]; then
 fi
 
 # ── Cleanup: must be reachable even after child exits ─────────
+# OWN_LOCK gates the unlink: we only clear the lock file if WE were
+# the process that created it. Without this guard, a second launch
+# that correctly detects "already running" and exits 1 would still
+# run the trap and delete the first instance's lock — making the
+# single-instance check useless from the third launch onward.
 WEBUI_PID=""
 HERMES_PID=""
+OWN_LOCK=0
 cleanup() {
   # Kill webui child if still alive
   if [ -n "$WEBUI_PID" ] && kill -0 "$WEBUI_PID" 2>/dev/null; then
@@ -125,7 +131,9 @@ cleanup() {
   if [ -n "$HERMES_PID" ] && kill -0 "$HERMES_PID" 2>/dev/null; then
     kill "$HERMES_PID" 2>/dev/null || true
   fi
-  rm -f "$HERE/data/.hermes.lock" 2>/dev/null || true
+  if [ "$OWN_LOCK" = "1" ]; then
+    rm -f "$HERE/data/.hermes.lock" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT INT TERM
 
@@ -142,6 +150,7 @@ if [ -f "$LOCK" ]; then
   rm -f "$LOCK"
 fi
 echo $$ > "$LOCK"
+OWN_LOCK=1
 
 # ── First-run / --config handling ─────────────────────────────
 HAS_KEY=false
