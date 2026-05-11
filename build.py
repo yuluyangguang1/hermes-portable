@@ -296,7 +296,8 @@ def step_data(ctx):
             "# ANTHROPIC_API_KEY=sk-ant-...\n"
             "# OPENAI_API_KEY=sk-...\n"
             "# DEEPSEEK_API_KEY=...\n"
-            "# GOOGLE_API_KEY=...\n"
+            "# GOOGLE_API_KEY=...\n",
+            encoding="utf-8",
         )
     cfg = data / "config.yaml"
     if not cfg.exists():
@@ -318,7 +319,8 @@ def step_data(ctx):
             "  show_cost: true\n\n"
             "memory:\n"
             "  memory_enabled: true\n"
-            "  user_profile_enabled: true\n"
+            "  user_profile_enabled: true\n",
+            encoding="utf-8",
         )
     ok("data/ ready")
 
@@ -535,7 +537,8 @@ def step_readme(ctx):
         "------\n"
         "  Open the config panel → bottom right → Check for Updates.\n"
         "  Or from a terminal:\n"
-        "    python update.py update\n"
+        "    python update.py update\n",
+        encoding="utf-8",
     )
     ok("README.txt written")
 

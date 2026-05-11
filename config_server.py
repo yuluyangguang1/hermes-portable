@@ -241,7 +241,7 @@ def save_config(data):
             else:
                 lines.append(f"# {field['key']}=")
     lines.append("")
-    ENV_FILE.write_text("\n".join(lines))
+    ENV_FILE.write_text("\n".join(lines), encoding="utf-8")
 
     model_name = data.get("model_name", "")
     provider = data.get("model_provider", "openrouter")
@@ -280,7 +280,7 @@ def save_config(data):
             if ch:
                 cfg["gateway"]["platforms"][ch_id] = {"enabled": True}
 
-    CONFIG_FILE.write_text("\n".join(_yaml_dump_simple(cfg)) + "\n")
+    CONFIG_FILE.write_text("\n".join(_yaml_dump_simple(cfg)) + "\n", encoding="utf-8")
     return True
 
 # ═══════════════════════════════════════════════════════════════
