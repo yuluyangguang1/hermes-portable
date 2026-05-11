@@ -367,7 +367,7 @@ def step_nodejs(ctx):
             for item in nested.iterdir():
                 shutil.move(str(item), str(node_dir / item.name))
             nested.rmdir()
-    else:
+    elif system == "Linux":
         with tarfile.open(archive, "r:gz") as t:
             safe = []
             for m in t.getmembers():
@@ -392,6 +392,45 @@ def step_nodejs(ctx):
             for f in bin_dir.iterdir():
                 try: f.chmod(0o755)
                 except Exception: pass
+    # macos
+    else:
+        run(["tar", "-xzf", str(archive), "-C", str(node_dir)])
+
+        # Nested dir name differs per platform; handle both forms.
+        nested = node_dir / f"node-v{NODE_VERSION}-{system.lower()}-{node_arch}"
+        if not nested.exists() and system == "Darwin":
+            nested = node_dir / f"node-v{NODE_VERSION}-darwin-{node_arch}"
+
+        if nested.exists():
+            for item in nested.iterdir():
+                target = node_dir / item.name
+                if target.exists():
+                    if target.is_dir():
+                        shutil.rmtree(target)
+                    else:
+                        target.unlink()
+                shutil.move(str(item), str(target))
+            nested.rmdir()
+
+        bin_dir = node_dir / "bin"
+        if bin_dir.exists():
+            for f in bin_dir.iterdir():
+                try:
+                    f.chmod(0o755)
+                except Exception:
+                    pass
+
+        # Verify Node/npm/npx
+        node_bin = node_dir / "bin" / "node"
+        npm_bin = node_dir / "bin" / "npm"
+        npx_bin = node_dir / "bin" / "npx"
+
+        if not node_bin.exists():
+            fail(f"node missing after extraction: {node_bin}")
+        if not npm_bin.exists():
+            fail(f"npm missing after extraction: {npm_bin}")
+        if not npx_bin.exists():
+            fail(f"npx missing after extraction: {npx_bin}") 
 
     archive.unlink(missing_ok=True)
     ok(f"Node.js v{NODE_VERSION} ready")
