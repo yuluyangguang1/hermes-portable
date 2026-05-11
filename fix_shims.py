@@ -18,10 +18,35 @@ Hermes.bat shows:
 
     No Python at 'D:\a\...\python.exe'
 
-`uv venv --relocatable` marks the *venv* as relocatable, but older uv
-builds did not propagate that flag to entry points created by
-`uv pip install`. Rather than depend on a specific uv version, we
-rewrite the resource ourselves on first launch.
+`uv venv --relocatable` marks the *venv* as relocatable (and its own
+`venv\Scripts\python.exe` trampoline gets a relative path at create
+time), but older uv builds did not propagate that flag to the
+entry points created by `uv pip install`. Rather than depend on a
+specific uv version, we rewrite those resources ourselves on first
+launch.
+
+What we rewrite trampolines TO (and why it matters)
+---------------------------------------------------
+We point entry-point trampolines at the VENV's python.exe
+(venv\Scripts\python.exe), NOT the base python directly.
+
+The venv's python.exe is itself a uv trampoline (created by
+`uv venv --relocatable`) that forwards to the base python with
+`pyvenv.cfg home=<base>` and `VIRTUAL_ENV=<venv>` in effect -- so
+CPython initializes `sys.prefix = <venv>`, and
+`venv\Lib\site-packages` ends up on `sys.path`. That is how
+`import hermes_cli` succeeds.
+
+v0.13.7 got this wrong: it pointed entry-points at the base
+python directly, so `sys.prefix` resolved to the base python
+install, venv site-packages was NOT on sys.path, and launching
+Hermes.bat crashed with:
+
+    ModuleNotFoundError: No module named 'hermes_cli'
+
+v0.13.8 rewrites entry points to `venv\Scripts\python.exe` via a
+relative path (usually just "python.exe" since they're siblings),
+so the whole venv stays USB-portable across drive letters.
 
 What we do (Windows)
 --------------------
@@ -32,15 +57,19 @@ Use ctypes to call the same Win32 APIs uv itself uses:
 This updates both the resource data AND its size atomically, keeping
 the PE file well-formed.
 
-We also fix pyvenv.cfg's `home =` line if it points at a missing path.
+We also fix pyvenv.cfg's `home =` line if it points at a missing
+path. `home` must point at the BASE python directory (not the venv),
+because that is how CPython locates the real interpreter.
 
 What we do (Unix)
 -----------------
 uv on macOS/Linux uses text shebangs in `venv/bin/*`. For relocatable
 venvs these already use `/bin/sh + $(realpath)` tricks, but in case a
-build shipped absolute shebangs, we rewrite the first line.
+build shipped absolute shebangs, we rewrite the first line to point
+at the venv's python (bin/python), which is a symlink to the base
+python configured as a venv.
 
-Idempotent: re-running is a no-op once paths match the local Python.
+Idempotent: re-running is a no-op once paths already match.
 """
 from __future__ import annotations
 
@@ -62,7 +91,13 @@ def _find_first(root: Path, names: tuple[str, ...]) -> Path | None:
     return None
 
 
-def find_python(here: Path) -> Path | None:
+def find_base_python(here: Path) -> Path | None:
+    """Locate the BASE (non-venv) portable Python.
+
+    This is what `pyvenv.cfg home =` needs to point at. It is NOT what
+    entry-point trampolines should launch directly — see find_venv_python
+    for that.
+    """
     for name in ("python-windows-x64", "python-windows-arm64",
                  "python-linux-x64", "python-linux-arm64",
                  "python-macos-arm64", "python-macos-x64",
@@ -75,6 +110,33 @@ def find_python(here: Path) -> Path | None:
         else:
             p = _find_first(d, ("python3.12", "python3.13", "python3", "python"))
         if p is not None:
+            return p
+    return None
+
+
+def find_venv_python(venv: Path | None) -> Path | None:
+    """Locate the VENV's python -- this is what entry-point trampolines
+    must target so that sys.prefix resolves to the venv and
+    venv/Lib/site-packages is on sys.path.
+
+    On Windows the venv's python.exe is itself a uv trampoline (created
+    by `uv venv --relocatable`) that chain-launches the base python
+    with VIRTUAL_ENV / pyvenv.cfg set so imports find hermes_cli.
+
+    If we point hermes.exe directly at the BASE python instead, Python
+    runs with sys.prefix = base prefix, venv site-packages is NOT on
+    sys.path, and imports of venv-installed packages fail with
+    ModuleNotFoundError: No module named 'hermes_cli'. v0.13.7 had
+    exactly that bug -- v0.13.8 fixes it.
+    """
+    if venv is None:
+        return None
+    if sys.platform == "win32":
+        p = venv / "Scripts" / "python.exe"
+        return p if p.exists() else None
+    for name in ("python", "python3", "python3.12", "python3.13"):
+        p = venv / "bin" / name
+        if p.exists():
             return p
     return None
 
@@ -352,8 +414,9 @@ def fix_pyvenv_cfg(venv: Path, python: Path) -> bool:
 def main() -> int:
     here = Path(__file__).resolve().parent
     venv = find_venv(here)
-    python = find_python(here)
-    if venv is None or python is None:
+    base_python = find_base_python(here)
+    venv_python = find_venv_python(venv)
+    if venv is None or base_python is None or venv_python is None:
         # Nothing sensible to do — launcher itself will report a clearer
         # layout error. Exit 0 so we don't block the launcher.
         return 0
@@ -365,35 +428,48 @@ def main() -> int:
 
     rewrote = 0
     if is_windows:
+        # Point entry-point trampolines at the VENV's python.exe, which
+        # is itself a uv-built trampoline that forwards to the base
+        # python with pyvenv.cfg / sys.prefix configured so that
+        # venv\Lib\site-packages is importable. Pointing directly at
+        # the base python (as v0.13.7 did) broke hermes_cli imports.
         for exe in sorted(scripts.glob("*.exe")):
-            # Skip the base python trampolines — those are managed by
-            # `uv venv --relocatable` itself and use a different resource
-            # convention (relative path already).
+            # Skip the base-python trampolines themselves:
+            #   - python.exe, pythonw.exe, python3.exe are managed by
+            #     `uv venv --relocatable` and should not be self-referential
+            #   - fixing them with a path to themselves would create a
+            #     launch loop.
             if exe.name.lower() in ("python.exe", "pythonw.exe", "python3.exe"):
                 continue
             try:
-                if fix_windows_trampoline(exe, python):
+                if fix_windows_trampoline(exe, venv_python):
                     rewrote += 1
             except Exception:
                 # Defense in depth — never let shim repair crash the launcher.
                 continue
     else:
+        # On Unix, venv shebangs should also point at the venv python
+        # (bin/python, which is a symlink to the base python) so
+        # sys.prefix resolves to the venv.
         for f in sorted(scripts.iterdir()):
             try:
                 if not f.is_file() or f.is_symlink():
                     continue
-                if fix_text_shebang(f, python):
+                if fix_text_shebang(f, venv_python):
                     rewrote += 1
             except Exception:
                 continue
 
+    # pyvenv.cfg's `home =` key points at the BASE python directory,
+    # not the venv. That's how CPython locates the real interpreter
+    # when the venv's python.exe runs.
     try:
-        fix_pyvenv_cfg(venv, python)
+        fix_pyvenv_cfg(venv, base_python)
     except Exception:
         pass
 
     if rewrote:
-        print(f"[fix_shims] rewrote {rewrote} launcher(s) -> {python}",
+        print(f"[fix_shims] rewrote {rewrote} launcher(s) -> {venv_python}",
               file=sys.stderr)
     return 0
 
