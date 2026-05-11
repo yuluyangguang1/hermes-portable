@@ -143,6 +143,9 @@ if [ "${1-}" = "--config" ] || [ "$HAS_KEY" = "false" ]; then
   echo "  Opening config panel at http://127.0.0.1:17520 ..."
   echo ""
   open_url "http://127.0.0.1:17520"
+  # Tell config_server we already opened the browser, so it doesn't
+  # open a second tab (see config_server.main).
+  export HERMES_BROWSER_OPENED=1
   # Run in foreground; trap handlers still fire on exit.
   "$VENV_DIR/bin/python" "$HERE/config_server.py"
   exit $?
