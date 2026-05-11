@@ -369,15 +369,28 @@ def step_nodejs(ctx):
             nested.rmdir()
     else:
         with tarfile.open(archive, "r:gz") as t:
+            # Filter out unsafe entries (path traversal), but allow symlinks
+            # whose target stays within the archive when resolved relative
+            # to the symlink's own directory. Node.js tarballs ship
+            # bin/npm → ../lib/node_modules/npm/bin/npm-cli.js; naive
+            # rejection of anything containing '..' loses npm/npx/corepack,
+            # breaking the hermes-web-ui install (GitHub issue #3).
+            import posixpath
             safe = []
             for m in t.getmembers():
                 n = m.name
                 if n.startswith("/") or ".." in n.split("/"):
                     continue
                 if m.issym() or m.islnk():
-                    # Only accept symlinks that stay inside the archive
                     target = m.linkname
-                    if target.startswith("/") or ".." in target.split("/"):
+                    if target.startswith("/"):
+                        continue
+                    # Resolve the symlink target relative to the symlink's
+                    # own parent directory, then check it stays inside
+                    # the archive root.
+                    link_dir = posixpath.dirname(n)
+                    resolved = posixpath.normpath(posixpath.join(link_dir, target))
+                    if resolved.startswith("..") or resolved.startswith("/"):
                         continue
                 safe.append(m)
             t.extractall(node_dir, members=safe)
