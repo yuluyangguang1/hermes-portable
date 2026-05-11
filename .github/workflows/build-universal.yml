@@ -113,37 +113,18 @@ jobs:
       - name: Build Universal zip
         run: zip -rq HermesPortable-Universal.zip HermesPortable/
 
-      - name: Build per-platform zips (same launchers, single runtime each)
-        run: |
-          set -e
-          pack_platform() {
-            local platform=$1 rtdir=$2
-            if [ ! -d "artifacts/$rtdir" ]; then return 0; fi
-            rm -rf "out-$platform"
-            mkdir -p "out-$platform"
-            cp -a artifacts/shared-base/. "out-$platform/"
-            cp -a "artifacts/$rtdir/." "out-$platform/"
-            # Rename platform-suffixed dirs to generic ones so the
-            # single-platform zip also works with the default launcher path.
-            ( cd "out-$platform"
-              for d in venv-* python-* node-*; do
-                [ -d "$d" ] || continue
-                base="${d%%-*}"
-                mv "$d" "$base"
-              done )
-            zip -rq "HermesPortable-$platform.zip" "out-$platform"
-            mv "HermesPortable-$platform.zip" .
-          }
-          pack_platform macOS   macos-runtime
-          pack_platform Linux   linux-runtime
-          pack_platform Windows windows-runtime
+      # NOTE: per-platform zips (macOS/Linux/Windows) are already produced
+      # by .github/workflows/build.yml, which uses the default --layout
+      # (plain venv/, python/, node/ — directly usable by the launchers).
+      # Earlier revisions here rebuilt them from the universal layout by
+      # renaming venv-<platform>/ → venv/, but that leaves pyvenv.cfg
+      # pointing at python-<platform>/ (now missing), producing a broken
+      # venv. The single-platform zips are build.yml's job, not ours.
+      # This job only produces HermesPortable-Universal.zip.
 
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             HermesPortable-Universal.zip
-            HermesPortable-macOS.zip
-            HermesPortable-Linux.zip
-            HermesPortable-Windows.zip
           generate_release_notes: true
           fail_on_unmatched_files: false
