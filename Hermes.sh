@@ -93,6 +93,25 @@ else
 fi
 cd "$HERE"
 
+# ── Self-heal launcher shebangs ───────────────────────────────
+# Same class of bug as Windows: if the portable zip was built on
+# one machine and shebangs ended up absolute, they break when the
+# folder moves. fix_shims.py rewrites them to the local python.
+# Harmless (no-op) when shebangs are already `/bin/sh`-wrapped
+# relocatable stubs, which is the common case on macOS/Linux.
+if [ -f "$HERE/fix_shims.py" ]; then
+  PORTABLE_PY=""
+  # Prefer the real python-build-standalone binary (never a trampoline).
+  for cand in "$PYTHON_DIR"/*/bin/python3.12 \
+              "$PYTHON_DIR"/*/bin/python3 \
+              "$VENV_DIR/bin/python"; do
+    if [ -x "$cand" ]; then PORTABLE_PY="$cand"; break; fi
+  done
+  if [ -n "$PORTABLE_PY" ]; then
+    "$PORTABLE_PY" "$HERE/fix_shims.py" 2>/dev/null || true
+  fi
+fi
+
 # ── Cleanup: must be reachable even after child exits ─────────
 WEBUI_PID=""
 HERMES_PID=""

@@ -466,6 +466,10 @@ _STATIC_ASSETS = [
     "guide.html",
     "favicon.svg",
     "HermesPortable使用说明.html",
+    # Self-heal script — rewrites broken uv trampoline Python paths
+    # on first launch. Critical for Windows release zips: see its
+    # docstring. Harmless on macOS/Linux.
+    "fix_shims.py",
     # Launchers
     "Hermes.command",
     "Hermes.sh",

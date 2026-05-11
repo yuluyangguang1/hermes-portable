@@ -1,0 +1,402 @@
+#!/usr/bin/env python3
+"""
+fix_shims.py - self-heal uv trampoline entry points for Hermes Portable.
+
+Why this exists
+---------------
+uv installs Windows entry-point scripts (hermes.exe, config_server.exe, etc.)
+as compact "trampoline" .exe files whose target Python path is stored in a
+Windows PE resource (RT_RCDATA / UV_PYTHON_PATH), NOT as a `#!` shebang.
+
+When the Hermes Portable zip is built on GitHub Actions, the path baked
+into those trampolines is the CI runner's absolute path:
+
+    D:\a\hermes-portable\hermes-portable\dist\HermesPortable\python\...
+
+That path does not exist on the user's machine, so double-clicking
+Hermes.bat shows:
+
+    No Python at 'D:\a\...\python.exe'
+
+`uv venv --relocatable` marks the *venv* as relocatable, but older uv
+builds did not propagate that flag to entry points created by
+`uv pip install`. Rather than depend on a specific uv version, we
+rewrite the resource ourselves on first launch.
+
+What we do (Windows)
+--------------------
+Use ctypes to call the same Win32 APIs uv itself uses:
+  - BeginUpdateResourceW
+  - UpdateResourceW   (RT_RCDATA, name=UV_PYTHON_PATH, data=<new path utf8>)
+  - EndUpdateResourceW
+This updates both the resource data AND its size atomically, keeping
+the PE file well-formed.
+
+We also fix pyvenv.cfg's `home =` line if it points at a missing path.
+
+What we do (Unix)
+-----------------
+uv on macOS/Linux uses text shebangs in `venv/bin/*`. For relocatable
+venvs these already use `/bin/sh + $(realpath)` tricks, but in case a
+build shipped absolute shebangs, we rewrite the first line.
+
+Idempotent: re-running is a no-op once paths match the local Python.
+"""
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+
+# ─── Path discovery ───────────────────────────────────────────────────
+def _find_first(root: Path, names: tuple[str, ...]) -> Path | None:
+    if not root.exists():
+        return None
+    for p in root.rglob("*"):
+        try:
+            if p.is_file() and p.name in names:
+                return p
+        except OSError:
+            continue
+    return None
+
+
+def find_python(here: Path) -> Path | None:
+    for name in ("python-windows-x64", "python-windows-arm64",
+                 "python-linux-x64", "python-linux-arm64",
+                 "python-macos-arm64", "python-macos-x64",
+                 "python"):
+        d = here / name
+        if not d.exists():
+            continue
+        if sys.platform == "win32":
+            p = _find_first(d, ("python.exe",))
+        else:
+            p = _find_first(d, ("python3.12", "python3.13", "python3", "python"))
+        if p is not None:
+            return p
+    return None
+
+
+def find_venv(here: Path) -> Path | None:
+    for name in ("venv-windows-x64", "venv-windows-arm64",
+                 "venv-linux-x64", "venv-linux-arm64",
+                 "venv-macos-arm64", "venv-macos-x64",
+                 "venv"):
+        d = here / name
+        if d.exists():
+            return d
+    return None
+
+
+# ─── Windows PE resource rewrite ──────────────────────────────────────
+# Constants matching uv-trampoline-builder/src/lib.rs:
+#   RT_RCDATA = 10
+#   Resource name = "UV_PYTHON_PATH" (wide string)
+RT_RCDATA = 10
+
+
+def _is_uv_trampoline(path: Path) -> bool:
+    """Detect a uv trampoline by reading the UV_PYTHON_PATH resource.
+
+    Returns True iff the .exe is an uv trampoline that has a
+    UV_PYTHON_PATH resource we can read.
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    LoadLibraryExW = k32.LoadLibraryExW
+    LoadLibraryExW.argtypes = [wintypes.LPCWSTR, wintypes.HANDLE, wintypes.DWORD]
+    LoadLibraryExW.restype = wintypes.HMODULE
+    FreeLibrary = k32.FreeLibrary
+    FreeLibrary.argtypes = [wintypes.HMODULE]
+    FreeLibrary.restype = wintypes.BOOL
+    FindResourceW = k32.FindResourceW
+    FindResourceW.argtypes = [wintypes.HMODULE, wintypes.LPCWSTR, wintypes.LPCWSTR]
+    FindResourceW.restype = ctypes.c_void_p
+
+    LOAD_LIBRARY_AS_DATAFILE = 0x00000002
+    h = LoadLibraryExW(str(path), None, LOAD_LIBRARY_AS_DATAFILE)
+    if not h:
+        return False
+    try:
+        # MAKEINTRESOURCE(RT_RCDATA) — cast int to LPCWSTR
+        res = FindResourceW(h, "UV_PYTHON_PATH",
+                            ctypes.cast(RT_RCDATA, wintypes.LPCWSTR))
+        return bool(res)
+    finally:
+        FreeLibrary(h)
+
+
+def _read_uv_python_path(path: Path) -> str | None:
+    """Read the current UV_PYTHON_PATH resource as a string, or None."""
+    import ctypes
+    from ctypes import wintypes
+
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    LoadLibraryExW = k32.LoadLibraryExW
+    LoadLibraryExW.argtypes = [wintypes.LPCWSTR, wintypes.HANDLE, wintypes.DWORD]
+    LoadLibraryExW.restype = wintypes.HMODULE
+    FreeLibrary = k32.FreeLibrary
+    FreeLibrary.argtypes = [wintypes.HMODULE]
+    FreeLibrary.restype = wintypes.BOOL
+    FindResourceW = k32.FindResourceW
+    FindResourceW.argtypes = [wintypes.HMODULE, wintypes.LPCWSTR, wintypes.LPCWSTR]
+    FindResourceW.restype = ctypes.c_void_p
+    SizeofResource = k32.SizeofResource
+    SizeofResource.argtypes = [wintypes.HMODULE, ctypes.c_void_p]
+    SizeofResource.restype = wintypes.DWORD
+    LoadResource = k32.LoadResource
+    LoadResource.argtypes = [wintypes.HMODULE, ctypes.c_void_p]
+    LoadResource.restype = wintypes.HANDLE
+    LockResource = k32.LockResource
+    LockResource.argtypes = [wintypes.HANDLE]
+    LockResource.restype = ctypes.c_void_p
+
+    LOAD_LIBRARY_AS_DATAFILE = 0x00000002
+    h = LoadLibraryExW(str(path), None, LOAD_LIBRARY_AS_DATAFILE)
+    if not h:
+        return None
+    try:
+        res = FindResourceW(h, "UV_PYTHON_PATH",
+                            ctypes.cast(RT_RCDATA, wintypes.LPCWSTR))
+        if not res:
+            return None
+        size = SizeofResource(h, res)
+        if size == 0:
+            return None
+        hres = LoadResource(h, res)
+        if not hres:
+            return None
+        ptr = LockResource(hres)
+        if not ptr:
+            return None
+        raw = ctypes.string_at(ptr, size)
+        try:
+            return raw.decode("utf-8").rstrip("\x00")
+        except UnicodeDecodeError:
+            return None
+    finally:
+        FreeLibrary(h)
+
+
+def _write_uv_python_path(path: Path, new_path_utf8: bytes) -> bool:
+    """Overwrite the UV_PYTHON_PATH resource in an uv trampoline .exe.
+
+    Uses BeginUpdateResourceW / UpdateResourceW / EndUpdateResourceW —
+    the same Win32 APIs uv itself uses when creating trampolines.
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    BeginUpdateResourceW = k32.BeginUpdateResourceW
+    BeginUpdateResourceW.argtypes = [wintypes.LPCWSTR, wintypes.BOOL]
+    BeginUpdateResourceW.restype = wintypes.HANDLE
+
+    UpdateResourceW = k32.UpdateResourceW
+    UpdateResourceW.argtypes = [
+        wintypes.HANDLE,      # hUpdate
+        wintypes.LPCWSTR,     # lpType (MAKEINTRESOURCE cast)
+        wintypes.LPCWSTR,     # lpName
+        wintypes.WORD,        # wLanguage (0 = neutral)
+        ctypes.c_void_p,      # lpData
+        wintypes.DWORD,       # cb
+    ]
+    UpdateResourceW.restype = wintypes.BOOL
+
+    EndUpdateResourceW = k32.EndUpdateResourceW
+    EndUpdateResourceW.argtypes = [wintypes.HANDLE, wintypes.BOOL]
+    EndUpdateResourceW.restype = wintypes.BOOL
+
+    # bDiscard = False: keep existing resources, replace only what we update
+    handle = BeginUpdateResourceW(str(path), False)
+    if not handle:
+        return False
+    try:
+        buf = ctypes.create_string_buffer(new_path_utf8, len(new_path_utf8))
+        ok = UpdateResourceW(
+            handle,
+            ctypes.cast(RT_RCDATA, wintypes.LPCWSTR),
+            "UV_PYTHON_PATH",
+            0,  # neutral language — matches what uv writes
+            ctypes.cast(buf, ctypes.c_void_p),
+            len(new_path_utf8),
+        )
+        if not ok:
+            # Discard changes on failure
+            EndUpdateResourceW(handle, True)
+            return False
+    except Exception:
+        EndUpdateResourceW(handle, True)
+        return False
+
+    # bDiscard = False: commit
+    return bool(EndUpdateResourceW(handle, False))
+
+
+def fix_windows_trampoline(exe: Path, new_python: Path) -> bool:
+    """Rewrite the UV_PYTHON_PATH resource in one trampoline .exe.
+
+    We write a RELATIVE path (relative to the trampoline's own parent
+    directory, i.e. venv\\Scripts\\). uv's trampoline code:
+
+        if python_path.is_absolute() { python_path }
+        else { executable_name.parent().join(python_path) }
+
+    ...means a relative path follows the folder wherever it moves.
+    This makes the zip USB-portable after the first fix — move the
+    HermesPortable folder to any drive letter or path and it still
+    works, no re-fix needed.
+
+    Returns True iff we actually modified the file.
+    Returns False for .exe files that aren't uv trampolines (python.exe,
+    pythonw.exe, which are a different trampoline kind) — those we
+    leave alone.
+    """
+    try:
+        current = _read_uv_python_path(exe)
+    except OSError:
+        return False
+    if current is None:
+        return False  # not a uv trampoline we can/should touch
+
+    # Compute the relative path from the trampoline's dir (venv\Scripts)
+    # to the portable python.exe. os.path.relpath handles drive
+    # mismatches gracefully in practice — both live under `here`.
+    try:
+        rel = os.path.relpath(new_python, exe.parent)
+    except ValueError:
+        # Different drive letters — fall back to absolute.
+        rel = str(new_python)
+
+    # If the current resource is already a matching relative path we're
+    # done. Also short-circuit when the absolute current path resolves
+    # to the same file as our target (some environments write absolute
+    # but still point at the real python — no harm).
+    if current == rel:
+        return False
+    try:
+        if Path(current).is_absolute() and Path(current).resolve() == new_python.resolve():
+            # Already valid — leave it alone.
+            return False
+    except (OSError, ValueError):
+        pass
+
+    return _write_uv_python_path(exe, rel.encode("utf-8"))
+
+
+# ─── Unix shebang rewrite ─────────────────────────────────────────────
+def fix_text_shebang(path: Path, new_python: Path) -> bool:
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return False
+    if not data.startswith(b"#!"):
+        return False
+    nl = data.find(b"\n")
+    if nl < 0:
+        return False
+    first = data[2:nl].strip()
+    # Only rewrite simple python shebangs. Skip `/bin/sh` wrappers that
+    # uv emits for relocatable venvs — those already work.
+    basename = first.split(b"/")[-1].strip()
+    if not basename.startswith((b"python", b"pypy")):
+        return False
+    new_sheb = b"#!" + str(new_python).encode("utf-8") + b"\n"
+    if data[:nl + 1] == new_sheb:
+        return False
+    try:
+        path.write_bytes(new_sheb + data[nl + 1:])
+        os.chmod(path, 0o755)
+    except OSError:
+        return False
+    return True
+
+
+# ─── pyvenv.cfg ───────────────────────────────────────────────────────
+def fix_pyvenv_cfg(venv: Path, python: Path) -> bool:
+    cfg = venv / "pyvenv.cfg"
+    if not cfg.exists():
+        return False
+    try:
+        text = cfg.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    new_home = str(python.parent)
+    lines = text.splitlines()
+    changed = False
+    for i, line in enumerate(lines):
+        s = line.strip()
+        if "=" not in s:
+            continue
+        key, _, value = s.partition("=")
+        if key.strip().lower() == "home":
+            cur = value.strip()
+            if cur != new_home and not Path(cur).exists():
+                lines[i] = f"home = {new_home}"
+                changed = True
+                break
+    if changed:
+        try:
+            cfg.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        except OSError:
+            return False
+    return changed
+
+
+# ─── entry ────────────────────────────────────────────────────────────
+def main() -> int:
+    here = Path(__file__).resolve().parent
+    venv = find_venv(here)
+    python = find_python(here)
+    if venv is None or python is None:
+        # Nothing sensible to do — launcher itself will report a clearer
+        # layout error. Exit 0 so we don't block the launcher.
+        return 0
+
+    is_windows = sys.platform == "win32" and (venv / "Scripts").exists()
+    scripts = venv / ("Scripts" if is_windows else "bin")
+    if not scripts.exists():
+        return 0
+
+    rewrote = 0
+    if is_windows:
+        for exe in sorted(scripts.glob("*.exe")):
+            # Skip the base python trampolines — those are managed by
+            # `uv venv --relocatable` itself and use a different resource
+            # convention (relative path already).
+            if exe.name.lower() in ("python.exe", "pythonw.exe", "python3.exe"):
+                continue
+            try:
+                if fix_windows_trampoline(exe, python):
+                    rewrote += 1
+            except Exception:
+                # Defense in depth — never let shim repair crash the launcher.
+                continue
+    else:
+        for f in sorted(scripts.iterdir()):
+            try:
+                if not f.is_file() or f.is_symlink():
+                    continue
+                if fix_text_shebang(f, python):
+                    rewrote += 1
+            except Exception:
+                continue
+
+    try:
+        fix_pyvenv_cfg(venv, python)
+    except Exception:
+        pass
+
+    if rewrote:
+        print(f"[fix_shims] rewrote {rewrote} launcher(s) -> {python}",
+              file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
