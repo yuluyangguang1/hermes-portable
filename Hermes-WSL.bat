@@ -33,31 +33,36 @@ if not exist "%HERE%\data" mkdir "%HERE%\data" >nul 2>&1
 set "SANDBOX=%HERE%\_home"
 if not exist "%SANDBOX%" mkdir "%SANDBOX%" >nul 2>&1
 set "LINK=%SANDBOX%\.hermes"
-if exist "%LINK%" (
-    dir /AL "%SANDBOX%" 2>nul | findstr /I /C:".hermes" >nul
-    if !errorlevel! neq 0 (
-        echo.
-        echo   [ERROR] %LINK% exists as a real directory, not a junction.
-        echo   Remove it first:  rmdir /S /Q "%LINK%"
-        echo.
-        pause
-        exit /b 1
-    )
-) else (
-    mklink /J "%LINK%" "%HERE%\data" >nul 2>&1
-    if !errorlevel! neq 0 (
-        mklink /D "%LINK%" "%HERE%\data" >nul 2>&1
-        if !errorlevel! neq 0 (
-            echo.
-            echo   [ERROR] Could not create %LINK%.
-            echo   Drive may be FAT32/exFAT. Move HermesPortable to NTFS
-            echo   or enable Windows Developer Mode.
-            echo.
-            pause
-            exit /b 1
-        )
-    )
-)
+if not exist "%LINK%" goto :wsl_create_junction
+
+dir /AL "%SANDBOX%" 2>nul | findstr /I /C:".hermes" >nul
+if !errorlevel! equ 0 goto :wsl_junction_ok
+
+rem Not a reparse point. Try to delete as a plain file first.
+del "%LINK%" >nul 2>&1
+if not exist "%LINK%" goto :wsl_create_junction
+
+echo.
+echo   [ERROR] %LINK% exists but is not a junction.
+echo   Remove it first:  rmdir /S /Q "%LINK%"
+echo.
+pause
+exit /b 1
+
+:wsl_create_junction
+mklink /J "%LINK%" "%HERE%\data" >nul 2>&1
+if !errorlevel! equ 0 goto :wsl_junction_ok
+mklink /D "%LINK%" "%HERE%\data" >nul 2>&1
+if !errorlevel! equ 0 goto :wsl_junction_ok
+echo.
+echo   [ERROR] Could not create %LINK%.
+echo   Drive may be FAT32/exFAT. Move HermesPortable to NTFS
+echo   or enable Windows Developer Mode.
+echo.
+pause
+exit /b 1
+
+:wsl_junction_ok
 
 rem ── Convert Windows path to WSL path ────────────────────
 for /f "usebackq delims=" %%I in (`wsl wslpath "%HERE%"`) do set "WSL_HERE=%%I"

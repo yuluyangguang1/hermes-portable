@@ -63,42 +63,49 @@ set "LINK=%SANDBOX%\.hermes"
 rem  Detect what's currently at LINK:
 rem    missing            → create junction
 rem    reparse point      → already a link, leave as-is (idempotent)
+rem    plain file         → delete it, then create junction
 rem    real directory     → refuse to clobber, tell user
-if exist "%LINK%" (
-    rem Check reparse-point attribute (junctions + symlinks both have it)
-    dir /AL "%SANDBOX%" 2>nul | findstr /I /C:".hermes" >nul
-    if !errorlevel! neq 0 (
-        echo.
-        echo   [ERROR] %LINK% exists as a real directory.
-        echo   The sandbox expects a junction here.
-        echo.
-        echo   Back up anything inside, then remove it:
-        echo     rmdir /S /Q "%LINK%"
-        echo.
-        pause
-        exit /b 1
-    )
-) else (
-    rem Try junction first (NTFS, no admin needed)
-    mklink /J "%LINK%" "%HERE%\data" >nul 2>&1
-    if !errorlevel! neq 0 (
-        rem Fall back to directory symlink (needs Dev Mode / admin)
-        mklink /D "%LINK%" "%HERE%\data" >nul 2>&1
-        if !errorlevel! neq 0 (
-            echo.
-            echo   [ERROR] Could not create link:
-            echo     %LINK%  ^>  %HERE%\data
-            echo.
-            echo   Your drive may be FAT32/exFAT and not support junctions.
-            echo   Try one of:
-            echo     * Copy HermesPortable to an NTFS drive, OR
-            echo     * Enable Windows Developer Mode and rerun.
-            echo.
-            pause
-            exit /b 1
-        )
-    )
-)
+if not exist "%LINK%" goto :create_junction
+
+rem Something exists — check if it's already a junction/symlink
+dir /AL "%SANDBOX%" 2>nul | findstr /I /C:".hermes" >nul
+if !errorlevel! equ 0 goto :junction_ok
+
+rem Not a reparse point. Try to delete as a plain file first.
+del "%LINK%" >nul 2>&1
+if not exist "%LINK%" goto :create_junction
+
+rem Still exists → it's a real directory we can't silently remove
+echo.
+echo   [ERROR] %LINK% exists but is not a junction.
+echo   The sandbox expects a junction/symlink here.
+echo.
+echo   Back up anything inside, then remove it:
+echo     rmdir /S /Q "%LINK%"
+echo.
+pause
+exit /b 1
+
+:create_junction
+rem Try junction first (NTFS, no admin needed)
+mklink /J "%LINK%" "%HERE%\data" >nul 2>&1
+if !errorlevel! equ 0 goto :junction_ok
+rem Fall back to directory symlink (needs Dev Mode / admin)
+mklink /D "%LINK%" "%HERE%\data" >nul 2>&1
+if !errorlevel! equ 0 goto :junction_ok
+echo.
+echo   [ERROR] Could not create link:
+echo     %LINK%  ^>  %HERE%\data
+echo.
+echo   Your drive may be FAT32/exFAT and not support junctions.
+echo   Try one of:
+echo     * Copy HermesPortable to an NTFS drive, OR
+echo     * Enable Windows Developer Mode and rerun.
+echo.
+pause
+exit /b 1
+
+:junction_ok
 
 rem ── Environment ────────────────────────────────────────
 rem  Override HOME *and* USERPROFILE — different libs read different

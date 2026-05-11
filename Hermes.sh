@@ -80,6 +80,10 @@ elif [ -d "$SANDBOX/.hermes" ]; then
   echo "    rm -rf \"$SANDBOX/.hermes\"" >&2
   echo "" >&2
   exit 1
+else
+  # Regular file or other non-symlink, non-directory entry — remove and recreate.
+  rm -f "$SANDBOX/.hermes"
+  ln -sfn "$HERE/data" "$SANDBOX/.hermes"
 fi
 
 export HOME="$SANDBOX"
