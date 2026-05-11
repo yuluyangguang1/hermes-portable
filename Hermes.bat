@@ -45,7 +45,67 @@ if exist "%HERE%\node-windows-x64" (
     set "NODE_DIR="
 )
 
+rem ── HOME hijack sandbox ────────────────────────────────
+rem  %HERE%\_home acts as a private HOME. %HERE%\_home\.hermes is a
+rem  directory junction (mklink /J) pointing to %HERE%\data, so any
+rem  tool that reads or writes %USERPROFILE%\.hermes (hermes-web-ui,
+rem  some plugins, …) lands inside the portable folder instead.
+rem  The host's real %USERPROFILE%\.hermes is never touched.
+rem
+rem  Junctions work on NTFS without admin. If the U-stick is formatted
+rem  FAT32/exFAT, junctions are not supported — we fall back to a
+rem  symlink (needs Developer Mode or admin). If both fail we bail out.
+if not exist "%HERE%\data" mkdir "%HERE%\data" >nul 2>&1
+set "SANDBOX=%HERE%\_home"
+if not exist "%SANDBOX%" mkdir "%SANDBOX%" >nul 2>&1
+
+set "LINK=%SANDBOX%\.hermes"
+rem  Detect what's currently at LINK:
+rem    missing            → create junction
+rem    reparse point      → already a link, leave as-is (idempotent)
+rem    real directory     → refuse to clobber, tell user
+if exist "%LINK%" (
+    rem Check reparse-point attribute (junctions + symlinks both have it)
+    dir /AL "%SANDBOX%" 2>nul | findstr /I /C:".hermes" >nul
+    if !errorlevel! neq 0 (
+        echo.
+        echo   [ERROR] %LINK% exists as a real directory.
+        echo   The sandbox expects a junction here.
+        echo.
+        echo   Back up anything inside, then remove it:
+        echo     rmdir /S /Q "%LINK%"
+        echo.
+        pause
+        exit /b 1
+    )
+) else (
+    rem Try junction first (NTFS, no admin needed)
+    mklink /J "%LINK%" "%HERE%\data" >nul 2>&1
+    if !errorlevel! neq 0 (
+        rem Fall back to directory symlink (needs Dev Mode / admin)
+        mklink /D "%LINK%" "%HERE%\data" >nul 2>&1
+        if !errorlevel! neq 0 (
+            echo.
+            echo   [ERROR] Could not create link:
+            echo     %LINK%  ^>  %HERE%\data
+            echo.
+            echo   Your drive may be FAT32/exFAT and not support junctions.
+            echo   Try one of:
+            echo     * Copy HermesPortable to an NTFS drive, OR
+            echo     * Enable Windows Developer Mode and rerun.
+            echo.
+            pause
+            exit /b 1
+        )
+    )
+)
+
 rem ── Environment ────────────────────────────────────────
+rem  Override HOME *and* USERPROFILE — different libs read different
+rem  vars (Python's os.path.expanduser on Windows prefers USERPROFILE,
+rem  Node/npm frequently reads HOME).
+set "HOME=%SANDBOX%"
+set "USERPROFILE=%SANDBOX%"
 set "HERMES_HOME=%HERE%\data"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONUTF8=1"

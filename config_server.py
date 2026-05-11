@@ -1552,14 +1552,21 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 safe_dir = str(SCRIPT_DIR).replace("'", "'\\''")
                 safe_home = str(DATA_DIR).replace("'", "'\\''")
                 safe_bin = str(hermes_bin).replace("'", "'\\''")
+                # AppleScript `do script` opens a *fresh* login shell, so we
+                # must re-apply the HOME hijack (sandbox = SCRIPT_DIR/_home).
+                # Otherwise hermes reads the host's real ~/.hermes, breaking
+                # the zero-trace promise.
+                safe_sandbox = str(SCRIPT_DIR / "_home").replace("'", "'\\''")
                 script = f'''tell application "Terminal"
                     activate
-                    do script "cd '{safe_dir}' && export HERMES_HOME='{safe_home}' && '{safe_bin}'"
+                    do script "cd '{safe_dir}' && export HOME='{safe_sandbox}' && export HERMES_HOME='{safe_home}' && '{safe_bin}'"
                 end tell'''
                 subprocess.run(["osascript", "-e", script])
             else:
                 env = os.environ.copy()
                 env["HERMES_HOME"] = str(DATA_DIR)
+                # HOME is already sandboxed by the launcher; subprocess.Popen
+                # inherits os.environ so no extra action needed here.
                 if sys.platform == "win32":
                     # Inherit a proper PATH so hermes can reach venv tools,
                     # node, and the portable python. Also force UTF-8 so

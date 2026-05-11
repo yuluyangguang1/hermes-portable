@@ -60,6 +60,29 @@ else
   NODE_DIR=""
 fi
 
+# ── HOME hijack sandbox ───────────────────────────────────────
+# $HERE/_home is a private HOME. $HERE/_home/.hermes is a symlink
+# pointing to $HERE/data, so any library that reads or writes ~/.hermes
+# (hermes-web-ui, some plugins, etc.) lands inside the portable folder.
+# The host's real ~/.hermes is never read or touched — zero trace.
+mkdir -p "$HERE/data"
+SANDBOX="$HERE/_home"
+mkdir -p "$SANDBOX"
+if [ -L "$SANDBOX/.hermes" ] || [ ! -e "$SANDBOX/.hermes" ]; then
+  # Missing or already a symlink: (re)create pointing at data/.
+  # -n prevents `ln` from descending into an existing symlinked dir.
+  ln -sfn "$HERE/data" "$SANDBOX/.hermes"
+elif [ -d "$SANDBOX/.hermes" ]; then
+  echo "" >&2
+  echo "  [ERROR] $SANDBOX/.hermes exists as a real directory." >&2
+  echo "  This is unexpected — the sandbox expects a symlink here." >&2
+  echo "  Back up any data inside, then remove it:" >&2
+  echo "    rm -rf \"$SANDBOX/.hermes\"" >&2
+  echo "" >&2
+  exit 1
+fi
+
+export HOME="$SANDBOX"
 export HERMES_HOME="$HERE/data"
 export PYTHONIOENCODING=utf-8
 export PYTHONUTF8=1

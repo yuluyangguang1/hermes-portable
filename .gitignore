@@ -12,12 +12,16 @@ portable/hermes-agent/
 
 # User data (private)
 data/.env
+data/.hermes.lock
 data/auth.json
 data/sessions/
 data/logs/
 data/memories/
 data/audio_cache/
 data/image_cache/
+
+# HOME sandbox (generated at launch, never committed)
+_home/
 
 # OS files
 .DS_Store

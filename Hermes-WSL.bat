@@ -24,6 +24,41 @@ if !errorlevel! neq 0 (
     exit /b 1
 )
 
+rem ── HOME hijack sandbox ────────────────────────────────
+rem  Create the junction from the Windows side — WSL2 follows NTFS
+rem  reparse points transparently through /mnt/c/..., so a single
+rem  sandbox works for both launchers. See Hermes.bat for the long
+rem  explanation; the logic below is a condensed version.
+if not exist "%HERE%\data" mkdir "%HERE%\data" >nul 2>&1
+set "SANDBOX=%HERE%\_home"
+if not exist "%SANDBOX%" mkdir "%SANDBOX%" >nul 2>&1
+set "LINK=%SANDBOX%\.hermes"
+if exist "%LINK%" (
+    dir /AL "%SANDBOX%" 2>nul | findstr /I /C:".hermes" >nul
+    if !errorlevel! neq 0 (
+        echo.
+        echo   [ERROR] %LINK% exists as a real directory, not a junction.
+        echo   Remove it first:  rmdir /S /Q "%LINK%"
+        echo.
+        pause
+        exit /b 1
+    )
+) else (
+    mklink /J "%LINK%" "%HERE%\data" >nul 2>&1
+    if !errorlevel! neq 0 (
+        mklink /D "%LINK%" "%HERE%\data" >nul 2>&1
+        if !errorlevel! neq 0 (
+            echo.
+            echo   [ERROR] Could not create %LINK%.
+            echo   Drive may be FAT32/exFAT. Move HermesPortable to NTFS
+            echo   or enable Windows Developer Mode.
+            echo.
+            pause
+            exit /b 1
+        )
+    )
+)
+
 rem ── Convert Windows path to WSL path ────────────────────
 for /f "usebackq delims=" %%I in (`wsl wslpath "%HERE%"`) do set "WSL_HERE=%%I"
 if not defined WSL_HERE (
@@ -79,7 +114,7 @@ goto :run_hermes
 :run_config
 echo   Opening config panel at http://127.0.0.1:17520 ...
 start "" "http://127.0.0.1:17520"
-wsl bash -c "cd '!WSL_HERE_SAFE!' && export HERMES_HOME='!WSL_HERE_SAFE!/data' && '!WSL_VENV_SAFE!/bin/python' '!WSL_HERE_SAFE!/config_server.py'"
+wsl bash -c "cd '!WSL_HERE_SAFE!' && export HOME='!WSL_HERE_SAFE!/_home' && export HERMES_HOME='!WSL_HERE_SAFE!/data' && '!WSL_VENV_SAFE!/bin/python' '!WSL_HERE_SAFE!/config_server.py'"
 set "EXITCODE=%errorlevel%"
 goto :done
 
@@ -87,9 +122,9 @@ goto :done
 rem Best-effort webui launch. We do NOT trust the exit code of the
 rem backgrounded subshell (it always returns 0), so we only open the
 rem browser after a short sleep that lets it bind the port.
-wsl bash -c "command -v hermes-web-ui >/dev/null 2>&1 && (export PATH='!WSL_HERE_SAFE!/node/bin:$PATH' HERMES_HOME='!WSL_HERE_SAFE!/data' && nohup hermes-web-ui start --port 8648 >/dev/null 2>&1 &)" 2>nul
+wsl bash -c "command -v hermes-web-ui >/dev/null 2>&1 && (export HOME='!WSL_HERE_SAFE!/_home' PATH='!WSL_HERE_SAFE!/node/bin:$PATH' HERMES_HOME='!WSL_HERE_SAFE!/data' && nohup hermes-web-ui start --port 8648 >/dev/null 2>&1 &)" 2>nul
 
-wsl bash -c "cd '!WSL_HERE_SAFE!' && export HERMES_HOME='!WSL_HERE_SAFE!/data' && export PATH='!WSL_VENV_SAFE!/bin:!WSL_HERE_SAFE!/node/bin:$PATH' && '!WSL_VENV_SAFE!/bin/hermes' %*"
+wsl bash -c "cd '!WSL_HERE_SAFE!' && export HOME='!WSL_HERE_SAFE!/_home' && export HERMES_HOME='!WSL_HERE_SAFE!/data' && export PATH='!WSL_VENV_SAFE!/bin:!WSL_HERE_SAFE!/node/bin:$PATH' && '!WSL_VENV_SAFE!/bin/hermes' %*"
 set "EXITCODE=%errorlevel%"
 goto :done
 
