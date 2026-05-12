@@ -11,13 +11,22 @@ permissions:
 
 jobs:
   build:
+    # Per-arch matrix. build.py has no --arch / no cross-build: uv picks
+    # wheels by host arch, so each zip must come from its own runner.
+    #   macos-latest     → Apple Silicon (arm64)
+    #   macos-13         → Intel (x86_64); macos-15-intel is still beta
+    #   ubuntu-latest    → x86_64
+    #   ubuntu-24.04-arm → arm64 (GA for public repos in early 2025)
+    #   windows-latest   → x86_64 (Node.js has no Windows arm64 prebuilt)
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-latest,    label: macOS,   artifact: macOS }
-          - { os: ubuntu-latest,   label: Linux,   artifact: Linux }
-          - { os: windows-latest,  label: Windows, artifact: Windows }
+          - { os: macos-latest,     label: macOS,   arch: arm64, artifact: macOS-arm64 }
+          - { os: macos-13,         label: macOS,   arch: x64,   artifact: macOS-x64 }
+          - { os: ubuntu-latest,    label: Linux,   arch: x64,   artifact: Linux-x64 }
+          - { os: ubuntu-24.04-arm, label: Linux,   arch: arm64, artifact: Linux-arm64 }
+          - { os: windows-latest,   label: Windows, arch: x64,   artifact: Windows-x64 }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     steps:
@@ -28,7 +37,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install system deps (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: startsWith(matrix.os, 'ubuntu-')
         run: sudo apt-get update && sudo apt-get install -y git curl
 
       - name: Debug environment
@@ -40,7 +49,7 @@ jobs:
           python -c "import platform; print('platform:', platform.system(), platform.machine())"
 
       - name: Build
-        # Single entry-point on all three platforms.
+        # Single entry-point on all platforms.
         shell: bash
         run: python build.py
 
@@ -68,7 +77,7 @@ jobs:
         run: |
           set -e
           cd artifacts
-          for p in macOS Linux Windows; do
+          for p in macOS-arm64 macOS-x64 Linux-x64 Linux-arm64 Windows-x64; do
             if [ -d "$p" ]; then
               # upload-artifact@v4 does not guarantee exec bits survive
               # the macOS-runner → Linux-runner round trip. If a user's
@@ -119,12 +128,16 @@ jobs:
             echo
             echo "## 下载 Downloads"
             echo
-            echo "| 平台 | 文件 | 启动方式 |"
-            echo "|---|---|---|"
-            echo "| **macOS** (arm64/x64) | [HermesPortable-macOS.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-macOS.zip) | 双击 \`Hermes.command\` |"
-            echo "| **Linux** (glibc 2.28+) | [HermesPortable-Linux.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Linux.zip) | \`./Hermes.sh\` |"
-            echo "| **Windows** 10/11 (Early Beta) | [HermesPortable-Windows.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Windows.zip) | 双击 \`Hermes.bat\` |"
-            echo "| 🌍 **Universal** (三合一 / all three) | [HermesPortable-Universal.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Universal.zip) | U 盘多机共用 / USB for any box |"
+            echo "挑对应你机器架构的包——不确定就看 \`uname -m\` (macOS/Linux) 或 Windows 设置里的「关于 → 系统类型」。"
+            echo
+            echo "| 平台 Platform | 架构 Arch | 文件 File | 启动方式 Launch |"
+            echo "|---|---|---|---|"
+            echo "| **macOS** (Apple Silicon) | arm64 | [HermesPortable-macOS-arm64.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-macOS-arm64.zip) | 双击 \`Hermes.command\` |"
+            echo "| **macOS** (Intel) | x86_64 | [HermesPortable-macOS-x64.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-macOS-x64.zip) | 双击 \`Hermes.command\` |"
+            echo "| **Linux** (glibc 2.28+) | x86_64 | [HermesPortable-Linux-x64.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Linux-x64.zip) | \`./Hermes.sh\` |"
+            echo "| **Linux** (glibc 2.28+) | arm64 | [HermesPortable-Linux-arm64.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Linux-arm64.zip) | \`./Hermes.sh\` |"
+            echo "| **Windows** 10/11 (Early Beta) | x86_64 | [HermesPortable-Windows-x64.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Windows-x64.zip) | 双击 \`Hermes.bat\` |"
+            echo "| 🌍 **Universal** (全架构合一 / all arches) | — | [HermesPortable-Universal.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Universal.zip) | U 盘多机共用 / USB for any box |"
             echo
             echo "## 首次使用 Quick start"
             echo
@@ -165,9 +178,11 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            HermesPortable-macOS.zip
-            HermesPortable-Linux.zip
-            HermesPortable-Windows.zip
+            HermesPortable-macOS-arm64.zip
+            HermesPortable-macOS-x64.zip
+            HermesPortable-Linux-x64.zip
+            HermesPortable-Linux-arm64.zip
+            HermesPortable-Windows-x64.zip
           body_path: release-notes.md
           # generate_release_notes places GitHub's auto-summary
           # (commits + PRs since last tag) *after* body_path content.
