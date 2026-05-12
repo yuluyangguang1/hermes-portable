@@ -16,7 +16,8 @@ permissions:
 #
 # Runtimes shipped in Universal:
 #   macos-arm64  (macos-latest)
-#   macos-x64    (macos-13 — Intel; macos-15-intel is still beta)
+#   macos-x64    (macos-15-intel — macos-13 retired 2025-12-08; macos-15-intel
+#                is the last Intel macOS image, available until Aug 2027)
 #   linux-x64    (ubuntu-latest)
 #   linux-arm64  (ubuntu-24.04-arm — GA for public repos in early 2025)
 #   windows-x64  (windows-latest — Node.js has no Windows arm64 prebuilt)
@@ -51,7 +52,7 @@ jobs:
           if-no-files-found: warn
 
   build-macos-x64:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4

@@ -13,17 +13,19 @@ jobs:
   build:
     # Per-arch matrix. build.py has no --arch / no cross-build: uv picks
     # wheels by host arch, so each zip must come from its own runner.
-    #   macos-latest     → Apple Silicon (arm64)
-    #   macos-13         → Intel (x86_64); macos-15-intel is still beta
-    #   ubuntu-latest    → x86_64
-    #   ubuntu-24.04-arm → arm64 (GA for public repos in early 2025)
-    #   windows-latest   → x86_64 (Node.js has no Windows arm64 prebuilt)
+    #   macos-latest      → Apple Silicon (arm64)
+    #   macos-15-intel    → Intel (x86_64); macos-13 was retired 2025-12-08,
+    #                        macos-15-intel is the last Intel macOS image
+    #                        GitHub will ship (available until Aug 2027)
+    #   ubuntu-latest     → x86_64
+    #   ubuntu-24.04-arm  → arm64 (GA for public repos in early 2025)
+    #   windows-latest    → x86_64 (Node.js has no Windows arm64 prebuilt)
     strategy:
       fail-fast: false
       matrix:
         include:
           - { os: macos-latest,     label: macOS,   arch: arm64, artifact: macOS-arm64 }
-          - { os: macos-13,         label: macOS,   arch: x64,   artifact: macOS-x64 }
+          - { os: macos-15-intel,   label: macOS,   arch: x64,   artifact: macOS-x64 }
           - { os: ubuntu-latest,    label: Linux,   arch: x64,   artifact: Linux-x64 }
           - { os: ubuntu-24.04-arm, label: Linux,   arch: arm64, artifact: Linux-arm64 }
           - { os: windows-latest,   label: Windows, arch: x64,   artifact: Windows-x64 }
