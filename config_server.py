@@ -1608,7 +1608,13 @@ def main():
   Config: {url}
 """)
 
-    threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+    # Only open the browser if the launcher didn't already. All four
+    # launchers (Hermes.bat, Hermes.command, Hermes.sh, Hermes-WSL.bat)
+    # set HERMES_BROWSER_OPENED=1 before invoking us, so double-clicking
+    # Hermes.bat no longer opens two tabs at once. Fall back to opening
+    # ourselves when someone runs `python config_server.py` directly.
+    if not os.environ.get("HERMES_BROWSER_OPENED"):
+        threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     if has_key:
         print("  API Key detected — ready to launch")
         print("  Or modify config and click Launch\n")

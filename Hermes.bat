@@ -219,6 +219,7 @@ goto :run_hermes
 echo   Opening config panel at http://127.0.0.1:17520 ...
 echo.
 start "" "http://127.0.0.1:17520"
+set "HERMES_BROWSER_OPENED=1"
 "%VENV_DIR%\Scripts\python.exe" "%HERE%\config_server.py"
 set "EXITCODE=%errorlevel%"
 goto :cleanup

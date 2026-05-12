@@ -21,6 +21,13 @@ SCRIPT_DIR = Path(__file__).parent.resolve()
 HERMES_DIR = SCRIPT_DIR / "hermes-agent"
 
 
+def _uv_bin():
+    """Locate the portable uv binary shipped next to update.py."""
+    name = "uv.exe" if sys.platform == "win32" else "uv"
+    p = SCRIPT_DIR / name
+    return p if p.exists() else None
+
+
 def _detect_venv_dir():
     """Pick the right venv for the current platform (works for both
     single-platform and universal zip layouts)."""
@@ -224,23 +231,39 @@ def do_update():
         print(f"{R}✗ Could not find venv python at {py_venv}{X}")
         return False
 
-    # Non-editable install, with extras. The portable layout is a read-only
-    # staging dir in practice; editable installs would write the folder's
-    # absolute path into site-packages and break the moment the package
-    # moves to a USB stick / another drive letter / another machine.
+    # Use `uv pip install --python <venv>` to match how build.py seeds
+    # the venv. Our venv is created with `uv venv --relocatable`, which
+    # does NOT install pip — `python -m pip` would die with
+    # "No module named pip" and the error was being swallowed by
+    # capture_output, so the only visible symptom was the web UI
+    # polling for 30 attempts and reporting "update timeout". uv
+    # ignores the missing pip entirely and drives the install directly.
+    #
+    # Non-editable on purpose: editable installs bake absolute paths
+    # into site-packages/*.pth and break the instant the folder moves
+    # to another drive / USB / machine.
+    uv = _uv_bin()
+    if uv is None:
+        print(f"{R}✗ Could not find portable uv at {SCRIPT_DIR}/uv{X}")
+        print(f"  A fresh rebuild via build.py will restore it.")
+        return False
+
+    # Keep output visible so real errors (network, missing extras, etc.)
+    # reach the user's terminal. Previously we used capture_output=True
+    # and only surfaced the first 500 chars of stderr on failure.
     r = subprocess.run(
-        [str(py_venv), "-m", "pip", "install",
-         f"{HERMES_DIR}[{EXTRAS}]", "--upgrade"],
-        capture_output=True, text=True,
+        [str(uv), "pip", "install",
+         f"{HERMES_DIR}[{EXTRAS}]", "--upgrade",
+         "--python", str(py_venv)],
     )
     if r.returncode != 0:
         print(f"{Y}⚠ Install with extras failed; retrying core only …{X}")
         r2 = subprocess.run(
-            [str(py_venv), "-m", "pip", "install", str(HERMES_DIR), "--upgrade"],
-            capture_output=True, text=True,
+            [str(uv), "pip", "install", str(HERMES_DIR), "--upgrade",
+             "--python", str(py_venv)],
         )
         if r2.returncode != 0:
-            print(f"{R}✗ Reinstall failed:{X}\n{r2.stderr[:500]}")
+            print(f"{R}✗ Reinstall failed (exit {r2.returncode}).{X}")
             return False
 
     print(f"{G}✓ Dependencies updated{X}")

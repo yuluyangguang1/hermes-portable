@@ -117,7 +117,7 @@ goto :run_hermes
 :run_config
 echo   Opening config panel at http://127.0.0.1:17520 ...
 start "" "http://127.0.0.1:17520"
-wsl bash -c "cd '!WSL_HERE_SAFE!' && export HOME='!WSL_HERE_SAFE!/_home' && export HERMES_HOME='!WSL_HERE_SAFE!/data' && '!WSL_VENV_SAFE!/bin/python' '!WSL_HERE_SAFE!/config_server.py'"
+wsl bash -c "cd '!WSL_HERE_SAFE!' && export HOME='!WSL_HERE_SAFE!/_home' && export HERMES_HOME='!WSL_HERE_SAFE!/data' && export HERMES_BROWSER_OPENED=1 && '!WSL_VENV_SAFE!/bin/python' '!WSL_HERE_SAFE!/config_server.py'"
 set "EXITCODE=%errorlevel%"
 goto :done
 
