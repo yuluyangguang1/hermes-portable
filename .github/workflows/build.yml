@@ -70,7 +70,31 @@ jobs:
           cd artifacts
           for p in macOS Linux Windows; do
             if [ -d "$p" ]; then
-              zip -rq "../HermesPortable-$p.zip" "$p"
+              # upload-artifact@v4 does not guarantee exec bits survive
+              # the macOS-runner → Linux-runner round trip. If a user's
+              # downloaded Hermes.command lands at mode 0644, macOS
+              # Finder refuses to double-click it with "您没有权限
+              # 执行"/"permission denied". Restore exec bits here, on
+              # the zip-assembly runner, before archiving — that is the
+              # only step guaranteed to run on Linux and whose output
+              # actually ships to users.
+              #
+              # zip -y preserves symlinks; zip records stored Unix mode
+              # from the filesystem, so once we chmod these, macOS
+              # Archive Utility unpacks them with mode 0755 intact.
+              for f in "$p"/Hermes.command "$p"/Hermes.sh \
+                       "$p"/update.sh "$p"/linux-rebuild.sh \
+                       "$p"/uv; do
+                [ -f "$f" ] && chmod +x "$f"
+              done
+              # Also: venv bin-scripts and the portable python binaries
+              # lose exec bits the same way. Walk both common locations.
+              for bindir in "$p"/venv/bin "$p"/venv-*/bin \
+                            "$p"/python/*/bin "$p"/python-*/*/bin \
+                            "$p"/node/bin "$p"/node-*/bin; do
+                [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} +
+              done
+              zip -yrq "../HermesPortable-$p.zip" "$p"
               echo "  packed HermesPortable-$p.zip"
             else
               echo "  ! $p artifact missing"
@@ -111,6 +135,18 @@ jobs:
             echo "## 零痕迹保证 Zero-trace guarantee"
             echo
             echo "启动器在 U 盘里建 \`_home/\` 沙箱，劫持 \`HOME\` / \`USERPROFILE\`，所有走 \`~/.hermes\` 的读写都落到 U 盘的 \`data/\` 里。宿主机的真 \`~/.hermes\` / \`%USERPROFILE%\\.hermes\` 从不接触——拔 U 盘，什么都带走，什么都没留下。"
+            echo
+            echo "## macOS: 首次双击提示「您没有权限」/「无法打开」"
+            echo
+            echo "macOS 会给从浏览器下载的 zip 盖 Gatekeeper 隔离标记，解压后双击 \`Hermes.command\` 会被拒。打开\"终端\" (Terminal)，用下面两条命令解除一次即可（第一条移除隔离标记，第二条恢复可执行权限）："
+            echo
+            echo "\`\`\`bash"
+            echo "# 把下一行里的路径替换成你自己的 HermesPortable 文件夹"
+            echo "cd ~/Downloads/HermesPortable"
+            echo "xattr -cr . && chmod +x Hermes.command Hermes.sh"
+            echo "\`\`\`"
+            echo
+            echo "之后再双击 \`Hermes.command\` 就正常了。（这是 macOS 对未公证应用的默认行为，不是 Hermes 的 bug。）"
             echo
             echo "## SHA-256"
             echo
