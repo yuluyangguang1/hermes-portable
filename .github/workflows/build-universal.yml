@@ -111,7 +111,28 @@ jobs:
           ls HermesPortable/
 
       - name: Build Universal zip
-        run: zip -rq HermesPortable-Universal.zip HermesPortable/
+        run: |
+          set -e
+          # See build.yml 'Create archives' step for the long version
+          # of why this chmod is needed. Short version: upload-artifact
+          # @v4 does not guarantee exec bits survive the macOS-runner
+          # → Linux-runner round trip, so macOS Finder refuses to
+          # double-click Hermes.command with "您没有权限执行". Fix it
+          # here on the merge runner, right before zipping.
+          for f in HermesPortable/Hermes.command HermesPortable/Hermes.sh \
+                   HermesPortable/update.sh HermesPortable/linux-rebuild.sh \
+                   HermesPortable/uv; do
+            [ -f "$f" ] && chmod +x "$f"
+          done
+          for bindir in HermesPortable/venv-*/bin \
+                        HermesPortable/python-*/*/bin \
+                        HermesPortable/node-*/bin; do
+            [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} +
+          done
+          # zip -y preserves symlinks inside node-*/bin (npm → ../lib/…)
+          # and records Unix mode from the filesystem, so macOS Archive
+          # Utility unpacks everything with exec bits intact.
+          zip -yrq HermesPortable-Universal.zip HermesPortable/
 
       # NOTE: per-platform zips (macOS/Linux/Windows) are already produced
       # by .github/workflows/build.yml, which uses the default --layout
