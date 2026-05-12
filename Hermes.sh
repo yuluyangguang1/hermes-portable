@@ -118,13 +118,37 @@ if [ -n "$MISMATCH" ]; then
   echo "  cannot run here. This usually means the HermesPortable folder" >&2
   echo "  was copied from a machine with a different chip" >&2
   echo "  (Apple Silicon <-> Intel, or ARM64 <-> x86_64)." >&2
+  echo "  The clean fix is to rebuild the runtime on THIS machine —" >&2
+  echo "  data/ and API keys are preserved." >&2
   echo "" >&2
-  echo "  Fix, pick one:" >&2
-  echo "    1. Download HermesPortable-Universal.zip (ships all arches):" >&2
-  echo "         https://github.com/yuluyangguang1/hermes-portable/releases" >&2
-  echo "    2. Or download the $OS zip built on a matching machine." >&2
-  echo "    3. Or rebuild on THIS machine:" >&2
-  echo "         python3 build.py" >&2
+  # Pick the right helper for the host OS. Platform-only zips ship
+  # these helpers + build.py. Universal zips strip build.py to save
+  # space, so they fall back to the download path.
+  case "$OS" in
+    Darwin) REBUILD_HELPER="$HERE/mac-rebuild.sh" ;;
+    Linux)  REBUILD_HELPER="$HERE/linux-rebuild.sh" ;;
+    *)      REBUILD_HELPER="" ;;
+  esac
+  if [ -n "$REBUILD_HELPER" ] && [ -f "$REBUILD_HELPER" ] && [ -f "$HERE/build.py" ]; then
+    echo "  Recommended fix (rebuilds the runtime in place, ~2-3 min):" >&2
+    echo "    bash \"$REBUILD_HELPER\"" >&2
+    echo "" >&2
+    if [ "$OS" = "Darwin" ]; then
+      echo "  Requires Xcode Command Line Tools (python3 + git + curl)." >&2
+      echo "  If you don't have them:  xcode-select --install" >&2
+    else
+      echo "  Requires python3 + git + curl. On Debian/Ubuntu:" >&2
+      echo "    sudo apt install python3 git curl" >&2
+    fi
+    echo "" >&2
+    echo "  After it finishes, run ./$(basename "$0") again." >&2
+  else
+    echo "  Fix, pick one:" >&2
+    echo "    1. Download HermesPortable-Universal.zip (ships all arches):" >&2
+    echo "         https://github.com/yuluyangguang1/hermes-portable/releases" >&2
+    echo "    2. Or download the $OS zip built for $ARCH." >&2
+    echo "    3. Or grab the source repo and run:  python3 build.py" >&2
+  fi
   echo "" >&2
   exit 1
 fi

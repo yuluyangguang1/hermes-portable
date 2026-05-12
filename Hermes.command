@@ -114,13 +114,28 @@ if [ -n "$MISMATCH" ]; then
   echo "  The venv inside this folder was built for a different CPU and" >&2
   echo "  cannot run here. This usually means the HermesPortable folder" >&2
   echo "  was copied from a Mac with a different chip (Apple Silicon <-> Intel)." >&2
+  echo "  macOS does not cross-run arm64 and x86_64 code without Rosetta 2," >&2
+  echo "  and even then some native extensions break — the clean fix is to" >&2
+  echo "  rebuild the runtime on THIS Mac. Your data/ and API keys survive." >&2
   echo "" >&2
-  echo "  Fix, pick one:" >&2
-  echo "    1. Download HermesPortable-Universal.zip (contains both arches):" >&2
-  echo "         https://github.com/yuluyangguang1/hermes-portable/releases" >&2
-  echo "    2. Or download the macOS zip built on a matching Mac." >&2
-  echo "    3. Or rebuild on THIS Mac:" >&2
-  echo "         python3 build.py" >&2
+  # Prefer the in-place rebuild if the helper is available (platform-only
+  # zips ship mac-rebuild.sh + build.py). Universal zips strip build.py
+  # to save space, so they fall back to the download path.
+  if [ -f "$HERE/mac-rebuild.sh" ] && [ -f "$HERE/build.py" ]; then
+    echo "  Recommended fix (rebuilds the runtime on this Mac, ~2-3 min):" >&2
+    echo "    bash \"$HERE/mac-rebuild.sh\"" >&2
+    echo "" >&2
+    echo "  Requires Xcode Command Line Tools (python3 + git + curl)." >&2
+    echo "  If you don't have them:  xcode-select --install" >&2
+    echo "" >&2
+    echo "  After it finishes, double-click Hermes.command again." >&2
+  else
+    echo "  Fix, pick one:" >&2
+    echo "    1. Download HermesPortable-Universal.zip (ships both Mac arches):" >&2
+    echo "         https://github.com/yuluyangguang1/hermes-portable/releases" >&2
+    echo "    2. Or download the macOS zip built for $ARCH." >&2
+    echo "    3. Or grab the source repo and run:  python3 build.py" >&2
+  fi
   echo "" >&2
   exit 1
 fi
