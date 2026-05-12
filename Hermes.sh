@@ -60,6 +60,75 @@ else
   NODE_DIR=""
 fi
 
+# ── Architecture sanity check ─────────────────────────────────
+# Failure mode we're catching: a platform-only zip (`venv/`, built
+# on e.g. Apple Silicon or a linux-arm64 box) gets copied to a
+# different-arch host. `uname -m` detects the host correctly, but
+# because the zip only ships `venv/` (not `venv-$PLATFORM/`), the
+# launcher happily uses the wrong venv. `exec`-ing those binaries
+# then fails with a cryptic "Bad CPU type in executable" / "Killed:
+# 9" / "Exec format error", deep inside the script, after the lock
+# + symlink + webui have already been set up. Detect the mismatch
+# up front via `file -b` and bail with an explanation the user can
+# actually act on.
+#
+# Universal zips are NOT affected: they already carry per-arch
+# `venv-macos-arm64/`, `venv-linux-x64/`, etc., and the detection
+# above picks the right one. Only the platform-only `venv/`
+# fallback can be wrong.
+MISMATCH=""
+ARCH_PROBE="$VENV_DIR/bin/hermes"
+[ -x "$ARCH_PROBE" ] || ARCH_PROBE="$VENV_DIR/bin/python"
+if [ -x "$ARCH_PROBE" ] && command -v file >/dev/null 2>&1; then
+  BIN_INFO="$(file -b "$ARCH_PROBE" 2>/dev/null || true)"
+  case "$OS:$ARCH" in
+    Darwin:x86_64|Darwin:amd64)
+      if ! echo "$BIN_INFO" | grep -qE "x86_64|universal"; then
+        echo "$BIN_INFO" | grep -q "arm64" && MISMATCH="arm64 (Apple Silicon)"
+      fi
+      ;;
+    Darwin:arm64|Darwin:aarch64)
+      if ! echo "$BIN_INFO" | grep -qE "arm64|universal"; then
+        echo "$BIN_INFO" | grep -q "x86_64" && MISMATCH="x86_64 (Intel)"
+      fi
+      ;;
+    Linux:x86_64|Linux:amd64)
+      # ELF 64-bit LSB ... x86-64 vs aarch64
+      if ! echo "$BIN_INFO" | grep -qE "x86-64|x86_64"; then
+        echo "$BIN_INFO" | grep -qE "aarch64|ARM aarch64" && MISMATCH="aarch64 (ARM64)"
+      fi
+      ;;
+    Linux:aarch64|Linux:arm64)
+      if ! echo "$BIN_INFO" | grep -qE "aarch64|ARM aarch64"; then
+        echo "$BIN_INFO" | grep -qE "x86-64|x86_64" && MISMATCH="x86_64 (Intel/AMD)"
+      fi
+      ;;
+  esac
+fi
+if [ -n "$MISMATCH" ]; then
+  echo "" >&2
+  echo "  [ERROR] CPU architecture mismatch." >&2
+  echo "" >&2
+  echo "  This machine : $OS $ARCH" >&2
+  echo "  venv arch    : $MISMATCH" >&2
+  echo "    probe      : $ARCH_PROBE" >&2
+  echo "    file       : $BIN_INFO" >&2
+  echo "" >&2
+  echo "  The venv inside this folder was built for a different CPU and" >&2
+  echo "  cannot run here. This usually means the HermesPortable folder" >&2
+  echo "  was copied from a machine with a different chip" >&2
+  echo "  (Apple Silicon <-> Intel, or ARM64 <-> x86_64)." >&2
+  echo "" >&2
+  echo "  Fix, pick one:" >&2
+  echo "    1. Download HermesPortable-Universal.zip (ships all arches):" >&2
+  echo "         https://github.com/yuluyangguang1/hermes-portable/releases" >&2
+  echo "    2. Or download the $OS zip built on a matching machine." >&2
+  echo "    3. Or rebuild on THIS machine:" >&2
+  echo "         python3 build.py" >&2
+  echo "" >&2
+  exit 1
+fi
+
 # ── HOME hijack sandbox ───────────────────────────────────────
 # $HERE/_home is a private HOME. $HERE/_home/.hermes is a symlink
 # pointing to $HERE/data, so any library that reads or writes ~/.hermes

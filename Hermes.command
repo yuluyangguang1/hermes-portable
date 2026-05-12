@@ -60,6 +60,71 @@ else
   NODE_DIR=""
 fi
 
+# ── Architecture sanity check ─────────────────────────────────
+# Failure mode we're catching: a platform-only zip (`venv/`, built
+# on e.g. Apple Silicon) gets copied to a different-arch host (e.g.
+# Intel Mac). `uname -m` detects the host correctly, but because
+# the zip only ships `venv/` (not `venv-macos-arm64/`), the launcher
+# happily uses the wrong venv. `exec`-ing those binaries then fails
+# with a cryptic "Bad CPU type in executable" / "Killed: 9", deep
+# inside the script, after the lock + symlink + webui have already
+# been set up. Detect the mismatch up front via `file -b` and bail
+# with an explanation the user can actually act on.
+#
+# Universal zips are NOT affected: they already carry per-arch
+# `venv-macos-arm64/` and `venv-macos-x64/` and the detection above
+# picks the right one. Only the platform-only `venv/` fallback can
+# be wrong.
+MISMATCH=""
+ARCH_PROBE="$VENV_DIR/bin/hermes"
+[ -x "$ARCH_PROBE" ] || ARCH_PROBE="$VENV_DIR/bin/python"
+if [ -x "$ARCH_PROBE" ] && command -v file >/dev/null 2>&1; then
+  BIN_INFO="$(file -b "$ARCH_PROBE" 2>/dev/null || true)"
+  case "$ARCH" in
+    x86_64|amd64)
+      # Need x86_64 or a universal (fat) binary; pure arm64 is wrong.
+      if ! echo "$BIN_INFO" | grep -qE "x86_64|universal"; then
+        if echo "$BIN_INFO" | grep -q "arm64"; then
+          MISMATCH="arm64 (Apple Silicon)"
+        fi
+      fi
+      ;;
+    arm64|aarch64)
+      # arm64 Mac *can* run x86_64 via Rosetta 2, but only when it's
+      # installed — and a plain `venv/` carrying x86_64 still signals
+      # the zip was mis-selected (e.g. Intel build on an M-series Mac).
+      # Refuse and let the user grab the right zip.
+      if ! echo "$BIN_INFO" | grep -qE "arm64|universal"; then
+        if echo "$BIN_INFO" | grep -q "x86_64"; then
+          MISMATCH="x86_64 (Intel)"
+        fi
+      fi
+      ;;
+  esac
+fi
+if [ -n "$MISMATCH" ]; then
+  echo "" >&2
+  echo "  [ERROR] CPU architecture mismatch." >&2
+  echo "" >&2
+  echo "  This Mac : $OS $ARCH" >&2
+  echo "  venv arch: $MISMATCH" >&2
+  echo "    probe   : $ARCH_PROBE" >&2
+  echo "    file    : $BIN_INFO" >&2
+  echo "" >&2
+  echo "  The venv inside this folder was built for a different CPU and" >&2
+  echo "  cannot run here. This usually means the HermesPortable folder" >&2
+  echo "  was copied from a Mac with a different chip (Apple Silicon <-> Intel)." >&2
+  echo "" >&2
+  echo "  Fix, pick one:" >&2
+  echo "    1. Download HermesPortable-Universal.zip (contains both arches):" >&2
+  echo "         https://github.com/yuluyangguang1/hermes-portable/releases" >&2
+  echo "    2. Or download the macOS zip built on a matching Mac." >&2
+  echo "    3. Or rebuild on THIS Mac:" >&2
+  echo "         python3 build.py" >&2
+  echo "" >&2
+  exit 1
+fi
+
 # ── HOME hijack sandbox ───────────────────────────────────────
 # $HERE/_home is a private HOME. $HERE/_home/.hermes is a symlink
 # pointing to $HERE/data, so any library that reads or writes ~/.hermes
