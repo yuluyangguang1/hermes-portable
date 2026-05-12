@@ -11,11 +11,18 @@ permissions:
 
 # Each platform job builds with --layout universal, which produces
 #   venv-<platform>/ and python-<platform>/ (and node-<platform>/)
-# instead of plain venv/. The merge job then overlays all three onto a
+# instead of plain venv/. The merge job then overlays all five onto a
 # single shared-base (which contains launchers, data/, hermes-agent/).
+#
+# Runtimes shipped in Universal:
+#   macos-arm64  (macos-latest)
+#   macos-x64    (macos-13 — Intel; macos-15-intel is still beta)
+#   linux-x64    (ubuntu-latest)
+#   linux-arm64  (ubuntu-24.04-arm — GA for public repos in early 2025)
+#   windows-x64  (windows-latest — Node.js has no Windows arm64 prebuilt)
 
 jobs:
-  build-macos:
+  build-macos-arm64:
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
@@ -33,17 +40,36 @@ jobs:
             !dist/HermesPortable/venv-*/
             !dist/HermesPortable/python-*/
             !dist/HermesPortable/node-*/
-      - name: Upload macOS venv/python/node
+      - name: Upload macOS arm64 venv/python/node
         uses: actions/upload-artifact@v4
         with:
-          name: macos-runtime
+          name: macos-arm64-runtime
           path: |
             dist/HermesPortable/venv-macos-arm64/
             dist/HermesPortable/python-macos-arm64/
             dist/HermesPortable/node-macos-arm64/
           if-no-files-found: warn
 
-  build-linux:
+  build-macos-x64:
+    runs-on: macos-13
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Build
+        run: python3 build.py --layout universal
+      - name: Upload macOS x64 venv/python/node
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x64-runtime
+          path: |
+            dist/HermesPortable/venv-macos-x64/
+            dist/HermesPortable/python-macos-x64/
+            dist/HermesPortable/node-macos-x64/
+          if-no-files-found: warn
+
+  build-linux-x64:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -54,17 +80,38 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y git curl
       - name: Build
         run: python3 build.py --layout universal
-      - name: Upload Linux venv/python/node
+      - name: Upload Linux x64 venv/python/node
         uses: actions/upload-artifact@v4
         with:
-          name: linux-runtime
+          name: linux-x64-runtime
           path: |
             dist/HermesPortable/venv-linux-x64/
             dist/HermesPortable/python-linux-x64/
             dist/HermesPortable/node-linux-x64/
           if-no-files-found: warn
 
-  build-windows:
+  build-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y git curl
+      - name: Build
+        run: python3 build.py --layout universal
+      - name: Upload Linux arm64 venv/python/node
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64-runtime
+          path: |
+            dist/HermesPortable/venv-linux-arm64/
+            dist/HermesPortable/python-linux-arm64/
+            dist/HermesPortable/node-linux-arm64/
+          if-no-files-found: warn
+
+  build-windows-x64:
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
@@ -74,10 +121,10 @@ jobs:
       - name: Build
         shell: bash
         run: python build.py --layout universal
-      - name: Upload Windows venv/python/node
+      - name: Upload Windows x64 venv/python/node
         uses: actions/upload-artifact@v4
         with:
-          name: windows-runtime
+          name: windows-x64-runtime
           path: |
             dist/HermesPortable/venv-windows-x64/
             dist/HermesPortable/python-windows-x64/
@@ -86,7 +133,12 @@ jobs:
 
   merge-and-release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-macos, build-linux, build-windows]
+    needs:
+      - build-macos-arm64
+      - build-macos-x64
+      - build-linux-x64
+      - build-linux-arm64
+      - build-windows-x64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -99,7 +151,7 @@ jobs:
           mkdir -p HermesPortable
           # shared-base contains launchers, data/, hermes-agent/, uv, README, ...
           cp -a artifacts/shared-base/. HermesPortable/
-          for rt in macos-runtime linux-runtime windows-runtime; do
+          for rt in macos-arm64-runtime macos-x64-runtime linux-x64-runtime linux-arm64-runtime windows-x64-runtime; do
             if [ -d "artifacts/$rt" ]; then
               cp -a "artifacts/$rt/." HermesPortable/
               echo "  merged $rt"
@@ -134,14 +186,14 @@ jobs:
           # Utility unpacks everything with exec bits intact.
           zip -yrq HermesPortable-Universal.zip HermesPortable/
 
-      # NOTE: per-platform zips (macOS/Linux/Windows) are already produced
-      # by .github/workflows/build.yml, which uses the default --layout
-      # (plain venv/, python/, node/ — directly usable by the launchers).
-      # Earlier revisions here rebuilt them from the universal layout by
-      # renaming venv-<platform>/ → venv/, but that leaves pyvenv.cfg
-      # pointing at python-<platform>/ (now missing), producing a broken
-      # venv. The single-platform zips are build.yml's job, not ours.
-      # This job only produces HermesPortable-Universal.zip.
+      # NOTE: per-platform zips (macOS-arm64/macOS-x64/Linux-x64/Linux-arm64/
+      # Windows-x64) are produced by .github/workflows/build.yml, which uses
+      # the default --layout (plain venv/, python/, node/ — directly usable
+      # by the launchers). Earlier revisions here rebuilt them from the
+      # universal layout by renaming venv-<platform>/ → venv/, but that
+      # leaves pyvenv.cfg pointing at python-<platform>/ (now missing),
+      # producing a broken venv. The single-platform zips are build.yml's
+      # job, not ours. This job only produces HermesPortable-Universal.zip.
 
       # IMPORTANT: do NOT set body_path or generate_release_notes here.
       # build.yml writes the release body; if this workflow also wrote
