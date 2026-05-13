@@ -5,6 +5,7 @@ Hermes Portable — 聊天记录查看器
 """
 import json
 import os
+import sys
 import webbrowser
 import threading
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -81,9 +82,10 @@ def list_sessions():
                     "chat_count": len(chat_msgs),
                     "preview": first_msg,
                 })
-            except Exception:
-                # Malformed session file — skip it silently, but let
-                # callers detect the miss via the missing count.
+            except Exception as e:
+                # Log malformed session files so users can investigate
+                # missing conversations instead of silently losing them.
+                print(f"[chat_viewer] skipping {f.name}: {e}", file=sys.stderr)
                 continue
     sessions.sort(key=lambda s: s["_sort"], reverse=True)
     for s in sessions:
