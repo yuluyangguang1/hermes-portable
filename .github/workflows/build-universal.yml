@@ -9,6 +9,15 @@ on:
 permissions:
   contents: write
 
+# Serialize Universal-release runs per ref. Same reason as build.yml:
+# re-pushing a tag would otherwise duplicate softprops' release-body
+# appends. The two workflows use different group names so they can run
+# in parallel against the same tag (they produce distinct assets) but
+# each is serialized against itself.
+concurrency:
+  group: release-universal-${{ github.ref }}
+  cancel-in-progress: false
+
 # Each platform job builds with --layout universal, which produces
 #   venv-<platform>/ and python-<platform>/ (and node-<platform>/)
 # instead of plain venv/. The merge job then overlays all five onto a

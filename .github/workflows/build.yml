@@ -9,6 +9,20 @@ on:
 permissions:
   contents: write
 
+# Serialize release-producing runs per ref. The main failure mode this
+# prevents: if you push v0.13.10, notice a problem, delete the tag and
+# re-push the same tag, GitHub triggers two runs of this workflow
+# against the same release. softprops/action-gh-release *appends* to an
+# existing release body on update, so the second run duplicates
+# sections (we hit this in v0.13.2/0.13.3). With this group, the
+# second run waits for the first to finish before starting.
+#
+# cancel-in-progress: false — we want both to complete. Canceling the
+# in-progress one would leave a half-built release.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     # Per-arch matrix. build.py has no --arch / no cross-build: uv picks
