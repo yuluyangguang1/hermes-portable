@@ -59,15 +59,69 @@ PORT = 17520
 # ═══════════════════════════════════════════════════════════════
 
 PROVIDERS = [
-    {"id": "openrouter",  "name": "OpenRouter",     "env": "OPENROUTER_API_KEY", "models": ["anthropic/claude-sonnet-4", "anthropic/claude-opus-4-6", "openai/gpt-4o", "google/gemini-2.5-pro", "deepseek/deepseek-chat-v3"]},
-    {"id": "anthropic",   "name": "Anthropic",      "env": "ANTHROPIC_API_KEY",  "models": ["claude-sonnet-4-20250514", "claude-opus-4-20250514"]},
-    {"id": "openai",      "name": "OpenAI",         "env": "OPENAI_API_KEY",     "models": ["gpt-4o", "gpt-4.1", "o3-mini"]},
-    {"id": "deepseek",    "name": "DeepSeek",       "env": "DEEPSEEK_API_KEY",   "models": ["deepseek-chat", "deepseek-reasoner"]},
-    {"id": "google",      "name": "Google Gemini",  "env": "GOOGLE_API_KEY",     "models": ["gemini-2.5-pro", "gemini-2.5-flash"]},
-    {"id": "xiaomi",      "name": "Xiaomi MiMo",    "env": "XIAOMI_API_KEY",     "models": ["xiaomi/mimo-v2-pro", "xiaomi/mimo-v2-flash"]},
-    {"id": "nous",        "name": "Nous Portal",    "env": "NOUS_API_KEY",       "models": ["nousresearch/hermes-4-405b", "nousresearch/deephermes-3-mistral-24b"]},
-    {"id": "kimi",        "name": "Kimi / Moonshot","env": "KIMI_API_KEY",       "models": ["kimi-k2-0711-preview", "moonshot-v1-128k"]},
-    {"id": "dashscope",   "name": "Alibaba DashScope","env": "DASHSCOPE_API_KEY","models": ["qwen-max", "qwen-plus"]},
+    {"id": "openrouter",  "name": "OpenRouter",     "env": "OPENROUTER_API_KEY", "models": [
+        "anthropic/claude-opus-4.7","anthropic/claude-sonnet-4.6","anthropic/claude-haiku-4.5",
+        "openai/gpt-5.5","openai/gpt-5.5-pro","openai/gpt-5","openai/gpt-5-mini","openai/o3",
+        "google/gemini-3-pro","google/gemini-3-flash","google/gemini-2.5-pro",
+        "deepseek/deepseek-v4-pro","deepseek/deepseek-v4-flash",
+        "x-ai/grok-4","x-ai/grok-4-fast-reasoning","meta-llama/llama-3.3-70b-instruct",
+        "mistralai/mistral-large-3","qwen/qwen3-max","zhipu/glm-4.7","moonshotai/kimi-k2.6",
+    ]},
+    {"id": "anthropic",   "name": "Anthropic",      "env": "ANTHROPIC_API_KEY",  "models": [
+        "claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5",
+        "claude-haiku-4-5-20251001","claude-sonnet-4-20250514","claude-opus-4-20250514",
+        "claude-3-7-sonnet-latest","claude-3-5-haiku-latest",
+    ]},
+    {"id": "openai",      "name": "OpenAI",         "env": "OPENAI_API_KEY",     "models": [
+        "gpt-5.5","gpt-5.5-pro","gpt-5.5-mini","gpt-5","gpt-5-mini","gpt-5-nano",
+        "o3","o3-mini","o4-mini","gpt-4.1","gpt-4.1-mini","gpt-4o","gpt-4o-mini",
+    ]},
+    {"id": "deepseek",    "name": "DeepSeek",       "env": "DEEPSEEK_API_KEY",   "models": [
+        "deepseek-v4-pro","deepseek-v4-flash","deepseek-v3.2-speciale","deepseek-v3.2",
+        "deepseek-chat","deepseek-reasoner",
+    ]},
+    {"id": "google",      "name": "Google Gemini",  "env": "GOOGLE_API_KEY",     "models": [
+        "gemini-3.1-pro-preview","gemini-3-pro","gemini-3-flash",
+        "gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-2.5-flash-image-preview",
+    ]},
+    {"id": "xai",         "name": "xAI Grok",       "env": "XAI_API_KEY",        "models": [
+        "grok-4","grok-4-fast-reasoning","grok-4-fast-non-reasoning",
+        "grok-4-1-fast-reasoning","grok-4-1-fast-non-reasoning","grok-code-fast-1","grok-3",
+    ]},
+    {"id": "mistral",     "name": "Mistral AI",     "env": "MISTRAL_API_KEY",    "models": [
+        "mistral-large-3","mistral-large-2411","mistral-medium-latest","mistral-small-latest",
+        "ministral-3b-latest","ministral-8b-latest","codestral-latest","pixtral-large-latest",
+    ]},
+    {"id": "zhipu",       "name": "Zhipu GLM",      "env": "ZHIPU_API_KEY",      "models": [
+        "glm-4.7","glm-4.6","glm-4.5-air","glm-4.5-flash","glm-z1-preview","glm-4-plus",
+    ]},
+    {"id": "dashscope",   "name": "Alibaba DashScope","env": "DASHSCOPE_API_KEY","models": [
+        "qwen3-max","qwen3-max-preview","qwen3-coder-plus","qwen3-vl-plus","qwen3-omni-flash",
+        "qwen-max","qwen-plus","qwen-turbo","qwen-long",
+    ]},
+    {"id": "kimi",        "name": "Kimi / Moonshot","env": "KIMI_API_KEY",       "models": [
+        "kimi-k2.6","kimi-k2.5","kimi-k2-thinking-turbo","kimi-k2-thinking",
+        "kimi-k2-turbo-preview","kimi-k2-0905-preview","kimi-k2-0711-preview",
+        "moonshot-v1-128k","moonshot-v1-32k",
+    ]},
+    {"id": "xiaomi",      "name": "Xiaomi MiMo",    "env": "XIAOMI_API_KEY",     "models": [
+        "xiaomi/mimo-v2-pro","xiaomi/mimo-v2-flash",
+    ]},
+    {"id": "nous",        "name": "Nous Portal",    "env": "NOUS_API_KEY",       "models": [
+        "nousresearch/hermes-4-405b","nousresearch/hermes-4-70b","nousresearch/deephermes-3-mistral-24b",
+    ]},
+    {"id": "groq",        "name": "Groq",           "env": "GROQ_API_KEY",       "models": [
+        "llama-3.3-70b-versatile","llama-3.1-8b-instant",
+        "meta-llama/llama-4-scout-17b-16e-instruct","meta-llama/llama-4-maverick-17b-128e-instruct",
+        "qwen/qwen3-32b","deepseek-r1-distill-llama-70b","moonshotai/kimi-k2-instruct","groq/compound",
+    ]},
+    {"id": "perplexity",  "name": "Perplexity",     "env": "PERPLEXITY_API_KEY", "models": [
+        "sonar","sonar-pro","sonar-reasoning","sonar-reasoning-pro","sonar-deep-research",
+    ]},
+    {"id": "custom",      "name": "自定义 / 中转站", "env": "CUSTOM_API_KEY",
+     "base_url_env": "CUSTOM_BASE_URL",
+     "custom_model": True,
+     "models": ["gpt-4o","gpt-5","claude-sonnet-4-6","claude-opus-4-7","gemini-3-pro","deepseek-v4-pro"]},
 ]
 
 CHANNELS = [
