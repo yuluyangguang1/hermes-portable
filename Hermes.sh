@@ -33,6 +33,12 @@ case "$OS" in
     ;;
 esac
 
+# ── Banner colors ──────────────────────────────────────────
+GOLD="\033[38;5;220m"
+AMBER="\033[38;5;214m"
+BRONZE="\033[38;5;166m"
+NC="\033[0m"
+
 # ── Multi-layout venv detection ───────────────────────────────
 # Universal zips carry e.g. venv-macos-arm64/; single-platform zips carry venv/.
 if [ -d "$HERE/venv-$PLATFORM" ]; then
@@ -229,6 +235,16 @@ cleanup() {
   fi
 }
 trap cleanup EXIT INT TERM
+
+# ── Welcome banner ──────────────────────────────────────────
+echo ""
+echo -e "${GOLD}  ██╗   ██╗██╗   ██╗███████╗██╗${NC}"
+echo -e "${GOLD}  ██║   ██║██║   ██║██╔════╝██║${NC}"
+echo -e "${AMBER}  ██║   ██║██║   ██║█████╗  ██║${NC}"
+echo -e "${AMBER}  ╚██╗ ██╔╝██║   ██║██╔══╝  ██║${NC}"
+echo -e "${BRONZE}   ╚████╔╝ ╚██████╔╝██║     ██║${NC}"
+echo -e "${BRONZE}    ╚═══╝   ╚═════╝ ╚═════╝╚═╝${NC}"
+echo ""
 
 # ── Single-instance lock (atomic via noclobber) ───────────────
 # Atomic create-or-fail: `set -C` makes the subsequent `>` bail with a

@@ -95,7 +95,6 @@ exit /b 1
 
 echo.
 echo   Hermes Portable (via WSL2)
-echo   --------------------------
 echo.
 
 rem -- First-run / explicit config mode -------------------
