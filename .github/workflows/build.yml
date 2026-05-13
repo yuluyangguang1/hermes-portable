@@ -47,6 +47,13 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Hardening: don't leave the default GITHUB_TOKEN sitting in
+          # .git/config after checkout. Nothing in the subsequent steps
+          # needs to push back to the repo; keeping it around just widens
+          # the blast radius if any third-party action were to read
+          # git config.
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
@@ -74,6 +81,12 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: dist/HermesPortable/
+          # Per-arch intermediate artifacts only exist to feed the
+          # release job; once the zips are uploaded to the release
+          # page there's no reason to keep 5+ GB of artifacts around
+          # for GitHub's default 90 days. 7 days is plenty of buffer
+          # to re-download if a release upload step fails.
+          retention-days: 7
 
   release:
     if: startsWith(github.ref, 'refs/tags/')

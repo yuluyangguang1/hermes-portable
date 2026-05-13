@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import urllib.request
+import urllib.error
 import shutil
 from pathlib import Path
 from datetime import datetime
@@ -117,9 +118,22 @@ def get_local_version():
 def get_remote_version():
     """Get the latest version from GitHub."""
     try:
+        # If a GitHub token is present in the environment, use it to
+        # bump the rate limit from 60/h (anonymous, per-IP) to 5000/h.
+        # The update-check polling from the config panel can easily
+        # hit the anonymous cap on shared NAT networks, after which
+        # every "Check for Updates" click returned `{"error": "403"}`
+        # for the rest of the hour. Supported env var names match
+        # what other tooling (gh, actions/checkout) looks at.
+        headers = {"User-Agent": "HermesPortable/1.0"}
+        token = (os.environ.get("GITHUB_TOKEN")
+                 or os.environ.get("GH_TOKEN")
+                 or os.environ.get("HERMES_GITHUB_TOKEN"))
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         req = urllib.request.Request(
             "https://api.github.com/repos/NousResearch/hermes-agent/commits?per_page=1",
-            headers={"User-Agent": "HermesPortable/1.0"},
+            headers=headers,
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
@@ -129,6 +143,13 @@ def get_remote_version():
                 date = commit["commit"]["committer"]["date"][:10]
                 msg = commit["commit"]["message"].split("\n")[0][:60]
                 return {"sha": sha, "date": date, "message": msg}
+    except urllib.error.HTTPError as e:
+        # Surface rate-limit errors specifically so the UI can show
+        # something actionable instead of a generic HTTP 403.
+        if e.code == 403:
+            return {"error": "GitHub API rate limit exceeded. "
+                             "Set GH_TOKEN to bump the limit, or wait an hour."}
+        return {"error": f"HTTP {e.code}"}
     except Exception as e:
         return {"error": str(e)}
     return {"error": "no data"}

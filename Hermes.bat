@@ -263,6 +263,17 @@ goto :cleanup
 del "%LOCK_FILE%" >nul 2>&1
 del "%LOCK_FILE%.tmp" >nul 2>&1
 
+rem Best-effort kill of any hermes-web-ui we backgrounded in :run_hermes.
+rem `start /b` forks a detached subprocess that does NOT die when this
+rem console closes — on Windows it would keep port 8648 bound, and the
+rem next launch would silently fail to re-bind. We match by image name
+rem rather than tracking a PID because cmd's :run_hermes path doesn't
+rem easily capture the pid of a `start /b`-ed grandchild.
+rem The /F /FI filter skips non-hermes processes cleanly; no-op if
+rem webui wasn't started.
+taskkill /F /FI "IMAGENAME eq hermes-web-ui.exe" >nul 2>&1
+taskkill /F /FI "IMAGENAME eq node.exe" /FI "WINDOWTITLE eq hermes-web-ui*" >nul 2>&1
+
 rem Pause only on non-zero exit so the user can read the error
 if not "%EXITCODE%"=="0" (
     echo.

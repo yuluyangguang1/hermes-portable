@@ -173,6 +173,27 @@ else
 fi
 cd "$HERE"
 
+# ── Self-heal launcher shebangs ───────────────────────────────
+# Same class of bug as Windows: if the portable zip was built on
+# one machine and shebangs ended up absolute (or if mac-rebuild.sh
+# just regenerated the venv at a new absolute path), they break
+# when the folder moves. fix_shims.py rewrites them to the local
+# python. Harmless (no-op) when shebangs are already `/bin/sh`-
+# wrapped relocatable stubs, which is the common case on macOS.
+# Kept in sync with Hermes.sh — previously only Hermes.sh ran this.
+if [ -f "$HERE/fix_shims.py" ]; then
+  PORTABLE_PY=""
+  # Prefer the real python-build-standalone binary (never a trampoline).
+  for cand in "$PYTHON_DIR"/*/bin/python3.12 \
+              "$PYTHON_DIR"/*/bin/python3 \
+              "$VENV_DIR/bin/python"; do
+    if [ -x "$cand" ]; then PORTABLE_PY="$cand"; break; fi
+  done
+  if [ -n "$PORTABLE_PY" ]; then
+    "$PORTABLE_PY" "$HERE/fix_shims.py" 2>/dev/null || true
+  fi
+fi
+
 # ── Cleanup: must be reachable even after child exits ─────────
 # OWN_LOCK gates the unlink: we only clear the lock file if WE were
 # the process that created it. Without this guard, a second launch
