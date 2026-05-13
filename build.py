@@ -65,7 +65,24 @@ def run(cmd, **kw):
 
 def download(url, dest):
     info(f"Downloading {url.split('/')[-1]} …")
-    run(["curl", "-fSL", "-o", str(dest), url])
+    # --connect-timeout 30  : fail fast on dead mirrors / firewalled networks
+    # --max-time 600        : 10-minute ceiling per file (uv/node/python each
+    #                         < 150 MB; 10 min leaves plenty of headroom
+    #                         even on slow links without letting a stuck
+    #                         connection eat the workflow's 40-min quota)
+    # --retry 3             : transient HTTP 5xx and network hiccups
+    # --retry-delay 2       : small backoff between retries
+    # Without these the build would silently hang for the full 40-minute
+    # workflow timeout on a slow/unreachable mirror, which happened on
+    # v0.12.x when the Node.js CDN was throttled.
+    run([
+        "curl", "-fSL",
+        "--connect-timeout", "30",
+        "--max-time", "600",
+        "--retry", "3",
+        "--retry-delay", "2",
+        "-o", str(dest), url,
+    ])
 
 def detect_platform():
     """Return (system, arch, platform_label).
@@ -208,6 +225,18 @@ def _clean_hermes_src(src):
     for pat in ("RELEASE_*.md",):
         for f in src.glob(pat):
             f.unlink(missing_ok=True)
+    # Drop the .git metadata from the cloned hermes-agent. Reasons:
+    #   * it can be 10-50 MB (depth=1 helps but isn't zero),
+    #   * it bakes the clone URL and the build-time machine's git
+    #     config into the zip we ship to users,
+    #   * update.py specifically checks (hermes-agent / ".git").exists()
+    #     to decide "updatable vs frozen" — we intentionally want shipped
+    #     zips to say "not a git clone, run rebuild" instead of pretending
+    #     they can `git pull` (on a --depth=1 shallow clone that will
+    #     often fail mysteriously).
+    git_dir = src / ".git"
+    if git_dir.exists():
+        shutil.rmtree(git_dir, ignore_errors=True)
     for name in ("docs", "docker", "datagen-config-examples",
                  ".pytest_cache", ".github", ".vscode", ".idea"):
         d = src / name

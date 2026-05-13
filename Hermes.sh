@@ -230,19 +230,36 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# ── Single-instance lock (best-effort) ────────────────────────
+# ── Single-instance lock (atomic via noclobber) ───────────────
+# Atomic create-or-fail: `set -C` makes the subsequent `>` bail with a
+# non-zero status if the file already exists. Two concurrent launches
+# racing here both try to `set -C` + redirect; exactly one wins, the
+# other drops into the "already running" branch. The plain `[ -f ]`
+# test we had before was a TOCTOU race — both shells could pass it,
+# then both write their PID, and the last writer "owned" the lock
+# while the first kept `OWN_LOCK=1` and still ran hermes.
 mkdir -p "$HERE/data"
 LOCK="$HERE/data/.hermes.lock"
-if [ -f "$LOCK" ]; then
+# First try to atomically claim a brand-new lock file.
+if ! ( set -C; echo $$ > "$LOCK" ) 2>/dev/null; then
+  # File already exists. Read the stored PID; if that process is
+  # alive, refuse. Otherwise it's a stale lock (crash or force-kill)
+  # and we try to reclaim it.
   OLD_PID="$(cat "$LOCK" 2>/dev/null || true)"
   if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
     echo "  Hermes already running (PID $OLD_PID)."
     echo "  If that is wrong, delete: $LOCK"
     exit 1
   fi
+  # Stale — delete and try the atomic claim once more. If some OTHER
+  # launcher instance slipped in between the unlink and the retry,
+  # it wins and we bail.
   rm -f "$LOCK"
+  if ! ( set -C; echo $$ > "$LOCK" ) 2>/dev/null; then
+    echo "  Another Hermes launcher beat us to the lock. Try again."
+    exit 1
+  fi
 fi
-echo $$ > "$LOCK"
 OWN_LOCK=1
 
 # ── First-run / --config handling ─────────────────────────────
