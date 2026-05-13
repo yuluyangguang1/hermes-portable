@@ -99,16 +99,32 @@ echo   --------------------------
 echo.
 
 rem -- First-run / explicit config mode -------------------
-rem Escape single quotes in WSL_HERE to prevent injection into bash -c
-set "WSL_HERE_SAFE=!WSL_HERE:'='\''!"
-set "WSL_VENV_SAFE=!WSL_VENV:'='\''!"
-
 set "HAS_KEY=false"
 wsl test -f "%WSL_HERE%/data/.env" 2>nul
 if !errorlevel! equ 0 (
     wsl grep -qE "^[A-Z_]+_API_KEY=.{10,}" "%WSL_HERE%/data/.env" 2>nul
     if !errorlevel! equ 0 set "HAS_KEY=true"
 )
+
+rem -- Pass paths to WSL via WSLENV, not string interpolation ------------
+rem  Previous versions built bash -c commands by interpolating
+rem  !WSL_HERE! and !WSL_VENV! into a quoted shell string:
+rem    wsl bash -c "cd '!WSL_HERE_SAFE!' && ..."
+rem  Two layers of escaping had to agree (cmd's double quotes AND bash's
+rem  single quotes). A literal " or \ in the path survived neither layer,
+rem  so users whose HermesPortable ended up under an unusual path
+rem  silently got wrong commands dispatched into WSL. WSLENV is the
+rem  supported mechanism: list variable names (with /p to translate paths
+rem  to Linux form automatically), set them in the cmd-side environment,
+rem  and WSL reads them through its own API without any shell parsing.
+rem  See: https://learn.microsoft.com/en-us/windows/wsl/filesystems#wslenv
+set "HP_HERE=%HERE%"
+set "HP_VENV=%WSL_VENV%"
+rem  HP_HERE is a Windows path and gets the /p translation (C:\foo -> /mnt/c/foo).
+rem  HP_VENV is already a Linux path (we derived it via wslpath above), so no
+rem  /p — just pass it through unchanged. Same for HERMES_MODE/HERMES_BROWSER_OPENED
+rem  which are plain flags.
+set "WSLENV=HP_HERE/p:HP_VENV:HERMES_MODE:HERMES_BROWSER_OPENED"
 
 if /I "%~1"=="--config" goto :run_config
 if "%HAS_KEY%"=="false" goto :run_config
@@ -117,17 +133,22 @@ goto :run_hermes
 :run_config
 echo   Opening config panel at http://127.0.0.1:17520 ...
 start "" "http://127.0.0.1:17520"
-wsl bash -c "cd '!WSL_HERE_SAFE!' && export HOME='!WSL_HERE_SAFE!/_home' && export HERMES_HOME='!WSL_HERE_SAFE!/data' && export HERMES_BROWSER_OPENED=1 && '!WSL_VENV_SAFE!/bin/python' '!WSL_HERE_SAFE!/config_server.py'"
+set "HERMES_MODE=config"
+set "HERMES_BROWSER_OPENED=1"
+rem  Inside WSL, HP_HERE and HP_VENV are already populated via WSLENV.
+rem  The only strings bash receives through cmd are the literal script
+rem  body below (ASCII, no variable interpolation of untrusted data)
+rem  and %*. $HP_HERE / $HP_VENV resolve purely inside bash.
+wsl bash -c "cd \"$HP_HERE\" && export HOME=\"$HP_HERE/_home\" HERMES_HOME=\"$HP_HERE/data\" && exec \"$HP_VENV/bin/python\" \"$HP_HERE/config_server.py\""
 set "EXITCODE=%errorlevel%"
 goto :done
 
 :run_hermes
-rem Best-effort webui launch. We do NOT trust the exit code of the
-rem backgrounded subshell (it always returns 0), so we only open the
-rem browser after a short sleep that lets it bind the port.
-wsl bash -c "command -v hermes-web-ui >/dev/null 2>&1 && (export HOME='!WSL_HERE_SAFE!/_home' PATH='!WSL_HERE_SAFE!/node/bin:$PATH' HERMES_HOME='!WSL_HERE_SAFE!/data' && nohup hermes-web-ui start --port 8648 >/dev/null 2>&1 &)" 2>nul
+rem Best-effort webui launch. Same WSLENV mechanism; the backgrounded
+rem job is detached with nohup inside bash so the outer wsl call returns.
+wsl bash -c "command -v hermes-web-ui >/dev/null 2>&1 && (cd \"$HP_HERE\" && export HOME=\"$HP_HERE/_home\" PATH=\"$HP_HERE/node-linux-x64/bin:$HP_HERE/node/bin:$PATH\" HERMES_HOME=\"$HP_HERE/data\" && nohup hermes-web-ui start --port 8648 >/dev/null 2>&1 &)" 2>nul
 
-wsl bash -c "cd '!WSL_HERE_SAFE!' && export HOME='!WSL_HERE_SAFE!/_home' && export HERMES_HOME='!WSL_HERE_SAFE!/data' && export PATH='!WSL_VENV_SAFE!/bin:!WSL_HERE_SAFE!/node/bin:$PATH' && '!WSL_VENV_SAFE!/bin/hermes' %*"
+wsl bash -c "cd \"$HP_HERE\" && export HOME=\"$HP_HERE/_home\" HERMES_HOME=\"$HP_HERE/data\" PATH=\"$HP_VENV/bin:$HP_HERE/node-linux-x64/bin:$HP_HERE/node/bin:$PATH\" && exec \"$HP_VENV/bin/hermes\" \"$@\"" -- %*
 set "EXITCODE=%errorlevel%"
 goto :done
 

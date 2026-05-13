@@ -1548,19 +1548,50 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             hermes_bin = VENV_DIR / "bin" / "hermes"
         if hermes_bin.exists():
             if sys.platform == "darwin":
-                # Escape single quotes in paths to prevent AppleScript injection
-                safe_dir = str(SCRIPT_DIR).replace("'", "'\\''")
-                safe_home = str(DATA_DIR).replace("'", "'\\''")
-                safe_bin = str(hermes_bin).replace("'", "'\\''")
-                # AppleScript `do script` opens a *fresh* login shell, so we
-                # must re-apply the HOME hijack (sandbox = SCRIPT_DIR/_home).
-                # Otherwise hermes reads the host's real ~/.hermes, breaking
-                # the zero-trace promise.
-                safe_sandbox = str(SCRIPT_DIR / "_home").replace("'", "'\\''")
-                script = f'''tell application "Terminal"
-                    activate
-                    do script "cd '{safe_dir}' && export HOME='{safe_sandbox}' && export HERMES_HOME='{safe_home}' && '{safe_bin}'"
-                end tell'''
+                # Launch via Terminal.app. Previously we built one huge
+                # `do script "cd '...' && export ..."` string and tried to
+                # escape single quotes in SCRIPT_DIR. That's insufficient:
+                # if the user ever put their HermesPortable under a path
+                # containing ", `, \n or \, the injection escape hatch
+                # defeated shell or AppleScript parsing and the Terminal
+                # window either failed silently or ran the wrong command.
+                #
+                # Write a tiny driver .sh to the sandbox dir and let
+                # AppleScript just `do script "bash <path>"`. The shell
+                # script sees the paths as its own argv[0]'s dirname,
+                # which bypasses all escaping concerns — even a path
+                # containing literal double quotes survives unharmed.
+                sandbox = SCRIPT_DIR / "_home"
+                sandbox.mkdir(exist_ok=True)
+                driver_text = (
+                    "#!/bin/bash\n"
+                    # Resolve HERE from our own location, no interpolation
+                    # of untrusted paths into the script body.
+                    'HERE="$(cd "$(dirname "$0")/.." && pwd)"\n'
+                    'cd "$HERE"\n'
+                    'export HOME="$HERE/_home"\n'
+                    'export HERMES_HOME="$HERE/data"\n'
+                    'exec "$HERE/' + hermes_bin.relative_to(SCRIPT_DIR).as_posix() + '" "$@"\n'
+                )
+                # Put the driver inside the sandbox so Terminal doesn't
+                # leave a stray file on the user's real home. A fixed
+                # name makes it idempotent across relaunches.
+                driver_path = sandbox / ".launch-hermes.sh"
+                driver_path.write_text(driver_text, encoding="utf-8")
+                driver_path.chmod(0o755)
+                # AppleScript only needs to see a single shell-safe
+                # argument: the path to our driver. The wrapping we
+                # still do here only guards against double-quote or
+                # backslash in the path itself, which we write to the
+                # dict of the AppleScript `do script` command. AppleScript
+                # strings use backslash escaping like C.
+                as_path = str(driver_path).replace("\\", "\\\\").replace('"', '\\"')
+                script = (
+                    'tell application "Terminal"\n'
+                    '    activate\n'
+                    f'    do script "bash \\"{as_path}\\""\n'
+                    'end tell'
+                )
                 subprocess.run(["osascript", "-e", script])
             else:
                 env = os.environ.copy()
