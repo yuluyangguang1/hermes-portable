@@ -209,13 +209,6 @@ def _yaml_dump_simple(d, indent=0):
 
 
 def save_config(data):
-    # Input validation: sanitize env keys to prevent injection
-    import re
-    valid_env_keys = {p["env"] for p in PROVIDERS}
-    for ch in CHANNELS:
-        for field in ch["fields"]:
-            valid_env_keys.add(field["key"])
-
     lines = []
     lines.append("# ═══════════════════════════════════════════")
     lines.append("#  Hermes Portable — Environment Variables")

@@ -226,9 +226,18 @@ goto :cleanup
 
 :run_hermes
 rem Best-effort background web UI (if user installed hermes-web-ui)
+set "WEBUI_PID="
 where hermes-web-ui >nul 2>&1
 if !errorlevel! equ 0 (
+    rem Start webui in background and capture its PID via wmic.
+    rem We record the PID so the :cleanup section can kill exactly
+    rem this instance, not a webui from a different HermesPortable folder.
     start "" /b cmd /c "hermes-web-ui start --port 8648 >nul 2>&1"
+    rem Give it a moment to spawn, then grab the newest hermes-web-ui PID.
+    timeout /t 2 /nobreak >nul
+    for /f "tokens=2" %%A in ('tasklist /FI "IMAGENAME eq node.exe" /V /NH 2^>nul ^| findstr /I "hermes-web-ui"') do (
+        if not defined WEBUI_PID set "WEBUI_PID=%%A"
+    )
 )
 
 rem Record our console PID in the lock file so future launches can
@@ -263,16 +272,13 @@ goto :cleanup
 del "%LOCK_FILE%" >nul 2>&1
 del "%LOCK_FILE%.tmp" >nul 2>&1
 
-rem Best-effort kill of any hermes-web-ui we backgrounded in :run_hermes.
-rem `start /b` forks a detached subprocess that does NOT die when this
-rem console closes — on Windows it would keep port 8648 bound, and the
-rem next launch would silently fail to re-bind. We match by image name
-rem rather than tracking a PID because cmd's :run_hermes path doesn't
-rem easily capture the pid of a `start /b`-ed grandchild.
-rem The /F /FI filter skips non-hermes processes cleanly; no-op if
-rem webui wasn't started.
-taskkill /F /FI "IMAGENAME eq hermes-web-ui.exe" >nul 2>&1
-taskkill /F /FI "IMAGENAME eq node.exe" /FI "WINDOWTITLE eq hermes-web-ui*" >nul 2>&1
+rem Kill only the webui instance WE started (tracked by PID).
+rem Previous version used a blanket taskkill by image name, which
+rem would kill webui from a different HermesPortable folder if the
+rem user was running two side-by-side.
+if defined WEBUI_PID (
+    taskkill /F /PID !WEBUI_PID! >nul 2>&1
+)
 
 rem Pause only on non-zero exit so the user can read the error
 if not "%EXITCODE%"=="0" (
