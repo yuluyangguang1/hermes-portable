@@ -540,15 +540,38 @@ def step_cleanup(ctx):
         f.unlink(missing_ok=True); removed += 1
     for d in ROOT.rglob("*.egg-info"):
         shutil.rmtree(d, ignore_errors=True); removed += 1
-    # Trim site-packages tests
+    # Trim site-packages tests. Restrict this to *top-level* `tests/`
+    # (and `test/`) directly under each installed package — we can't
+    # `rglob("tests")` because some packages (numpy.tests,
+    # tornado.tests, hypothesis.tests) ship real runtime submodules
+    # under that name and blowing them away breaks imports. The
+    # top-level package directory itself is never actually named
+    # `tests` unless the user did something strange, so targeting just
+    # `site-packages/*/tests/` is safe and still recovers most of the
+    # weight (pytest, numpy's test-data fixtures, etc.).
     venv = ROOT / ctx["venv_name"]
     if venv.exists():
         lib = "Lib" if ctx["system"] == "Windows" else "lib"
         site = venv / lib / f"python{PYTHON_VERSION}" / "site-packages"
         if site.exists():
-            for d in site.rglob("tests"):
-                if d.is_dir():
-                    shutil.rmtree(d, ignore_errors=True); removed += 1
+            # Known-safe top-level test dirs: strip conservatively.
+            # Keep the list in sync with what ships by default in the
+            # EXTRAS set above; don't add packages whose `tests` module
+            # is importable.
+            for pkg in site.iterdir():
+                if not pkg.is_dir():
+                    continue
+                for name in ("tests", "test"):
+                    t = pkg / name
+                    # Only delete if it has no __init__.py at all — with
+                    # an __init__.py it's an importable submodule and
+                    # removing it will break `from pkg.tests import ...`
+                    # at runtime.
+                    if t.is_dir() and not (t / "__init__.py").exists():
+                        shutil.rmtree(t, ignore_errors=True)
+                        removed += 1
+            # npm-style node_modules test dirs are safe to wipe — JS
+            # packages don't import their own tests at runtime.
             for d in site.rglob("__tests__"):
                 shutil.rmtree(d, ignore_errors=True); removed += 1
     ok(f"Cleaned {removed} artifacts")

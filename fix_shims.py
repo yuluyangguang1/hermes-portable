@@ -352,6 +352,24 @@ def fix_windows_trampoline(exe: Path, new_python: Path) -> bool:
 
 
 # ─── Unix shebang rewrite ─────────────────────────────────────────────
+# Linux's BINPRM_BUF_SIZE truncates `#!` lines past 128 bytes, and the
+# limit includes the "#!" and trailing newline. macOS is more generous
+# (512 bytes) but not infinite. If the portable folder lives at a long
+# path (e.g. an NFS mount or a deep USB label on Windows-portable Linux),
+# rewriting the shebang to an absolute interpreter path could push the
+# first line over the limit, at which point exec() returns ENOEXEC and
+# the entry-point script breaks in a confusing way (user sees "python:
+# can't open file" because the kernel silently lopped the path).
+#
+# Safe threshold: 124 bytes of "#!…\n", giving us a small buffer under
+# Linux's 128. If the direct shebang would exceed that, fall back to
+# the /bin/sh exec-wrapper pattern — still a valid interpreter line,
+# but the long path lives in the script body where there's no length
+# cap. The wrapper is what uv itself emits for `uv venv --relocatable`
+# on Unix, so it's been exercised by every relocatable venv out there.
+SHEBANG_BYTE_LIMIT = 124
+
+
 def fix_text_shebang(path: Path, new_python: Path) -> bool:
     try:
         data = path.read_bytes()
@@ -368,11 +386,47 @@ def fix_text_shebang(path: Path, new_python: Path) -> bool:
     basename = first.split(b"/")[-1].strip()
     if not basename.startswith((b"python", b"pypy")):
         return False
-    new_sheb = b"#!" + str(new_python).encode("utf-8") + b"\n"
-    if data[:nl + 1] == new_sheb:
+
+    py_path_bytes = str(new_python).encode("utf-8")
+    direct_sheb = b"#!" + py_path_bytes + b"\n"
+
+    if len(direct_sheb) <= SHEBANG_BYTE_LIMIT:
+        new_line = direct_sheb
+    else:
+        # Too long for the kernel's buffer. Build a sh-exec wrapper
+        # that (a) is a 1-line /bin/sh shebang (tiny) and (b) re-execs
+        # python on itself with the original script's body passed as
+        # stdin. `"""":"` starts a Python docstring that swallows the
+        # shell line so Python parses from `exec "$@"` onward harmlessly.
+        #
+        # This mirrors what uv, pipx and Homebrew Python venvs do when
+        # a target path is too long. Body stays intact; only the first
+        # line changes.
+        body = data[nl + 1:]
+        # Two-line prelude:
+        #   #!/bin/sh
+        #   '''exec' "<python>" "$0" "$@"
+        #   ' '''
+        # The `'''exec'` is a Python string literal that shell sees as
+        # a normal command. The closing `' '''` on the next line ends
+        # the Python string. Then the real Python body starts.
+        new_line = (
+            b"#!/bin/sh\n"
+            b"'''exec' " + py_path_bytes + b' "$0" "$@"\n'
+            b"' '''\n"
+        )
+        body = data[nl + 1:]
+        try:
+            path.write_bytes(new_line + body)
+            os.chmod(path, 0o755)
+        except OSError:
+            return False
+        return True
+
+    if data[:nl + 1] == new_line:
         return False
     try:
-        path.write_bytes(new_sheb + data[nl + 1:])
+        path.write_bytes(new_line + data[nl + 1:])
         os.chmod(path, 0o755)
     except OSError:
         return False

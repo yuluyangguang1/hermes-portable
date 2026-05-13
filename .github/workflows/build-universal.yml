@@ -37,6 +37,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - name: Build
@@ -50,6 +52,7 @@ jobs:
             !dist/HermesPortable/venv-*/
             !dist/HermesPortable/python-*/
             !dist/HermesPortable/node-*/
+          retention-days: 7
       - name: Upload macOS arm64 venv/python/node
         uses: actions/upload-artifact@v4
         with:
@@ -59,12 +62,15 @@ jobs:
             dist/HermesPortable/python-macos-arm64/
             dist/HermesPortable/node-macos-arm64/
           if-no-files-found: warn
+          retention-days: 7
 
   build-macos-x64:
     runs-on: macos-15-intel
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - name: Build
@@ -78,12 +84,15 @@ jobs:
             dist/HermesPortable/python-macos-x64/
             dist/HermesPortable/node-macos-x64/
           if-no-files-found: warn
+          retention-days: 7
 
   build-linux-x64:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - name: Install system deps
@@ -99,12 +108,15 @@ jobs:
             dist/HermesPortable/python-linux-x64/
             dist/HermesPortable/node-linux-x64/
           if-no-files-found: warn
+          retention-days: 7
 
   build-linux-arm64:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - name: Install system deps
@@ -120,12 +132,15 @@ jobs:
             dist/HermesPortable/python-linux-arm64/
             dist/HermesPortable/node-linux-arm64/
           if-no-files-found: warn
+          retention-days: 7
 
   build-windows-x64:
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - name: Build
@@ -140,6 +155,7 @@ jobs:
             dist/HermesPortable/python-windows-x64/
             dist/HermesPortable/node-windows-x64/
           if-no-files-found: warn
+          retention-days: 7
 
   merge-and-release:
     if: startsWith(github.ref, 'refs/tags/')
