@@ -243,12 +243,12 @@ trap cleanup EXIT INT TERM
 
 # ── Welcome banner ──────────────────────────────────────────
 echo ""
-echo -e "${GOLD}  ██╗   ██╗██╗   ██╗███████╗██╗${NC}"
-echo -e "${GOLD}  ██║   ██║██║   ██║██╔════╝██║${NC}"
-echo -e "${AMBER}  ██║   ██║██║   ██║█████╗  ██║${NC}"
-echo -e "${AMBER}  ╚██╗ ██╔╝██║   ██║██╔══╝  ██║${NC}"
-echo -e "${BRONZE}   ╚████╔╝ ╚██████╔╝██║     ██║${NC}"
-echo -e "${BRONZE}    ╚═══╝   ╚═════╝ ╚═════╝╚═╝${NC}"
+echo -e "${GOLD}  ██╗   ██╗██╗  ██╗   ██╗ ██████╗${NC}"
+echo -e "${GOLD}  ╚██╗ ██╔╝██║  ╚██╗ ██╔╝██╔════╝${NC}"
+echo -e "${AMBER}   ╚████╔╝ ██║   ╚████╔╝ ██║  ███╗${NC}"
+echo -e "${AMBER}    ╚██╔╝  ██║    ╚██╔╝  ██║   ██║${NC}"
+echo -e "${BRONZE}     ██║   ███████╗██║   ╚██████╔╝${NC}"
+echo -e "${BRONZE}     ╚═╝   ╚══════╝╚═╝    ╚═════╝${NC}"
 echo ""
 
 # ── Single-instance lock (atomic via noclobber) ───────────────
