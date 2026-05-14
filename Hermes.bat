@@ -293,6 +293,11 @@ if defined WEBUI_PID (
     taskkill /F /PID !WEBUI_PID! >nul 2>&1
 )
 
+rem Kill background config_server (listening on port 17520)
+for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":17520 " ^| findstr "LISTENING"') do (
+    if not "%%a"=="0" taskkill /F /PID %%a >nul 2>&1
+)
+
 rem Pause only on non-zero exit so the user can read the error
 if not "%EXITCODE%"=="0" (
     echo.
