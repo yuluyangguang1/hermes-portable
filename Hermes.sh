@@ -185,6 +185,18 @@ export HOME="$SANDBOX"
 export HERMES_HOME="$HERE/data"
 export PYTHONIOENCODING=utf-8
 export PYTHONUTF8=1
+# Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
+# Find the 'install' dir containing lib/python3.12 inside PYTHON_DIR
+PYTHON_HOME=""
+for _candidate in "$PYTHON_DIR"/*/install "$PYTHON_DIR"/install "$PYTHON_DIR"; do
+  if [ -d "$_candidate/lib" ]; then
+    PYTHON_HOME="$_candidate"
+    break
+  fi
+done
+if [ -n "$PYTHON_HOME" ]; then
+  export PYTHONHOME="$PYTHON_HOME"
+fi
 if [ -n "$NODE_DIR" ]; then
   export PATH="$VENV_DIR/bin:$NODE_DIR/bin:$PYTHON_DIR:$PATH"
 else
