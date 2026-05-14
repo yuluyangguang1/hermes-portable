@@ -219,8 +219,13 @@ fi
 # single-instance check useless from the third launch onward.
 WEBUI_PID=""
 HERMES_PID=""
+CONFIG_PID=""
 OWN_LOCK=0
 cleanup() {
+  # Kill config server if still alive
+  if [ -n "$CONFIG_PID" ] && kill -0 "$CONFIG_PID" 2>/dev/null; then
+    kill "$CONFIG_PID" 2>/dev/null || true
+  fi
   # Kill webui child if still alive
   if [ -n "$WEBUI_PID" ] && kill -0 "$WEBUI_PID" 2>/dev/null; then
     kill "$WEBUI_PID" 2>/dev/null || true
@@ -304,6 +309,13 @@ if [ "${1-}" = "--config" ] || [ "$HAS_KEY" = "false" ]; then
   "$VENV_DIR/bin/python" "$HERE/config_server.py"
   exit $?
 fi
+
+# ── Background config server (always available for model changes) ──
+CONFIG_PID=""
+export HERMES_BROWSER_OPENED=1
+"$VENV_DIR/bin/python" "$HERE/config_server.py" >/dev/null 2>&1 &
+CONFIG_PID=$!
+echo "  Config panel: http://127.0.0.1:17520 (change model anytime)"
 
 # ── Background web UI ─────────────────────────────────────────
 if command -v hermes-web-ui >/dev/null 2>&1; then

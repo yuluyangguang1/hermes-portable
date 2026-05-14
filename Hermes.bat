@@ -233,6 +233,11 @@ set "EXITCODE=%errorlevel%"
 goto :cleanup
 
 :run_hermes
+rem Background config server (always available for model changes)
+set "HERMES_BROWSER_OPENED=1"
+start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\config_server.py"
+echo   Config panel: http://127.0.0.1:17520 (change model anytime)
+
 rem Best-effort background web UI (if user installed hermes-web-ui)
 set "WEBUI_PID="
 where hermes-web-ui >nul 2>&1
