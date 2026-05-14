@@ -123,6 +123,10 @@ set "USERPROFILE=%SANDBOX%"
 set "HERMES_HOME=%HERE%\data"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONUTF8=1"
+rem Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
+for /f "delims=" %%D in ('dir /b /s /ad "%PYTHON_DIR%\install\lib" 2^>nul') do (
+    for %%P in ("%%D\..") do set "PYTHONHOME=%%~fP"
+)
 if defined NODE_DIR (
     set "PATH=%VENV_DIR%\Scripts;%NODE_DIR%;%PYTHON_DIR%;%PATH%"
 ) else (
