@@ -185,6 +185,15 @@ else
 fi
 cd "$HERE"
 
+# ── Remove macOS quarantine (prevents "Killed" on unsigned binaries) ──
+if command -v xattr >/dev/null 2>&1; then
+  if xattr -lr "$HERE" 2>/dev/null | grep -qm1 "com.apple.quarantine"; then
+    echo "  Removing macOS security restriction..."
+    xattr -rd com.apple.quarantine "$HERE" 2>/dev/null || true
+    echo "  Done"
+  fi
+fi
+
 # ── Self-heal launcher shebangs ───────────────────────────────
 # Same class of bug as Windows: if the portable zip was built on
 # one machine and shebangs ended up absolute (or if mac-rebuild.sh
