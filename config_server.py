@@ -15,6 +15,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 DATA_DIR = SCRIPT_DIR / "data"
+PORTABLE_REPO = "yuluyangguang1/hermes-portable"
 
 
 def _detect_venv_dir():
@@ -1446,19 +1447,117 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             remote = {"error": str(e)}
         # Check if git-based
         has_git = (SCRIPT_DIR / "hermes-agent" / ".git").exists()
+
+        # Also check portable releases from GitHub
+        portable_update = {}
+        try:
+            req2 = urllib.request.Request(
+                f"https://api.github.com/repos/{PORTABLE_REPO}/releases/latest",
+                headers={"User-Agent": "HermesPortable/1.0"},
+            )
+            with urllib.request.urlopen(req2, timeout=10) as resp2:
+                release = json.loads(resp2.read())
+                portable_update = {
+                    "tag": release.get("tag_name", ""),
+                    "body": release.get("body", "")[:300],
+                    "url": release.get("html_url", ""),
+                    "download": release["assets"][0]["browser_download_url"] if release.get("assets") else None,
+                }
+        except Exception:
+            pass
+
+        # Determine if portable update is available
+        current_tag = ""
+        version_file = SCRIPT_DIR / "VERSION"
+        if version_file.exists():
+            current_tag = version_file.read_text().strip()
+        portable_is_newer = (
+            portable_update.get("tag", "") != ""
+            and portable_update["tag"].lstrip("v") != current_tag
+        )
+
         return {
             "local": local,
+            "local_tag": current_tag,
             "remote": remote,
             "has_git": has_git,
             "update_available": (
                 "date" in remote
                 and "20" in str(local)
                 and remote.get("date", "") > _extract_date(local)
-            ) if has_git else False,
+            ) if has_git else portable_is_newer,
+            "portable_update": portable_update if portable_is_newer else None,
         }
 
     def _run_update(self):
+        import urllib.request
+        import zipfile
+        import tempfile
+
         update_script = SCRIPT_DIR / "update.py"
+        has_git = (SCRIPT_DIR / "hermes-agent" / ".git").exists()
+
+        # If git-based, use the existing update.py
+        if has_git and update_script.exists():
+            pass  # fall through to existing logic below
+        else:
+            # Release-based update: download zip from GitHub Releases
+            try:
+                req = urllib.request.Request(
+                    f"https://api.github.com/repos/{PORTABLE_REPO}/releases/latest",
+                    headers={"User-Agent": "HermesPortable/1.0"},
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    release = json.loads(resp.read())
+                assets = release.get("assets", [])
+                if not assets:
+                    return
+
+                download_url = assets[0]["browser_download_url"]
+                tmp_zip = Path(tempfile.gettempdir()) / "hermes-portable-update.zip"
+                tmp_extract = Path(tempfile.gettempdir()) / "hermes-portable-extract"
+
+                # Download
+                urllib.request.urlretrieve(download_url, str(tmp_zip))
+
+                # Extract
+                if tmp_extract.exists():
+                    import shutil
+                    shutil.rmtree(tmp_extract)
+                with zipfile.ZipFile(str(tmp_zip), 'r') as zf:
+                    zf.extractall(str(tmp_extract))
+
+                # Find root dir inside zip
+                entries = list(tmp_extract.iterdir())
+                src_dir = entries[0] if len(entries) == 1 and entries[0].is_dir() else tmp_extract
+
+                # Copy files (skip data/, venv*, python*, _home/)
+                skip_prefixes = ("data", "venv", "python", "_home", ".git")
+                import shutil
+                for item in src_dir.iterdir():
+                    if any(item.name.startswith(s) for s in skip_prefixes):
+                        continue
+                    dest = SCRIPT_DIR / item.name
+                    if item.is_dir():
+                        if dest.exists():
+                            shutil.rmtree(dest)
+                        shutil.copytree(item, dest)
+                    else:
+                        shutil.copy2(item, dest)
+
+                # Cleanup
+                tmp_zip.unlink(missing_ok=True)
+                shutil.rmtree(tmp_extract, ignore_errors=True)
+
+                # Update VERSION file
+                new_tag = release.get("tag_name", "").lstrip("v")
+                if new_tag:
+                    (SCRIPT_DIR / "VERSION").write_text(new_tag)
+                return
+            except Exception:
+                pass
+            return
+
         if not update_script.exists():
             return
         # Use the portable venv's python if we can find it, so update.py
