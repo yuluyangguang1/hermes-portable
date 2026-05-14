@@ -256,6 +256,22 @@ if ! ( set -C; echo $$ > "$LOCK" ) 2>/dev/null; then
 fi
 OWN_LOCK=1
 
+# ── Banner ──────────────────────────────────────────────────
+GOLD='\033[38;5;220m'
+AMBER='\033[38;5;214m'
+BRONZE='\033[38;5;166m'
+NC='\033[0m'
+echo ""
+echo -e "${GOLD}  ██╗   ██╗██╗  ██╗   ██╗ ██████╗${NC}"
+echo -e "${GOLD}  ╚██╗ ██╔╝██║  ╚██╗ ██╔╝██╔════╝${NC}"
+echo -e "${AMBER}   ╚████╔╝ ██║   ╚████╔╝ ██║  ███╗${NC}"
+echo -e "${AMBER}    ╚██╔╝  ██║    ╚██╔╝  ██║   ██║${NC}"
+echo -e "${BRONZE}     ██║   ███████╗██║   ╚██████╔╝${NC}"
+echo -e "${BRONZE}     ╚═╝   ╚══════╝╚═╝    ╚═════╝${NC}"
+echo ""
+echo "        Hermes Portable"
+echo ""
+
 # ── First-run / --config handling ─────────────────────────────
 HAS_KEY=false
 if [ -f "$HERE/data/.env" ]; then
