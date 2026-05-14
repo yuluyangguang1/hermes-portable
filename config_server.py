@@ -986,6 +986,17 @@ HTML_PAGE = r"""<!DOCTYPE html>
         </div>
         <div id="updateLog" style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--emerald);display:none;white-space:pre-wrap;"></div>
       </div>
+
+      <div class="section-label" style="margin-top:12px">配置管理</div>
+      <div class="card">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn" style="flex:1;min-width:120px" onclick="exportConfig()">导出配置</button>
+          <button type="button" class="btn" style="flex:1;min-width:120px" onclick="startImport()">导入配置</button>
+          <button type="button" class="btn" style="flex:1;min-width:120px" onclick="viewEnv()">查看 .env</button>
+          <button type="button" class="btn" style="flex:1;min-width:120px;color:var(--destructive)" onclick="resetConfig()">重置</button>
+        </div>
+        <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="doImport(event)">
+      </div>
     </div>
 
     <div class="actions">
@@ -1313,6 +1324,91 @@ function runUpdate() {
 // Auto-check version on load
 setTimeout(checkUpdate, 1000);
 
+
+// ====== UX Features: Export/Import/View/Reset ======
+function exportConfig() {
+  window.location.href = '/api/export';
+  toast('配置已下载', 'success');
+}
+
+function startImport() {
+  document.getElementById('importFileInput').click();
+}
+
+function doImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const cfg = JSON.parse(e.target.result);
+      fetch('/api/import', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(cfg)
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          toast('配置已导入，刷新页面生效', 'success');
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          toast('导入失败: ' + (data.error || '未知错误'), 'error');
+        }
+      });
+    } catch (err) {
+      toast('JSON 格式错误', 'error');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function viewEnv() {
+  fetch('/api/config').then(r => r.json()).then(data => {
+    const env = data.env || {};
+    const lines = Object.keys(env).map(k => k + '=' + (env[k].length > 20 ? env[k].slice(0,8)+'...'+env[k].slice(-4) : env[k]));
+    const w = window.open('', '_blank');
+    if (w) {
+      w.document.write('<pre style="font-family:monospace;padding:20px;background:#041c1c;color:#ffe6cb;font-size:13px;line-height:1.6;">'+lines.join('\n')+'</pre>');
+      w.document.title = 'Hermes .env';
+    } else {
+      toast('请允许弹窗', 'error');
+    }
+  });
+}
+
+function resetConfig() {
+  if (!confirm('确定要重置所有配置吗？\n当前配置会备份到 data/backups/')) return;
+  fetch('/api/reset', { method: 'POST' }).then(r => r.json()).then(data => {
+    if (data.success) {
+      toast('已重置，刷新页面', 'success');
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      toast('重置失败: ' + (data.error || '未知错误'), 'error');
+    }
+  });
+}
+
+// ====== Disconnect detection ======
+(function() {
+  let failures = 0;
+  setInterval(() => {
+    fetch('/api/heartbeat').then(r => {
+      if (r.ok) { failures = 0; return; }
+      failures++;
+    }).catch(() => { failures++; });
+    if (failures >= 3) {
+      let overlay = document.getElementById('disconnectOverlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'disconnectOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+        overlay.innerHTML = '<div style="background:#062424;padding:32px 40px;border-radius:14px;text-align:center;border:1px solid rgba(0,255,200,0.15);max-width:360px;"><h3 style="color:#ffe6cb;margin-bottom:8px;font-size:1em;">连接已断开</h3><p style="color:#8aaa9a;font-size:0.85em;line-height:1.6;">Hermes 进程已停止。请重新双击启动器。</p></div>';
+        document.body.appendChild(overlay);
+      }
+    }
+  }, 5000);
+})();
+
 init();
 </script>
 </body>
@@ -1339,6 +1435,10 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._json_response(read_config())
         elif self.path == "/api/version":
             self._json_response(self._get_version())
+        elif self.path == "/api/heartbeat":
+            self._json_response({"alive": True})
+        elif self.path == "/api/export":
+            self._serve_export()
         else:
             self.send_error(404)
 
@@ -1362,6 +1462,19 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 data = json.loads(body)
                 result = self._test_provider(data)
                 self._json_response(result)
+            except Exception as e:
+                self._json_response({"success": False, "error": str(e)})
+        elif self.path == "/api/import":
+            try:
+                data = json.loads(body)
+                self._do_import(data)
+                self._json_response({"success": True})
+            except Exception as e:
+                self._json_response({"success": False, "error": str(e)})
+        elif self.path == "/api/reset":
+            try:
+                self._do_reset()
+                self._json_response({"success": True})
             except Exception as e:
                 self._json_response({"success": False, "error": str(e)})
         else:
@@ -1579,6 +1692,68 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                            cwd=str(SCRIPT_DIR))
         except Exception:
             pass
+
+    def _serve_export(self):
+        """Export current config as downloadable JSON."""
+        cfg = read_config()
+        # Strip out static provider/channel definitions, only export user-set values
+        exported = {
+            "env": cfg.get("env", {}),
+            "config": cfg.get("config", {}),
+            "active_provider": cfg.get("active_provider", ""),
+        }
+        body = json.dumps(exported, ensure_ascii=False, indent=2).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Disposition", 'attachment; filename="hermes-config.json"')
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _do_import(self, data):
+        """Import config from uploaded JSON."""
+        env = data.get("env", {})
+        if env:
+            # Build .env content
+            lines = ["#  Hermes Portable - Imported"]
+            for p in PROVIDERS:
+                if p["env"] in env and env[p["env"]]:
+                    lines.append(f'{p["env"]}={env[p["env"]]}')
+                if "base_url_env" in p and p["base_url_env"] in env:
+                    lines.append(f'{p["base_url_env"]}={env[p["base_url_env"]]}')
+            # Channel keys
+            for ch in CHANNELS:
+                for f in ch.get("fields", []):
+                    if f["key"] in env and env[f["key"]]:
+                        lines.append(f'{f["key"]}={env[f["key"]]}')
+            ENV_FILE.parent.mkdir(parents=True, exist_ok=True)
+            ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        # Save config
+        cfg_data = data.get("config", {})
+        if cfg_data:
+            from pathlib import Path
+            cfg_path = DATA_DIR / "config.yaml"
+            cfg_path.parent.mkdir(parents=True, exist_ok=True)
+            # Use a simple yaml-like writer if pyyaml not available
+            try:
+                import yaml
+                cfg_path.write_text(yaml.safe_dump(cfg_data, allow_unicode=True), encoding="utf-8")
+            except ImportError:
+                cfg_path.write_text(json.dumps(cfg_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _do_reset(self):
+        """Backup and clear current config."""
+        import shutil
+        from datetime import datetime
+        backup_dir = DATA_DIR / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if ENV_FILE.exists():
+            shutil.copy(ENV_FILE, backup_dir / f".env.{ts}")
+            ENV_FILE.unlink()
+        cfg_path = DATA_DIR / "config.yaml"
+        if cfg_path.exists():
+            shutil.copy(cfg_path, backup_dir / f"config.yaml.{ts}")
+            cfg_path.unlink()
 
     def _test_provider(self, data):
         """Test an API key by making a minimal request."""
