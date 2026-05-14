@@ -887,6 +887,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
     </svg>
     <h1>Hermes Portable</h1>
     <div class="subtitle">配置你的 AI 代理</div>
+    <div id="hermesStatus" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);">
+      <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:#666;display:inline-block;"></span>
+      <span id="statusText">检测中...</span>
+      <a id="webuiLink" href="#" target="_blank" style="display:none;color:var(--emerald);margin-left:8px;">打开 Web UI →</a>
+    </div>
   </div>
 
   <div class="tabs">
@@ -997,10 +1002,20 @@ HTML_PAGE = r"""<!DOCTYPE html>
         </div>
         <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="doImport(event)">
       </div>
+
+      <div class="section-label" style="margin-top:12px">运行日志</div>
+      <div class="card">
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button type="button" class="btn" style="flex:1" onclick="refreshLogs()">刷新日志</button>
+          <button type="button" class="btn" style="flex:1" onclick="clearLogView()">清空显示</button>
+        </div>
+        <pre id="logContent" style="background:#041c1c;color:#ffe6cb;padding:12px;border-radius:8px;font-family:var(--font-mono);font-size:11px;line-height:1.6;max-height:280px;overflow:auto;margin:0;white-space:pre-wrap;word-break:break-all;">点击「刷新日志」查看最近 200 行</pre>
+      </div>
     </div>
 
     <div class="actions">
       <button type="button" class="btn btn-save" onclick="saveConfig()">保存</button>
+      <button type="button" class="btn" id="restartBtn" onclick="restartHermes()" style="display:none">重启 Hermes</button>
       <button type="button" class="btn btn-launch" id="launchBtn" onclick="launchHermes()">启动</button>
     </div>
   </form>
@@ -1388,6 +1403,67 @@ function resetConfig() {
   });
 }
 
+// ====== Status check (Hermes process + Web UI) ======
+function checkStatus() {
+  fetch('/api/status').then(r => r.json()).then(data => {
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+    const webui = document.getElementById('webuiLink');
+    const restartBtn = document.getElementById('restartBtn');
+    if (data.running) {
+      dot.style.background = '#10b981';
+      dot.style.boxShadow = '0 0 6px #10b981';
+      text.textContent = 'Hermes 运行中 (PID ' + data.pid + ')';
+      if (restartBtn) restartBtn.style.display = '';
+    } else {
+      dot.style.background = '#666';
+      dot.style.boxShadow = 'none';
+      text.textContent = 'Hermes 未运行';
+      if (restartBtn) restartBtn.style.display = 'none';
+    }
+    if (data.webui_running && data.webui_url) {
+      webui.style.display = '';
+      webui.href = data.webui_url;
+    } else {
+      webui.style.display = 'none';
+    }
+  }).catch(() => {});
+}
+
+function restartHermes() {
+  if (!confirm('确定要重启 Hermes？\n你需要在终端中重新启动它。')) return;
+  fetch('/api/restart', { method: 'POST' }).then(r => r.json()).then(data => {
+    if (data.success) {
+      toast('已发送重启信号，请在终端重新启动 Hermes', 'success');
+      setTimeout(checkStatus, 2000);
+    } else {
+      toast('重启失败', 'error');
+    }
+  });
+}
+
+// ====== Log viewer ======
+function refreshLogs() {
+  const el = document.getElementById('logContent');
+  el.textContent = '加载中...';
+  fetch('/api/logs').then(r => r.json()).then(data => {
+    if (data.lines && data.lines.length) {
+      el.textContent = data.lines.join('\n');
+      el.scrollTop = el.scrollHeight;
+    } else {
+      el.textContent = '暂无日志';
+    }
+  }).catch(() => { el.textContent = '加载失败'; });
+}
+
+function clearLogView() {
+  document.getElementById('logContent').textContent = '已清空（仅清空显示，不删除日志文件）';
+}
+
+// Auto-check status every 5s
+checkStatus();
+setInterval(checkStatus, 5000);
+
 // ====== Disconnect detection ======
 (function() {
   let failures = 0;
@@ -1439,6 +1515,10 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._json_response({"alive": True})
         elif self.path == "/api/export":
             self._serve_export()
+        elif self.path == "/api/status":
+            self._json_response(self._get_status())
+        elif self.path == "/api/logs":
+            self._json_response(self._get_logs())
         else:
             self.send_error(404)
 
@@ -1477,6 +1557,9 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 self._json_response({"success": True})
             except Exception as e:
                 self._json_response({"success": False, "error": str(e)})
+        elif self.path == "/api/restart":
+            self._json_response({"success": True})
+            threading.Thread(target=self._restart_hermes, daemon=True).start()
         else:
             self.send_error(404)
 
@@ -1692,6 +1775,85 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                            cwd=str(SCRIPT_DIR))
         except Exception:
             pass
+
+    def _get_status(self):
+        """Detect if hermes process is running via lock file + Web UI."""
+        import urllib.request
+        lock_file = DATA_DIR / ".hermes.lock"
+        running = False
+        pid = None
+        if lock_file.exists():
+            try:
+                pid = int(lock_file.read_text().strip())
+                # Check if process actually alive
+                if sys.platform == "win32":
+                    # On Windows, use tasklist
+                    r = subprocess.run(
+                        ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                        capture_output=True, text=True, timeout=5,
+                    )
+                    running = str(pid) in r.stdout
+                else:
+                    os.kill(pid, 0)  # signal 0 = check existence
+                    running = True
+            except (OSError, ValueError, ProcessLookupError):
+                running = False
+                pid = None
+
+        # Check if hermes-web-ui is on port 8648
+        webui_running = False
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:8648/", timeout=1) as _:
+                webui_running = True
+        except Exception:
+            pass
+
+        return {
+            "running": running,
+            "pid": pid,
+            "webui_running": webui_running,
+            "webui_url": "http://127.0.0.1:8648/" if webui_running else None,
+        }
+
+    def _get_logs(self):
+        """Tail recent hermes logs from common locations."""
+        candidates = [
+            DATA_DIR / "logs" / "hermes.log",
+            DATA_DIR / ".hermes" / "logs" / "hermes.log",
+            DATA_DIR / "hermes.log",
+        ]
+        for p in candidates:
+            if p.exists() and p.is_file():
+                try:
+                    text = p.read_text(encoding="utf-8", errors="replace")
+                    lines = text.splitlines()[-200:]
+                    return {"source": str(p), "lines": lines}
+                except Exception as e:
+                    return {"source": str(p), "lines": [f"Error reading log: {e}"]}
+        return {"source": None, "lines": ["未找到日志文件。Hermes 启动后会自动生成日志。"]}
+
+    def _restart_hermes(self):
+        """Kill the running hermes process if any. Re-launching is up to launcher script."""
+        time.sleep(0.5)
+        lock_file = DATA_DIR / ".hermes.lock"
+        if not lock_file.exists():
+            return
+        try:
+            pid = int(lock_file.read_text().strip())
+            if sys.platform == "win32":
+                subprocess.run(["taskkill", "/F", "/PID", str(pid)],
+                               capture_output=True, timeout=5)
+            else:
+                os.kill(pid, 15)  # SIGTERM
+                time.sleep(2)
+                try:
+                    os.kill(pid, 0)
+                    os.kill(pid, 9)  # SIGKILL if still alive
+                except OSError:
+                    pass
+            lock_file.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"Restart failed: {e}", file=sys.stderr)
 
     def _serve_export(self):
         """Export current config as downloadable JSON."""
