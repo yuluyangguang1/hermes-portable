@@ -1696,6 +1696,15 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         update_script = SCRIPT_DIR / "update.py"
         has_git = (SCRIPT_DIR / "hermes-agent" / ".git").exists()
 
+        # Check if SCRIPT_DIR is writable (some USB mounts are read-only)
+        try:
+            test_file = SCRIPT_DIR / ".write_test"
+            test_file.touch()
+            test_file.unlink()
+        except (OSError, PermissionError) as e:
+            print(f"Update failed: SCRIPT_DIR is not writable ({e})", file=sys.stderr)
+            return
+
         # If git-based, use the existing update.py
         if has_git and update_script.exists():
             pass  # fall through to existing logic below
@@ -1796,28 +1805,76 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             pass
 
     def _get_status(self):
-        """Detect if hermes process is running via lock file + Web UI."""
+        """Detect if hermes process is running via process listing + Web UI.
+
+        Lock file 存的是 launcher PID（包含 hermes 子进程），不准确。
+        改为遍历系统进程查找真正的 hermes 命令。
+        """
         import urllib.request
-        lock_file = DATA_DIR / ".hermes.lock"
         running = False
         pid = None
+
+        # 优先查 lock file 作为 hint
+        lock_file = DATA_DIR / ".hermes.lock"
+        candidate_pids = []
         if lock_file.exists():
             try:
-                pid = int(lock_file.read_text().strip())
-                # Check if process actually alive
-                if sys.platform == "win32":
-                    # On Windows, use tasklist
-                    r = subprocess.run(
-                        ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
-                        capture_output=True, text=True, timeout=5,
-                    )
-                    running = str(pid) in r.stdout
-                else:
-                    os.kill(pid, 0)  # signal 0 = check existence
-                    running = True
-            except (OSError, ValueError, ProcessLookupError):
-                running = False
-                pid = None
+                candidate_pids.append(int(lock_file.read_text().strip()))
+            except (OSError, ValueError):
+                pass
+
+        # 遍历进程查找真正的 hermes（命令行包含 venv/bin/hermes）
+        venv_hermes = str(VENV_DIR / ("Scripts/hermes.exe" if sys.platform == "win32" else "bin/hermes"))
+        try:
+            if sys.platform == "win32":
+                r = subprocess.run(
+                    ["wmic", "process", "where", f"name='hermes.exe'", "get", "ProcessId", "/format:list"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                for line in r.stdout.splitlines():
+                    if line.startswith("ProcessId="):
+                        try:
+                            p = int(line.split("=", 1)[1])
+                            running = True
+                            pid = p
+                            break
+                        except ValueError:
+                            pass
+            else:
+                # Use ps to find process matching venv hermes path
+                r = subprocess.run(
+                    ["ps", "-eo", "pid,command"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                for line in r.stdout.splitlines()[1:]:
+                    parts = line.strip().split(None, 1)
+                    if len(parts) == 2 and venv_hermes in parts[1]:
+                        try:
+                            pid = int(parts[0])
+                            running = True
+                            break
+                        except ValueError:
+                            pass
+        except Exception:
+            # Fallback to lock file if ps/wmic fails
+            for p in candidate_pids:
+                try:
+                    if sys.platform == "win32":
+                        r = subprocess.run(
+                            ["tasklist", "/FI", f"PID eq {p}", "/NH"],
+                            capture_output=True, text=True, timeout=5,
+                        )
+                        if str(p) in r.stdout:
+                            running = True
+                            pid = p
+                            break
+                    else:
+                        os.kill(p, 0)
+                        running = True
+                        pid = p
+                        break
+                except (OSError, ProcessLookupError):
+                    pass
 
         # Check if hermes-web-ui is on port 8648
         webui_running = False
