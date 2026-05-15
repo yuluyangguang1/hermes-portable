@@ -405,16 +405,18 @@ HTML_PAGE = r"""<!DOCTYPE html>
     -webkit-font-smoothing: antialiased;
     scrollbar-color: #ffe6cb33 transparent;
     position: relative;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
-  /* warm glow overlay like 9119 */
+  /* warm glow overlay (official style) */
   body::before {
     content: '';
     position: fixed; inset: 0;
     pointer-events: none; z-index: 99;
     mix-blend-mode: lighten;
     opacity: 0.22;
-    background: radial-gradient(at 0 0, #ffbd3859, transparent 60%);
+    background: radial-gradient(ellipse at 0% 0%, rgba(255,189,56,0) 60%, rgba(255,189,56,0.35) 100%);
   }
   /* grain overlay */
   body::after {
@@ -476,6 +478,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     color: var(--fg-muted);
     margin-bottom: 8px;
     padding-left: 2px;
+    mix-blend-mode: plus-lighter;
   }
 
   /* Card */
@@ -541,6 +544,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     text-align: center;
     transition: all 0.15s;
   }
+  .provider-btn { text-transform: none; letter-spacing: 0; }
   .provider-btn:hover { border-color: var(--fg); color: var(--fg); }
   .provider-btn.active {
     border-color: var(--emerald-dim);
@@ -570,6 +574,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     outline: none;
     transition: border-color 0.15s;
   }
+  input, select, textarea { text-transform: none; letter-spacing: normal; }
   input:focus, select:focus { border-color: var(--fg); }
   select { cursor: pointer; }
   select option { background: var(--bg); color: var(--fg); }
@@ -915,8 +920,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <rect x="69" y="63" width="2" height="7" rx="1" fill="#041c1c" opacity="0.35"/>
       </g>
     </svg>
-    <h1>Hermes Portable</h1>
-    <div class="subtitle">配置你的 AI 代理</div>
+    <h1 style="mix-blend-mode:plus-lighter;">Hermes Portable</h1>
+    <div class="subtitle" style="text-transform:none;letter-spacing:0.1em;">配置你的 AI 代理</div>
     <div id="hermesStatus" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);">
       <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:#666;display:inline-block;"></span>
       <span id="statusText">检测中...</span>
