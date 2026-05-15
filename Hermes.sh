@@ -336,14 +336,18 @@ start_config_server() {
 }
 
 watchdog_config_server() {
+  local parent_pid=$$  # 保存父进程 PID（即 launcher 自己）
   while true; do
     sleep 10
-    # 仅在 hermes 仍在运行时才看护 config_server
+    # 父进程已死（kill -9），watchdog 自杀避免孤立
+    if ! kill -0 "$parent_pid" 2>/dev/null; then
+      exit 0
+    fi
+    # hermes 已退出，watchdog 退出
     if [ -z "$HERMES_PID" ] || ! kill -0 "$HERMES_PID" 2>/dev/null; then
       break
     fi
     if [ -n "$CONFIG_PID" ] && ! kill -0 "$CONFIG_PID" 2>/dev/null; then
-      # config_server 崩溃了，重启
       start_config_server
     fi
   done

@@ -281,6 +281,19 @@ def _atomic_write_text(path, content, encoding="utf-8"):
         raise
 
 
+
+def _sanitize_env_value(v):
+    """清理环境变量值：去除换行符防止破坏 .env 格式。"""
+    if v is None:
+        return ""
+    s = str(v)
+    # 拒绝包含换行的值
+    if "\n" in s or "\r" in s:
+        s = s.replace("\n", "").replace("\r", "")
+    return s
+
+_save_config_lock = threading.Lock()
+
 def save_config(data):
     lines = []
     lines.append("# ═══════════════════════════════════════════")
@@ -291,8 +304,7 @@ def save_config(data):
     for p in PROVIDERS:
         val = data.get("env", {}).get(p["env"], "")
         if val:
-            # Strip newlines to prevent env injection
-            val = str(val).replace("\n", "").replace("\r", "")
+            val = _sanitize_env_value(val)
             lines.append(f"{p['env']}={val}")
         else:
             lines.append(f"# {p['env']}=")
@@ -302,7 +314,7 @@ def save_config(data):
         for field in ch["fields"]:
             val = data.get("env", {}).get(field["key"], "")
             if val:
-                val = str(val).replace("\n", "").replace("\r", "")
+                val = _sanitize_env_value(val)
                 lines.append(f"{field['key']}={val}")
             else:
                 lines.append(f"# {field['key']}=")
@@ -1523,6 +1535,11 @@ def _extract_date(s):
 
 
 class ConfigHandler(SimpleHTTPRequestHandler):
+    # 防止单个请求挂死整个线程：30 秒超时
+    timeout = 30
+    rbufsize = 1
+    wbufsize = 0
+
     def do_GET(self):
         try:
             self._dispatch_get()
@@ -1731,119 +1748,125 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         import zipfile
         import tempfile
         import socket
-        # 全局 socket 超时 60 秒，防止网络挂死无限等待
+        # 局部超时管理：保存原值，函数结束后恢复
+        # 防止影响其他线程的 urllib 调用（如 _get_version 已有自己的 timeout）
+        _orig_timeout = socket.getdefaulttimeout()
         socket.setdefaulttimeout(60)
-
-        update_script = SCRIPT_DIR / "update.py"
-        has_git = (SCRIPT_DIR / "hermes-agent" / ".git").exists()
-
-        # Check if SCRIPT_DIR is writable (some USB mounts are read-only)
         try:
-            test_file = SCRIPT_DIR / ".write_test"
-            test_file.touch()
-            test_file.unlink()
-        except (OSError, PermissionError) as e:
-            print(f"Update failed: SCRIPT_DIR is not writable ({e})", file=sys.stderr)
-            return
 
-        # If git-based, use the existing update.py
-        if has_git and update_script.exists():
-            pass  # fall through to existing logic below
-        else:
-            # Release-based update: download zip from GitHub Releases
+            update_script = SCRIPT_DIR / "update.py"
+            has_git = (SCRIPT_DIR / "hermes-agent" / ".git").exists()
+
+            # Check if SCRIPT_DIR is writable (some USB mounts are read-only)
             try:
-                req = urllib.request.Request(
-                    f"https://api.github.com/repos/{PORTABLE_REPO}/releases/latest",
-                    headers={"User-Agent": "HermesPortable/1.0"},
-                )
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    release = json.loads(resp.read())
-                assets = release.get("assets", [])
-                if not assets:
-                    return
-
-                download_url = assets[0]["browser_download_url"]
-                tmp_zip = Path(tempfile.gettempdir()) / "hermes-portable-update.zip"
-                tmp_extract = Path(tempfile.gettempdir()) / "hermes-portable-extract"
-
-                # Download
-                urllib.request.urlretrieve(download_url, str(tmp_zip))
-
-                # Extract
-                if tmp_extract.exists():
-                    import shutil
-                    shutil.rmtree(tmp_extract)
-                with zipfile.ZipFile(str(tmp_zip), 'r') as zf:
-                    zf.extractall(str(tmp_extract))
-
-                # Find root dir inside zip
-                entries = list(tmp_extract.iterdir())
-                src_dir = entries[0] if len(entries) == 1 and entries[0].is_dir() else tmp_extract
-
-                # Copy files (skip data/, venv*, python*, _home/)
-                skip_prefixes = ("data", "venv", "python", "_home", ".git")
-                import shutil
-                for item in src_dir.iterdir():
-                    if any(item.name.startswith(s) for s in skip_prefixes):
-                        continue
-                    dest = SCRIPT_DIR / item.name
-                    if item.is_dir():
-                        if dest.exists():
-                            # 保留用户在该目录下添加的文件
-                            for child in dest.iterdir():
-                                if (item / child.name).exists():
-                                    if child.is_dir():
-                                        shutil.rmtree(child)
-                                    else:
-                                        child.unlink()
-                            # 复制新文件，不删整个目录
-                            for src_child in item.iterdir():
-                                dest_child = dest / src_child.name
-                                if src_child.is_dir():
-                                    if dest_child.exists():
-                                        shutil.rmtree(dest_child)
-                                    shutil.copytree(src_child, dest_child)
-                                else:
-                                    shutil.copy2(src_child, dest_child)
-                        else:
-                            shutil.copytree(item, dest)
-                    else:
-                        shutil.copy2(item, dest)
-
-                # Cleanup
-                tmp_zip.unlink(missing_ok=True)
-                shutil.rmtree(tmp_extract, ignore_errors=True)
-
-                # Update VERSION file
-                new_tag = release.get("tag_name", "").lstrip("v")
-                if new_tag:
-                    (SCRIPT_DIR / "VERSION").write_text(new_tag)
+                test_file = SCRIPT_DIR / ".write_test"
+                test_file.touch()
+                test_file.unlink()
+            except (OSError, PermissionError) as e:
+                print(f"Update failed: SCRIPT_DIR is not writable ({e})", file=sys.stderr)
                 return
+
+            # If git-based, use the existing update.py
+            if has_git and update_script.exists():
+                pass  # fall through to existing logic below
+            else:
+                # Release-based update: download zip from GitHub Releases
+                try:
+                    req = urllib.request.Request(
+                        f"https://api.github.com/repos/{PORTABLE_REPO}/releases/latest",
+                        headers={"User-Agent": "HermesPortable/1.0"},
+                    )
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        release = json.loads(resp.read())
+                    assets = release.get("assets", [])
+                    if not assets:
+                        return
+
+                    download_url = assets[0]["browser_download_url"]
+                    tmp_zip = Path(tempfile.gettempdir()) / "hermes-portable-update.zip"
+                    tmp_extract = Path(tempfile.gettempdir()) / "hermes-portable-extract"
+
+                    # Download
+                    urllib.request.urlretrieve(download_url, str(tmp_zip))
+
+                    # Extract
+                    if tmp_extract.exists():
+                        import shutil
+                        shutil.rmtree(tmp_extract)
+                    with zipfile.ZipFile(str(tmp_zip), 'r') as zf:
+                        zf.extractall(str(tmp_extract))
+
+                    # Find root dir inside zip
+                    entries = list(tmp_extract.iterdir())
+                    src_dir = entries[0] if len(entries) == 1 and entries[0].is_dir() else tmp_extract
+
+                    # Copy files (skip data/, venv*, python*, _home/)
+                    skip_prefixes = ("data", "venv", "python", "_home", ".git")
+                    import shutil
+                    for item in src_dir.iterdir():
+                        if any(item.name.startswith(s) for s in skip_prefixes):
+                            continue
+                        dest = SCRIPT_DIR / item.name
+                        if item.is_dir():
+                            if dest.exists():
+                                # 保留用户在该目录下添加的文件
+                                for child in dest.iterdir():
+                                    if (item / child.name).exists():
+                                        if child.is_dir():
+                                            shutil.rmtree(child)
+                                        else:
+                                            child.unlink()
+                                # 复制新文件，不删整个目录
+                                for src_child in item.iterdir():
+                                    dest_child = dest / src_child.name
+                                    if src_child.is_dir():
+                                        if dest_child.exists():
+                                            shutil.rmtree(dest_child)
+                                        shutil.copytree(src_child, dest_child)
+                                    else:
+                                        shutil.copy2(src_child, dest_child)
+                            else:
+                                shutil.copytree(item, dest)
+                        else:
+                            shutil.copy2(item, dest)
+
+                    # Cleanup
+                    tmp_zip.unlink(missing_ok=True)
+                    shutil.rmtree(tmp_extract, ignore_errors=True)
+
+                    # Update VERSION file
+                    new_tag = release.get("tag_name", "").lstrip("v")
+                    if new_tag:
+                        (SCRIPT_DIR / "VERSION").write_text(new_tag)
+                    return
+                except Exception:
+                    pass
+                return
+
+            if not update_script.exists():
+                return
+            # Use the portable venv's python if we can find it, so update.py
+            # reinstalls into the same venv hermes runs from. Fall back to
+            # whatever `sys.executable` points at (usually the same anyway).
+            if sys.platform == "win32":
+                py = VENV_DIR / "Scripts" / "python.exe"
+            else:
+                py = VENV_DIR / "bin" / "python"
+            if not py.exists():
+                py = Path(sys.executable)
+            # No timeout: a fresh `pip install` of hermes-agent + its extras
+            # can easily take 5+ minutes on a cold cache; the old 120s
+            # ceiling silently aborted mid-install and left the venv in a
+            # half-broken state. The frontend polls /api/version for
+            # completion instead of relying on us returning.
+            try:
+                subprocess.run([str(py), str(update_script), "update"],
+                               cwd=str(SCRIPT_DIR))
             except Exception:
                 pass
-            return
 
-        if not update_script.exists():
-            return
-        # Use the portable venv's python if we can find it, so update.py
-        # reinstalls into the same venv hermes runs from. Fall back to
-        # whatever `sys.executable` points at (usually the same anyway).
-        if sys.platform == "win32":
-            py = VENV_DIR / "Scripts" / "python.exe"
-        else:
-            py = VENV_DIR / "bin" / "python"
-        if not py.exists():
-            py = Path(sys.executable)
-        # No timeout: a fresh `pip install` of hermes-agent + its extras
-        # can easily take 5+ minutes on a cold cache; the old 120s
-        # ceiling silently aborted mid-install and left the venv in a
-        # half-broken state. The frontend polls /api/version for
-        # completion instead of relying on us returning.
-        try:
-            subprocess.run([str(py), str(update_script), "update"],
-                           cwd=str(SCRIPT_DIR))
-        except Exception:
-            pass
+        finally:
+            socket.setdefaulttimeout(_orig_timeout)
 
     def _get_status(self):
         """Detect if hermes process is running via process listing + Web UI.
@@ -1933,43 +1956,66 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         }
 
     def _get_logs(self):
-        """Tail recent hermes logs from common locations."""
+        """Tail recent hermes logs，仅读取文件末尾 256KB 防止 OOM。"""
         candidates = [
             DATA_DIR / "logs" / "hermes.log",
             DATA_DIR / ".hermes" / "logs" / "hermes.log",
             DATA_DIR / "hermes.log",
         ]
+        MAX_TAIL_BYTES = 256 * 1024  # 256KB
         for p in candidates:
             if p.exists() and p.is_file():
                 try:
-                    text = p.read_text(encoding="utf-8", errors="replace")
+                    size = p.stat().st_size
+                    with p.open("rb") as f:
+                        if size > MAX_TAIL_BYTES:
+                            f.seek(-MAX_TAIL_BYTES, 2)
+                            # 跳过被截断的第一行
+                            f.readline()
+                        data = f.read()
+                    text = data.decode("utf-8", errors="replace")
                     lines = text.splitlines()[-200:]
-                    return {"source": str(p), "lines": lines}
+                    return {"source": str(p), "lines": lines, "size": size}
                 except Exception as e:
                     return {"source": str(p), "lines": [f"Error reading log: {e}"]}
         return {"source": None, "lines": ["未找到日志文件。Hermes 启动后会自动生成日志。"]}
 
     def _restart_hermes(self):
-        """Kill the running hermes process if any. Re-launching is up to launcher script."""
+        """Kill the running hermes process if any. 验证 kill 成功才删 lock。"""
         time.sleep(0.5)
         lock_file = DATA_DIR / ".hermes.lock"
         if not lock_file.exists():
             return
+        kill_succeeded = False
         try:
             pid = int(lock_file.read_text().strip())
             if sys.platform == "win32":
-                subprocess.run(["taskkill", "/F", "/PID", str(pid)],
-                               capture_output=True, timeout=5)
+                r = subprocess.run(["taskkill", "/F", "/PID", str(pid)],
+                                   capture_output=True, timeout=5)
+                kill_succeeded = (r.returncode == 0)
             else:
                 os.kill(pid, 15)  # SIGTERM
-                # 等 5 秒让 hermes 完成正在写的文件（sessions/memories）
                 time.sleep(5)
                 try:
                     os.kill(pid, 0)
-                    os.kill(pid, 9)  # SIGKILL if still alive
+                    # 进程还活着，发 SIGKILL
+                    os.kill(pid, 9)
+                    time.sleep(0.5)
+                    try:
+                        os.kill(pid, 0)
+                        # 仍然活着，kill 失败
+                        kill_succeeded = False
+                    except OSError:
+                        kill_succeeded = True
                 except OSError:
-                    pass
-            lock_file.unlink(missing_ok=True)
+                    # 已经退出
+                    kill_succeeded = True
+
+            # 仅在确认 kill 成功后才删 lock
+            if kill_succeeded:
+                lock_file.unlink(missing_ok=True)
+            else:
+                print(f"Restart: failed to kill PID {pid}, lock retained", file=sys.stderr)
         except Exception as e:
             print(f"Restart failed: {e}", file=sys.stderr)
 
@@ -1990,18 +2036,43 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def _do_import(self, data):
-        """Import config from uploaded JSON. 导入前自动备份。"""
-        # 备份当前 .env，导入失败可恢复
+        """Import config from uploaded JSON. 事务性写入：全部成功或全部回滚。"""
+        from datetime import datetime
+        import shutil
+        backup_dir = DATA_DIR / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        cfg_path = DATA_DIR / "config.yaml"
+
+        # Phase 1: 备份现有文件
+        env_backup = None
+        cfg_backup = None
         try:
-            from datetime import datetime
-            backup_dir = DATA_DIR / "backups"
-            backup_dir.mkdir(parents=True, exist_ok=True)
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             if ENV_FILE.exists():
-                import shutil
-                shutil.copy(ENV_FILE, backup_dir / f".env.before-import.{ts}")
+                env_backup = backup_dir / f".env.before-import.{ts}"
+                shutil.copy(ENV_FILE, env_backup)
+            if cfg_path.exists():
+                cfg_backup = backup_dir / f"config.yaml.before-import.{ts}"
+                shutil.copy(cfg_path, cfg_backup)
         except Exception as e:
-            print(f"Pre-import backup failed: {e}", file=sys.stderr)
+            raise RuntimeError(f"Backup failed before import: {e}")
+
+        # Phase 2: 写入新文件，失败时从备份恢复
+        try:
+            self._write_imported(data)
+        except Exception as e:
+            # 回滚
+            try:
+                if env_backup and env_backup.exists():
+                    shutil.copy(env_backup, ENV_FILE)
+                if cfg_backup and cfg_backup.exists():
+                    shutil.copy(cfg_backup, cfg_path)
+            except Exception:
+                pass
+            raise RuntimeError(f"Import failed, rolled back: {e}")
+
+    def _write_imported(self, data):
+        """实际写入逻辑，可能抛出异常。"""
         env = data.get("env", {})
         if env:
             # Build .env content
