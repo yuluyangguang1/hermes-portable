@@ -1739,8 +1739,24 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                     dest = SCRIPT_DIR / item.name
                     if item.is_dir():
                         if dest.exists():
-                            shutil.rmtree(dest)
-                        shutil.copytree(item, dest)
+                            # 保留用户在该目录下添加的文件
+                            for child in dest.iterdir():
+                                if (item / child.name).exists():
+                                    if child.is_dir():
+                                        shutil.rmtree(child)
+                                    else:
+                                        child.unlink()
+                            # 复制新文件，不删整个目录
+                            for src_child in item.iterdir():
+                                dest_child = dest / src_child.name
+                                if src_child.is_dir():
+                                    if dest_child.exists():
+                                        shutil.rmtree(dest_child)
+                                    shutil.copytree(src_child, dest_child)
+                                else:
+                                    shutil.copy2(src_child, dest_child)
+                        else:
+                            shutil.copytree(item, dest)
                     else:
                         shutil.copy2(item, dest)
 
@@ -1848,7 +1864,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                                capture_output=True, timeout=5)
             else:
                 os.kill(pid, 15)  # SIGTERM
-                time.sleep(2)
+                # 等 5 秒让 hermes 完成正在写的文件（sessions/memories）
+                time.sleep(5)
                 try:
                     os.kill(pid, 0)
                     os.kill(pid, 9)  # SIGKILL if still alive
