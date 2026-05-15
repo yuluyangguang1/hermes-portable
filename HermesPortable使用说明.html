@@ -691,8 +691,51 @@
     <h2>配置管理</h2>
   </div>
 
-  <h3>最常用的办法：Web 配置页面</h3>
-  <p>在对话中按 <code>Ctrl+C</code> 退出后，运行 <code>hermes setup</code>，或者直接在浏览器打开 <code>http://127.0.0.1:17520</code>（需要先启动一次 Hermes），图形化修改所有配置。</p>
+  <h3>最常用的办法：Web 配置中心</h3>
+  <p>启动 Hermes 后，配置中心会一直在后台运行（端口 <code>17520</code>），打开 <a href="http://127.0.0.1:17520" target="_blank">http://127.0.0.1:17520</a> 即可：</p>
+
+  <div class="card-grid">
+    <div class="feat-card">
+      <h4>顶部状态栏</h4>
+      <p>实时显示 Hermes 进程运行状态（绿点 + PID），Web UI 快捷入口</p>
+    </div>
+    <div class="feat-card">
+      <h4>三个标签页</h4>
+      <p>模型 / 渠道 / 设置，分别管理 AI 提供商、消息平台、运行偏好</p>
+    </div>
+    <div class="feat-card">
+      <h4>测试连接</h4>
+      <p>填完 API Key 一键测试是否有效，列出可用模型数</p>
+    </div>
+    <div class="feat-card">
+      <h4>导出/导入配置</h4>
+      <p>一键备份 hermes-config.json，迁移到其他设备</p>
+    </div>
+    <div class="feat-card">
+      <h4>查看 .env</h4>
+      <p>新窗口显示当前环境变量（API Key 自动脱敏）</p>
+    </div>
+    <div class="feat-card">
+      <h4>重置配置</h4>
+      <p>清空 .env 和 config.yaml（自动备份到 data/backups/）</p>
+    </div>
+    <div class="feat-card">
+      <h4>运行日志</h4>
+      <p>设置页底部展示最近 200 行 Hermes 日志</p>
+    </div>
+    <div class="feat-card">
+      <h4>检查更新</h4>
+      <p>git 用户走 hermes-agent 升级；release zip 用户走 portable 整包更新</p>
+    </div>
+    <div class="feat-card">
+      <h4>重启 Hermes</h4>
+      <p>运行中显示重启按钮，无需关闭终端</p>
+    </div>
+    <div class="feat-card">
+      <h4>断连检测</h4>
+      <p>后端进程退出时全屏提示，避免误操作</p>
+    </div>
+  </div>
 
   <h3>命令行修改</h3>
   <table>
