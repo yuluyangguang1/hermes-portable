@@ -1296,8 +1296,11 @@ function checkUpdate() {
       html += '<div style="color:var(--warning);margin-top:6px">⚠ 非 git 克隆，需要重新构建才能更新</div>';
     }
     info.innerHTML = html;
-    if (data.update_available && data.has_git) {
+    if (data.update_available) {
       action.style.display = 'block';
+    }
+    if (data.portable_update && data.portable_update.tag) {
+      info.innerHTML += '<div style="margin-top:8px;color:var(--emerald)">Portable 更新: ' + data.portable_update.tag + '</div>';
     }
   }).catch(() => {
     info.innerHTML = '<span style="color:var(--destructive)">检查失败</span>';
@@ -2111,8 +2114,21 @@ def main():
     os.environ["HERMES_HOME"] = str(DATA_DIR)
     env = parse_env()
     has_key = any(env.get(p["env"]) for p in PROVIDERS)
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), ConfigHandler)
-    url = f"http://127.0.0.1:{PORT}"
+    actual_port = PORT
+    server = None
+    for try_port in range(PORT, PORT + 10):
+        try:
+            server = ThreadingHTTPServer(("127.0.0.1", try_port), ConfigHandler)
+            actual_port = try_port
+            break
+        except OSError as e:
+            if e.errno in (48, 98, 10048):  # macOS/Linux/Windows: address in use
+                continue
+            raise
+    if server is None:
+        print(f"  All ports {PORT}-{PORT+9} are in use. Is another Hermes already running?", file=sys.stderr)
+        sys.exit(1)
+    url = f"http://127.0.0.1:{actual_port}"
 
     print(f"""
   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗
