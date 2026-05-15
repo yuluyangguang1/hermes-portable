@@ -263,6 +263,24 @@ def _yaml_dump_simple(d, indent=0):
     return lines
 
 
+
+def _atomic_write_text(path, content, encoding="utf-8"):
+    """原子写文件：先写 tmp，再 rename。防止半写状态损坏文件。"""
+    import os as _os
+    path = Path(path)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(content, encoding=encoding)
+    try:
+        if hasattr(_os, "replace"):
+            _os.replace(str(tmp), str(path))  # 跨平台原子替换
+        else:
+            tmp.rename(path)
+    except Exception:
+        try: tmp.unlink()
+        except Exception: pass
+        raise
+
+
 def save_config(data):
     lines = []
     lines.append("# ═══════════════════════════════════════════")
@@ -289,7 +307,7 @@ def save_config(data):
             else:
                 lines.append(f"# {field['key']}=")
     lines.append("")
-    ENV_FILE.write_text("\n".join(lines), encoding="utf-8")
+    _atomic_write_text(ENV_FILE, "\n".join(lines), encoding="utf-8")
 
     model_name = data.get("model_name", "")
     provider = data.get("model_provider", "openrouter")
@@ -328,7 +346,7 @@ def save_config(data):
             if ch:
                 cfg["gateway"]["platforms"][ch_id] = {"enabled": True}
 
-    CONFIG_FILE.write_text("\n".join(_yaml_dump_simple(cfg)) + "\n", encoding="utf-8")
+    _atomic_write_text(CONFIG_FILE, "\n".join(_yaml_dump_simple(cfg)) + "\n", encoding="utf-8")
     return True
 
 # ═══════════════════════════════════════════════════════════════
@@ -1506,6 +1524,16 @@ def _extract_date(s):
 
 class ConfigHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
+        try:
+            self._dispatch_get()
+        except Exception as e:
+            print(f"GET {self.path} error: {e}", file=sys.stderr)
+            try:
+                self._json_response({"error": str(e)[:200]})
+            except Exception:
+                pass
+
+    def _dispatch_get(self):
         if self.path in ("/", "/index.html"):
             self._serve_html()
         elif self.path == "/favicon.svg":
@@ -1526,6 +1554,16 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self.send_error(404)
 
     def do_POST(self):
+        try:
+            self._dispatch_post()
+        except Exception as e:
+            print(f"POST {self.path} error: {e}", file=sys.stderr)
+            try:
+                self._json_response({"success": False, "error": str(e)[:200]})
+            except Exception:
+                pass
+
+    def _dispatch_post(self):
         body = self.rfile.read(min(int(self.headers.get("Content-Length", 0)), 1_000_000))
         if self.path == "/api/save":
             try:
@@ -1692,6 +1730,9 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         import urllib.request
         import zipfile
         import tempfile
+        import socket
+        # 全局 socket 超时 60 秒，防止网络挂死无限等待
+        socket.setdefaulttimeout(60)
 
         update_script = SCRIPT_DIR / "update.py"
         has_git = (SCRIPT_DIR / "hermes-agent" / ".git").exists()
@@ -1949,7 +1990,18 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def _do_import(self, data):
-        """Import config from uploaded JSON."""
+        """Import config from uploaded JSON. 导入前自动备份。"""
+        # 备份当前 .env，导入失败可恢复
+        try:
+            from datetime import datetime
+            backup_dir = DATA_DIR / "backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            if ENV_FILE.exists():
+                import shutil
+                shutil.copy(ENV_FILE, backup_dir / f".env.before-import.{ts}")
+        except Exception as e:
+            print(f"Pre-import backup failed: {e}", file=sys.stderr)
         env = data.get("env", {})
         if env:
             # Build .env content

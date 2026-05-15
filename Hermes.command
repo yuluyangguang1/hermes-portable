@@ -226,6 +226,10 @@ HERMES_PID=""
 CONFIG_PID=""
 OWN_LOCK=0
 cleanup() {
+  # Kill watchdog first to prevent it from restarting config_server
+  if [ -n "${WATCHDOG_PID:-}" ] && kill -0 "$WATCHDOG_PID" 2>/dev/null; then
+    kill "$WATCHDOG_PID" 2>/dev/null || true
+  fi
   # Kill config server if still alive
   if [ -n "$CONFIG_PID" ] && kill -0 "$CONFIG_PID" 2>/dev/null; then
     kill "$CONFIG_PID" 2>/dev/null || true
@@ -320,11 +324,32 @@ if [ "${1-}" = "--config" ] || [ "$HAS_KEY" = "false" ]; then
   exit $?
 fi
 
-# ── Background config server (always available for model changes) ──
+# ── Background config server with watchdog (auto-restart on crash) ──
 CONFIG_PID=""
 export HERMES_BROWSER_OPENED=1
-"$VENV_DIR/bin/python" "$HERE/config_server.py" >/dev/null 2>&1 &
-CONFIG_PID=$!
+
+start_config_server() {
+  "$VENV_DIR/bin/python" "$HERE/config_server.py" >/dev/null 2>&1 &
+  CONFIG_PID=$!
+}
+
+watchdog_config_server() {
+  while true; do
+    sleep 10
+    # 仅在 hermes 仍在运行时才看护 config_server
+    if [ -z "$HERMES_PID" ] || ! kill -0 "$HERMES_PID" 2>/dev/null; then
+      break
+    fi
+    if [ -n "$CONFIG_PID" ] && ! kill -0 "$CONFIG_PID" 2>/dev/null; then
+      # config_server 崩溃了，重启
+      start_config_server
+    fi
+  done
+}
+
+start_config_server
+watchdog_config_server &
+WATCHDOG_PID=$!
 echo "  Config panel: http://127.0.0.1:17520 (change model anytime)"
 
 # ── Background web UI ─────────────────────────────────────────
