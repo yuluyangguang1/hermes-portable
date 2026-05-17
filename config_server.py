@@ -1170,6 +1170,51 @@ HTML_PAGE = r"""<!DOCTYPE html>
   /* Footer — keep yu.ai version added earlier; make sure it sits below */
   .footer { display: none; }  /* hide any inherited Hermes footer; y-footer is the canonical one */
 
+
+
+  /* ─────── flatten remaining dark fills (yu.ai aesthetic) ─────── */
+  [style*="background:var(--secondary)"],
+  [style*="background: var(--secondary)"],
+  [style*="background:var(--card)"],
+  [style*="background: var(--card)"],
+  [style*="background:var(--muted)"],
+  [style*="background: var(--muted)"] {
+    background: transparent !important;
+  }
+
+  /* CSS-rule level: any block that uses --card / --secondary / --muted
+     for its fill becomes transparent. We can't selector-match a CSS
+     property value, so we override the most common offenders by
+     class name. */
+  .api-key-row, .channel-fields, .field {
+    background: transparent !important;
+  }
+
+  /* Inputs / selects transparent */
+  .container input,
+  .container select,
+  .container textarea {
+    background: transparent !important;
+    border-color: var(--border) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-mono) !important;
+  }
+  .container input:focus,
+  .container select:focus,
+  .container textarea:focus {
+    border-color: var(--accent) !important;
+    outline: none;
+  }
+
+  /* Toast — flat with accent border */
+  .toast {
+    background: var(--bg) !important;
+    border: 1px solid var(--accent) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-mono);
+    letter-spacing: 0.05em;
+  }
+
 </style>
 </head>
 <body>
