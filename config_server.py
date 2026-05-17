@@ -68,8 +68,8 @@ PROVIDERS = [
         "x-ai/grok-4.3",
         "meta-llama/llama-4-maverick","meta-llama/llama-4-scout",
         "mistralai/mistral-large-3","qwen/qwen3-max","qwen/qwen3-coder-plus",
-        "zhipu/glm-5.1","zhipu/glm-4.7","moonshotai/kimi-k2.6","moonshotai/kimi-k2.5",
-        "minimaxai/minimax-m2.7","minimaxai/minimax-m2.5",
+        "z-ai/glm-5.1","z-ai/glm-4.7","moonshotai/kimi-k2.6","moonshotai/kimi-k2.5",
+        "minimax/minimax-m2.5","minimax/minimax-m2",
     ]},
     {"id": "anthropic",   "name": "Anthropic",      "env": "ANTHROPIC_API_KEY",  "models": [
         "claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5",
@@ -2574,7 +2574,7 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                     "content-type": "application/json",
                 },
                 "method": "POST",
-                "body": json.dumps({"model": model or "claude-sonnet-4-20250514", "max_tokens": 1, "messages": [{"role": "user", "content": "hi"}]}).encode(),
+                "body": json.dumps({"model": model or "claude-haiku-4-5", "max_tokens": 1, "messages": [{"role": "user", "content": "hi"}]}).encode(),
             },
             "openai": {
                 "url": "https://api.openai.com/v1/models",
@@ -2606,11 +2606,64 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/models",
                 "headers": {"Authorization": f"Bearer {api_key}"},
             },
+            # xAI uses OpenAI-compatible /models endpoint
+            "xai": {
+                "url": "https://api.x.ai/v1/models",
+                "headers": {"Authorization": f"Bearer {api_key}"},
+            },
+            # Mistral OpenAI-compatible
+            "mistral": {
+                "url": "https://api.mistral.ai/v1/models",
+                "headers": {"Authorization": f"Bearer {api_key}"},
+            },
+            # Zhipu (Z.ai) OpenAI-compatible at open.bigmodel.cn
+            "zhipu": {
+                "url": "https://open.bigmodel.cn/api/paas/v4/models",
+                "headers": {"Authorization": f"Bearer {api_key}"},
+            },
+            # MiniMax — text models are listed via the chat platform
+            "minimax": {
+                "url": "https://api.minimax.chat/v1/text/chatcompletion_v2",
+                "headers": {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                "method": "POST",
+                "body": json.dumps({"model": model or "MiniMax-M2.5", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}).encode(),
+            },
+            # Doubao / Volcengine Ark — uses chat endpoint (no public /models list)
+            "doubao": {
+                "url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+                "headers": {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                "method": "POST",
+                "body": json.dumps({"model": model or "doubao-seed-1.6", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}).encode(),
+            },
+            # Cerebras — OpenAI-compatible
+            "cerebras": {
+                "url": "https://api.cerebras.ai/v1/models",
+                "headers": {"Authorization": f"Bearer {api_key}"},
+            },
+            # Groq — OpenAI-compatible
+            "groq": {
+                "url": "https://api.groq.com/openai/v1/models",
+                "headers": {"Authorization": f"Bearer {api_key}"},
+            },
+            # Perplexity — uses chat completions, no public /models list
+            "perplexity": {
+                "url": "https://api.perplexity.ai/chat/completions",
+                "headers": {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                "method": "POST",
+                "body": json.dumps({"model": model or "sonar", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}).encode(),
+            },
+            # Custom / proxy gateway — caller supplies base_url; if not provided, fail clearly
+            "custom": {
+                "url": (data.get("base_url") or "").rstrip("/") + "/models" if data.get("base_url") else "",
+                "headers": {"Authorization": f"Bearer {api_key}"},
+            },
         }
 
         cfg = PROVIDER_CONFIGS.get(provider_id)
         if not cfg:
             return {"success": False, "error": f"Unknown provider: {provider_id}"}
+        if not cfg.get("url"):
+            return {"success": False, "error": "Missing base URL for custom provider"}
 
         try:
             method = cfg.get("method", "GET")
