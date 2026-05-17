@@ -371,6 +371,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hermes Portable — 配置</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23041c1c'/%3E%3Cg fill='none' stroke='%23ffe6cb' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M 28 32 L 42 60 M 56 32 L 42 60 L 36 78'/%3E%3Cpath d='M 64 32 L 64 60 Q 64 72 76 72 L 76 32'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="theme-color" content="#041c1c" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f0e8" media="(prefers-color-scheme: light)">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
   /* Google Fonts removed for China compatibility */
@@ -391,11 +394,70 @@ HTML_PAGE = r"""<!DOCTYPE html>
     --warning: #ffbd38;
     --success: #4ade80;
     --destructive: #fb2c36;
-    --font-sans: 'Mondwest', Arial, sans-serif;
-    --font-mono: 'Courier Prime', 'Courier New', monospace;
+    /* yu.ai-aligned aliases */
+    --mid: var(--fg);
+    --dim: var(--fg-muted);
+    /* Font stack matched to yu.ai */
+    --font-sans: system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    --font-serif: Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --font-mono: 'Courier New', 'Menlo', monospace;
+  }
+  [data-theme="light"] {
+    --bg: #f5f0e8;
+    --card: #ebe5db;
+    --secondary: #ebe5db;
+    --muted: #d8d2c6;
+    --fg: #3d3a35;
+    --fg-muted: #736e63;
+    --border: rgba(61,58,53,0.14);
+    --accent: #02966a;
+    --emerald: #02966a;
+    --emerald-dim: #028a60;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f5f0e8;
+      --card: #ebe5db;
+      --secondary: #ebe5db;
+      --muted: #d8d2c6;
+      --fg: #3d3a35;
+      --fg-muted: #736e63;
+      --border: rgba(61,58,53,0.14);
+      --accent: #02966a;
+      --emerald: #02966a;
+      --emerald-dim: #028a60;
+    }
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* yu.ai background layers */
+  .bg-i { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+  .bg-i img {
+    width: 100vw; height: 100vh; object-fit: cover;
+    opacity: 0.06; filter: grayscale(1) brightness(0.7);
+    object-position: center bottom;
+  }
+  .bg-n {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    mix-blend-mode: color-dodge; opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%23eaeaea' filter='url(%23n)' opacity='.6'/%3E%3C/svg%3E");
+    background-size: 512px 512px;
+  }
+  .bg-g {
+    position: fixed; inset: 0; z-index: 300; pointer-events: none;
+    mix-blend-mode: lighten; opacity: 0.15;
+    background: radial-gradient(ellipse at 0% 0%, rgba(255,189,56,0.25) 0%, transparent 50%);
+  }
+  [data-theme="light"] .bg-i img { opacity: 0.04; filter: grayscale(1) brightness(1.5); }
+  [data-theme="light"] .bg-n { opacity: 0.015; }
+  [data-theme="light"] .bg-g { opacity: 0.06; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .bg-i img { opacity: 0.04; filter: grayscale(1) brightness(1.5); }
+    :root:not([data-theme="dark"]) .bg-n { opacity: 0.015; }
+    :root:not([data-theme="dark"]) .bg-g { opacity: 0.06; }
+  }
+
 
   body {
     font-family: var(--font-sans);
@@ -851,6 +913,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
 </style>
 </head>
 <body>
+<div class="bg-i" aria-hidden="true"><img alt="" src="https://yu.ai/egret-ink.jpg" width="1920" height="1080" loading="lazy" decoding="async" onerror="this.parentNode.style.display='none'"></div>
+<div class="bg-n" aria-hidden="true"></div>
+<div class="bg-g" aria-hidden="true"></div>
 <div class="onboarding" id="onboarding" style="display:none">
   <div class="onboarding-card">
     <h2>Hermes Portable</h2>
