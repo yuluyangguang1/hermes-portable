@@ -910,6 +910,69 @@ HTML_PAGE = r"""<!DOCTYPE html>
     color: var(--bg);
   }
   .onboarding-card .btn { margin-top: 8px; }
+
+
+  /* ─────── yu.ai aligned shell ─────── */
+  .y-page { position: relative; z-index: 200; max-width: 1100px; margin: 0 auto; padding: 0; overflow-x: hidden; }
+  .y-row { display: grid; grid-template-columns: 1fr; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+  .y-cell { padding: 16px; border-right: 1px solid var(--border); min-width: 0; display: flex; align-items: center; }
+  .y-cell.s1 { grid-column: span 1; }
+  .y-cell.s2 { grid-column: span 2; }
+  .y-cell.s4 { grid-column: span 4; }
+  .y-cell.s6 { grid-column: 1 / -1; }
+  @media (min-width: 1024px) { .y-row.nav-row { grid-template-columns: 1fr 2fr 1fr 1fr 1fr; } }
+
+  .y-label { font-size: 0.9375rem; letter-spacing: 0.1875rem; text-transform: uppercase; }
+  .y-label-sm { font-size: 0.75rem; letter-spacing: 0.1875rem; text-transform: uppercase; }
+  .y-label-xs { font-size: 0.625rem; letter-spacing: 0.125rem; text-transform: uppercase; }
+  .y-title { font-family: var(--font-serif); font-size: 2.625rem; font-weight: 700; line-height: 1; letter-spacing: 0.0525rem; }
+  .y-display { font-family: var(--font-serif); font-size: 3.5rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; mix-blend-mode: plus-lighter; }
+  .y-sub { font-size: 1.125rem; line-height: 1.6; opacity: 0.6; }
+  .y-op-5 { opacity: 0.5; } .y-op-7 { opacity: 0.7; }
+
+  @keyframes yblink { 0%,50% { opacity: 1; } 51%,100% { opacity: 0; } }
+  .y-blink { display: inline-block; width: 1ch; height: 1.1em; background: currentColor; vertical-align: text-bottom; animation: yblink 1.2s step-end infinite; }
+  @media (prefers-reduced-motion: reduce) { .y-blink { animation: none; opacity: 1; } }
+
+  .y-nav-link { position: relative; display: flex; align-items: center; width: 100%; height: 100%; color: inherit; text-decoration: none; padding: 16px; cursor: pointer; }
+  .y-nav-link .y-blink { display: none; }
+  .y-nav-link:hover .y-blink, .y-nav-link:focus-visible .y-blink { display: inline-block; }
+  .y-nav-link:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
+  .y-nav-link::before { content: ""; position: absolute; inset: -12px; background: var(--fg); pointer-events: none; opacity: 0; transition: opacity 0.25s; z-index: -1; }
+  .y-nav-link:hover::before { opacity: 0.05; }
+
+  .y-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 60px 20px 44px; width: 100%; }
+  .y-term { width: 100%; max-width: 560px; border: 4px double var(--border); }
+  .y-term-h { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .y-td { width: 10px; height: 10px; border-radius: 50%; }
+  .y-td:nth-child(1) { background: var(--fg); }
+  .y-td:nth-child(2) { background: var(--fg); opacity: 0.6; }
+  .y-td:nth-child(3) { background: var(--fg); opacity: 0.3; }
+  .y-term-label { margin-left: auto; font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.1875rem; opacity: 0.5; }
+  .y-term-b { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.85; padding: 18px 16px; white-space: pre-wrap; min-height: 100px; word-break: break-word; text-align: left; }
+  .y-term-b .p { color: var(--accent); }
+  .y-term-b .t { opacity: 0.6; }
+
+  .y-footer { display: grid; grid-template-columns: 1fr; border-top: 1px solid var(--border); border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-top: 28px; }
+  .y-footer .c { padding: 16px; border-right: 1px solid var(--border); display: flex; align-items: center; }
+  @media (min-width: 1024px) { .y-footer { grid-template-columns: 1fr 1fr 1fr 1fr 1fr; } }
+
+  .y-theme-toggle { background: none; border: none; cursor: pointer; color: var(--fg); opacity: 0.5; padding: 8px; line-height: 0; transition: opacity 0.2s; display: flex; align-items: center; border-radius: 4px; }
+  .y-theme-toggle:hover, .y-theme-toggle:focus-visible { opacity: 1; outline: 1px solid var(--border); }
+  .y-theme-toggle svg { display: block; }
+
+  @media (max-width: 1023px) {
+    .y-row, .y-row.nav-row { grid-template-columns: 1fr; border-left: none; }
+    .y-cell { border-right: none; }
+    .y-footer { grid-template-columns: 1fr; border-left: none; }
+    .y-footer .c { border-right: none; }
+  }
+  @media (max-width: 640px) {
+    .y-display { font-size: 2.2rem; }
+    .y-sub { font-size: 0.95rem; }
+    .y-hero { padding: 40px 16px 28px; }
+    .y-term-b { font-size: 0.72rem; padding: 14px 12px; }
+  }
 </style>
 </head>
 <body>
@@ -941,52 +1004,48 @@ HTML_PAGE = r"""<!DOCTYPE html>
   </div>
 </div>
 
+<div class="y-page">
+
+<nav class="y-row nav-row" aria-label="Primary">
+  <div class="y-cell s1"><a href="https://yu.ai/" class="y-title" style="text-decoration:none;color:inherit">yu.ai</a></div>
+  <div class="y-cell s2" style="padding:0">
+    <a class="y-nav-link" href="https://yu.ai/"><span class="y-label">hermes config <span class="y-blink"></span></span></a>
+  </div>
+  <div class="y-cell s1" style="padding:0">
+    <a class="y-nav-link" href="https://yu.ai/#products"><span class="y-label">products <span class="y-blink"></span></span></a>
+  </div>
+  <div class="y-cell" style="justify-content:space-between">
+    <span class="y-label y-op-5">github</span>
+    <a href="https://github.com/yuluyangguang1/hermes-portable" target="_blank" rel="noopener" aria-label="GitHub" style="opacity:.5;line-height:0;transition:opacity .2s;color:inherit" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12a10 10 0 0 0 6.839 9.49c.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.934.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.577.688.48A10 10 0 0 0 22 12c0-5.523-4.477-10-10-10z"/></svg></a>
+  </div>
+  <div class="y-cell" style="justify-content:space-between">
+    <span class="y-label y-op-5">theme</span>
+    <button id="y-theme-btn" aria-label="切换主题" class="y-theme-toggle" type="button"><svg class="y-theme-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><svg class="y-theme-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+  </div>
+</nav>
+
+<div class="y-row">
+  <div class="y-cell s6" style="border-right:none;padding:0">
+    <div class="y-hero">
+      <span class="y-label-xs y-op-7" style="letter-spacing:.15rem">hermes portable · config</span>
+      <h1 class="y-display">hermes</h1>
+      <p class="y-sub">成长型 AI 智能体 · 持久记忆 · 跨平台网关</p>
+      <div class="y-term" aria-hidden="true">
+        <div class="y-term-h">
+          <span class="y-td"></span><span class="y-td"></span><span class="y-td"></span>
+          <span class="y-term-label">hermes</span>
+        </div>
+        <div class="y-term-b"><span class="p">$ ./hermes serve</span>
+<span class="t">  🪶 hermes portable</span>
+<span class="t">  ✓ memory loaded</span>
+<span class="t">  ✓ skills active</span><span class="y-blink"></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="container">
   <div class="header">
-    <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <g fill="#ffe6cb">
-        <!-- Petasos Hat -->
-        <path d="M 28 22 Q 28 4, 50 4 Q 72 4, 72 22"/>
-        <ellipse cx="50" cy="22" rx="34" ry="7"/>
-        <path d="M 36 12 Q 36 6, 50 6 Q 56 6, 58 10 L 52 14 Z" fill="#041c1c" opacity="0.15"/>
-        <!-- Wings -->
-        <path d="M 22 22 C 12 12, 2 14, 4 22 C 5 28, 12 30, 18 28 C 14 30, 8 28, 8 24 C 8 20, 14 18, 22 22 Z"/>
-        <path d="M 78 22 C 88 12, 98 14, 96 22 C 95 28, 88 30, 82 28 C 86 30, 92 28, 92 24 C 92 20, 86 18, 78 22 Z"/>
-        <path d="M 20 20 C 14 14, 6 16, 8 22 L 14 22 Z" fill="#041c1c" opacity="0.12"/>
-        <path d="M 80 20 C 86 14, 94 16, 92 22 L 86 22 Z" fill="#041c1c" opacity="0.12"/>
-        <!-- Face -->
-        <ellipse cx="50" cy="50" rx="22" ry="24"/>
-        <!-- Eyes -->
-        <ellipse cx="41" cy="46" rx="6" ry="7" fill="#041c1c"/>
-        <circle cx="42" cy="46" r="3.5" fill="#ffe6cb"/>
-        <circle cx="43" cy="44" r="1.3" fill="#041c1c"/>
-        <circle cx="40" cy="47" r="0.6" fill="#041c1c" opacity="0.4"/>
-        <ellipse cx="59" cy="46" rx="6" ry="7" fill="#041c1c"/>
-        <circle cx="58" cy="46" r="3.5" fill="#ffe6cb"/>
-        <circle cx="59" cy="44" r="1.3" fill="#041c1c"/>
-        <circle cx="56" cy="47" r="0.6" fill="#041c1c" opacity="0.4"/>
-        <!-- Eyebrows -->
-        <path d="M 34 38 Q 41 34, 48 38" fill="none" stroke="#041c1c" stroke-width="1.8" stroke-linecap="round"/>
-        <path d="M 52 38 Q 59 34, 66 38" fill="none" stroke="#041c1c" stroke-width="1.8" stroke-linecap="round"/>
-        <!-- Nose -->
-        <path d="M 50 50 L 48 56" fill="none" stroke="#041c1c" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
-        <!-- Mouth -->
-        <path d="M 43 62 Q 50 67, 57 62" fill="none" stroke="#041c1c" stroke-width="1.8" stroke-linecap="round"/>
-        <path d="M 46 62 L 54 62" fill="none" stroke="#041c1c" stroke-width="0.6" opacity="0.3"/>
-        <!-- Cheek highlights -->
-        <ellipse cx="35" cy="56" rx="4" ry="2.5" fill="#041c1c" opacity="0.06"/>
-        <ellipse cx="65" cy="56" rx="4" ry="2.5" fill="#041c1c" opacity="0.06"/>
-        <!-- Face shine -->
-        <ellipse cx="56" cy="38" rx="7" ry="12" fill="#041c1c" opacity="0.08"/>
-        <!-- USB Pendant -->
-        <line x1="68" y1="54" x2="72" y2="62" stroke="#ffe6cb" stroke-width="2"/>
-        <rect x="68" y="62" width="8" height="10" rx="1.5"/>
-        <rect x="70" y="58" width="4" height="6" rx="1"/>
-        <rect x="69" y="63" width="2" height="7" rx="1" fill="#041c1c" opacity="0.35"/>
-      </g>
-    </svg>
-    <h1 style="mix-blend-mode:plus-lighter;">Hermes Portable</h1>
-    <div class="subtitle" style="text-transform:none;letter-spacing:0.1em;">配置你的 AI 代理</div>
     <div id="hermesStatus" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);">
       <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:#666;display:inline-block;"></span>
       <span id="statusText">检测中...</span>
@@ -1589,6 +1648,40 @@ setInterval(checkStatus, 5000);
 })();
 
 init();
+</script>
+
+<footer class="y-footer">
+  <div class="c"><span class="y-label y-op-7">yu.ai</span></div>
+  <div class="c"><a class="y-label" href="https://yu.ai/" style="opacity:.7;color:inherit;text-decoration:none">home ↗</a></div>
+  <div class="c"><a class="y-label" href="https://github.com/yuluyangguang1/hermes-portable" target="_blank" rel="noopener" style="opacity:.7;color:inherit;text-decoration:none">github ↗</a></div>
+  <div class="c"><span class="y-label y-op-5">hermes portable</span></div>
+  <div class="c"><span class="y-label y-op-5" style="color:var(--accent)">hermes config</span></div>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  function lsGet(k){try{return localStorage.getItem(k);}catch(_){return null;}}
+  function lsSet(k,v){try{localStorage.setItem(k,v);}catch(_){}}
+  var btn=document.getElementById("y-theme-btn");
+  if(!btn) return;
+  var html=document.documentElement;
+  var sun=btn.querySelector(".y-theme-sun");
+  var moon=btn.querySelector(".y-theme-moon");
+  function syncIcons(isLight){sun.style.display=isLight?"none":"block";moon.style.display=isLight?"block":"none";}
+  var saved=lsGet("yuai-theme");
+  if(saved==="light"){html.setAttribute("data-theme","light");syncIcons(true);}
+  else if(saved==="dark"){html.setAttribute("data-theme","dark");syncIcons(false);}
+  else{var mql=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)");syncIcons(mql&&mql.matches);}
+  btn.onclick=function(){
+    var nowLight=html.getAttribute("data-theme")!=="light";
+    if(!html.getAttribute("data-theme")){var sysLight=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches;nowLight=!sysLight;}
+    html.setAttribute("data-theme",nowLight?"light":"dark");
+    lsSet("yuai-theme",nowLight?"light":"dark");
+    syncIcons(nowLight);
+  };
+})();
 </script>
 </body>
 </html>"""
