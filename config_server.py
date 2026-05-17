@@ -1232,10 +1232,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
           <span class="y-td"></span><span class="y-td"></span><span class="y-td"></span>
           <span class="y-term-label">hermes</span>
         </div>
-        <div class="y-term-b"><span class="p">$ ./hermes serve</span>
-<span class="t">  🪶 hermes portable</span>
-<span class="t">  ✓ memory loaded</span>
-<span class="t">  ✓ skills active</span><span class="y-blink"></span></div>
+        <div class="y-term-b" id="liveTerm"><span class="p">$ ./hermes serve</span>
+<span class="t" id="liveStatusLine">  · checking hermes…</span>
+<span class="t" id="liveWebuiLine" style="display:none"></span><span class="y-blink"></span></div>
       </div>
     </div>
   </div>
@@ -1243,7 +1242,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
 <div class="container">
   <div class="header">
-    <div id="hermesStatus" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);">
+    <div id="hermesStatus" style="margin-top:12px;display:none;align-items:center;justify-content:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);">
       <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:#666;display:inline-block;"></span>
       <span id="statusText">检测中...</span>
       <a id="webuiLink" href="#" target="_blank" style="display:none;color:var(--emerald);margin-left:8px;">打开 Web UI →</a>
@@ -1763,6 +1762,20 @@ function resetConfig() {
 }
 
 // ====== Status check (Hermes process + Web UI) ======
+function _setLiveStatus(cls, text) {
+  var line = document.getElementById('liveStatusLine');
+  if (line) { line.className = cls; line.textContent = text; }
+}
+function _setLiveWebui(url) {
+  var line = document.getElementById('liveWebuiLine');
+  if (!line) return;
+  if (url) {
+    line.style.display = '';
+    line.innerHTML = '  · web ui: <a href="' + url + '" target="_blank">' + url + '</a>';
+  } else {
+    line.style.display = 'none';
+  }
+}
 function checkStatus() {
   fetch('/api/status').then(r => r.json()).then(data => {
     const dot = document.getElementById('statusDot');
@@ -1773,10 +1786,12 @@ function checkStatus() {
       dot.style.background = '#10b981';
       dot.style.boxShadow = '0 0 6px #10b981';
       text.textContent = 'Hermes 运行中 (PID ' + data.pid + ')';
+      _setLiveStatus('p', '  ✓ hermes running · pid ' + data.pid);
       if (restartBtn) restartBtn.style.display = '';
     } else {
       dot.style.background = '#666';
       dot.style.boxShadow = 'none';
+      _setLiveStatus('t', '  · hermes not running — click 启动');
       text.textContent = 'Hermes 未运行';
       if (restartBtn) restartBtn.style.display = 'none';
     }
