@@ -973,6 +973,203 @@ HTML_PAGE = r"""<!DOCTYPE html>
     .y-hero { padding: 40px 16px 28px; }
     .y-term-b { font-size: 0.72rem; padding: 14px 12px; }
   }
+
+
+  /* ─────── yu.ai-aligned re-skin of functional widgets ─────── */
+  .container { max-width: none; padding: 0 24px 28px; }
+
+  .container > .header,
+  .container > .header > * { background: transparent; border: none; }
+  .container > .header { padding: 16px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin: 0 0 0 0; }
+
+  /* Tabs — flat row, accent on active */
+  .tabs {
+    gap: 0;
+    border: 1px solid var(--border);
+    margin: 24px 0 0;
+  }
+  .tab {
+    background: transparent !important;
+    border: none !important;
+    border-right: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    padding: 14px 22px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+  }
+  .tabs > .tab:last-child { border-right: none !important; }
+  .tab:hover { color: var(--fg); }
+  .tab.active {
+    color: var(--accent) !important;
+    background: rgba(0,255,200,0.04) !important;
+  }
+
+  .tab-panel { padding: 24px 0; }
+  .tab-panel h2, .tab-panel h3 {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    color: var(--fg);
+    mix-blend-mode: plus-lighter;
+    letter-spacing: -0.005em;
+  }
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+
+  /* Provider grid — flatter buttons */
+  .provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0;
+    border: 1px solid var(--border);
+  }
+  .provider-btn {
+    background: transparent !important;
+    border: none !important;
+    border-right: 1px solid var(--border) !important;
+    border-bottom: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    padding: 16px 14px;
+    text-align: left;
+    cursor: pointer;
+    font-family: var(--font-serif);
+    color: var(--fg);
+    transition: background 0.2s, color 0.2s;
+  }
+  .provider-btn:hover {
+    background: rgba(255,230,203,0.04) !important;
+  }
+  .provider-btn.active {
+    background: rgba(0,255,200,0.06) !important;
+    color: var(--accent) !important;
+  }
+
+  /* Channel cards — flat */
+  .channel-card {
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .channel-card:hover {
+    border-color: var(--accent) !important;
+    background: rgba(255,230,203,0.02) !important;
+  }
+  .channel-name {
+    font-family: var(--font-serif);
+    font-weight: 600;
+  }
+  .channel-desc {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    opacity: 0.55;
+  }
+  .channel-status { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; }
+
+  /* Buttons */
+  .btn, .btn-save, .btn-launch {
+    border-radius: 0 !important;
+    font-family: var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .btn-launch, .btn-save {
+    border: 1px solid var(--accent) !important;
+    color: var(--accent) !important;
+    background: transparent !important;
+    padding: 12px 24px;
+    transition: all 0.2s;
+  }
+  .btn-launch:hover, .btn-save:hover {
+    background: var(--accent) !important;
+    color: var(--bg) !important;
+  }
+  .btn-launch:disabled, .btn-save:disabled {
+    border-color: var(--border) !important;
+    color: var(--fg-muted) !important;
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  /* Inputs / selects */
+  .field input, .field select, .field textarea, .api-key-row input {
+    border-radius: 0 !important;
+    font-family: var(--font-mono) !important;
+    background: transparent !important;
+  }
+
+  /* Switch (toggle) — keep functional shape but recolor */
+  .switch input:checked + .slider { background-color: var(--accent) !important; }
+
+  /* Toggle rows — flatter */
+  .toggle-row {
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+  }
+  .toggle-label {
+    font-family: var(--font-serif);
+    font-weight: 600;
+  }
+  .toggle-desc {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    opacity: 0.6;
+  }
+
+  /* Onboarding card — yu.ai-styled */
+  .onboarding-card {
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    background: var(--card) !important;
+  }
+  .onboarding-card h2 {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    mix-blend-mode: plus-lighter;
+  }
+  .onboarding-step {
+    border-radius: 0 !important;
+  }
+  .step-num {
+    border-radius: 50% !important;
+    font-family: var(--font-mono);
+  }
+
+  /* Toast */
+  .toast { border-radius: 0 !important; font-family: var(--font-mono); letter-spacing: 0.05em; }
+
+  /* Card class generic */
+  .card {
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+  }
+
+  /* Fields */
+  .field { margin-bottom: 14px; }
+  .field label, .field > strong {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+
+  /* Footer — keep yu.ai version added earlier; make sure it sits below */
+  .footer { display: none; }  /* hide any inherited Hermes footer; y-footer is the canonical one */
+
 </style>
 </head>
 <body>
