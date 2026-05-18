@@ -44,9 +44,24 @@ macOS notes
 Linux notes
 -----------
   • Requires glibc ≥ 2.28 (Ubuntu 20.04+, Debian 11+, RHEL 8+).
-    Node.js 22.x's prebuilt binaries won't run on older glibc.
+    Node.js 24's prebuilt binaries won't run on older glibc.
   • If `Hermes.sh` fails with `GLIBC_2.xx not found`, run
     `./linux-rebuild.sh` on the target machine to rebuild the runtime.
+
+macOS notes
+-----------
+  • Recommended: macOS 13.5+ (Ventura). Node.js 24 binaries are stamped
+    with minos 13.5, so Apple won't officially support older versions.
+  • Older macOS (10.15 Catalina through 12 Monterey) often still works:
+    Node only depends on libSystem, libc++, CoreFoundation, Security —
+    all stable since macOS 10.x. If startup fails on an older host with
+    a "dyld: missing symbol" error, upgrade macOS or rebuild Hermes
+    from source on that machine.
+
+Windows notes
+-------------
+  • Windows 10 / 11 (x64). On ARM hardware, the bundled x64 Node runs
+    under Prism emulation — performance is fine for the web UI.
 
 Data layout
 -----------

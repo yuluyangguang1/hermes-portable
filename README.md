@@ -29,8 +29,8 @@
 
 | 平台 | 启动器 | 要求 |
 |------|--------|------|
-| **macOS** | 双击 `Hermes.command` | macOS 10.15+ (Intel / Apple Silicon) |
-| **Linux** | `./Hermes.sh` | glibc 2.28+（Node.js 22 要求） |
+| **macOS** | 双击 `Hermes.command` | 推荐 macOS 13.5+（Ventura）；旧版本 10.15+ 通常可用但 Apple 不再官方支持 |
+| **Linux** | `./Hermes.sh` | glibc 2.28+（Node.js 24 要求） |
 | **Windows** | 双击 `Hermes.bat` | Windows 10 / 11（原生，无需 WSL） |
 
 > Windows 原生仍是 **Early Beta**。遇到问题可以 fallback 到 `Hermes-WSL.bat`（需要 WSL2 + Ubuntu）。

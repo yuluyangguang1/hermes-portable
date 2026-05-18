@@ -44,7 +44,13 @@ if sys.platform == "win32":
 HERMES_REPO = "https://github.com/NousResearch/hermes-agent.git"
 PYTHON_VERSION = "3.12"
 EXTRAS = "cron,messaging,cli,mcp,web,tts-premium"
-NODE_VERSION = "22.16.0"
+# Node 24 LTS (active LTS until 2026-10, maintenance until 2028-04).
+# Required by hermes-web-ui >= 0.5.x (engines.node >= 23.0.0). We were
+# previously pinned to 22.16.0, which made `npm install hermes-web-ui`
+# silently fall back to v0.4.0 instead of the latest v0.5.x. Even when
+# v0.5.x was force-installed, the server process started but never bound
+# its port — verified empirically.
+NODE_VERSION = "24.15.0"
 
 # ─── ANSI colors ───────────────────────────────────────────────
 G, R, Y, C, B, X = "\033[92m", "\033[91m", "\033[93m", "\033[96m", "\033[1m", "\033[0m"
@@ -366,13 +372,17 @@ def step_nodejs(ctx):
     if system == "Darwin":
         url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-darwin-{node_arch}.tar.gz"
     elif system == "Linux":
-        # Prebuilt Linux tarballs require glibc ≥ 2.28 (verified by node's
-        # release notes for v22.x). On older hosts the binary will fail
-        # with GLIBC_2.xx-not-found — that's a target-side issue we can't
-        # paper over here; document it in README.txt instead.
+        # Prebuilt Linux tarballs require glibc ≥ 2.28 (no change from
+        # v22 → v24). On older hosts (RHEL 7, Debian 9, Ubuntu 18.04 and
+        # earlier) the binary fails with GLIBC_2.xx-not-found — that's
+        # a target-side issue we can't paper over here; document it in
+        # README.txt instead.
         url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-linux-{node_arch}.tar.gz"
     elif system == "Windows":
-        # Node.js does not ship Windows arm64 prebuilt; use x64 under emulation.
+        # Node.js v24+ does ship Windows arm64 prebuilt, but the launcher
+        # bat file currently only knows about x64; sticking with x64 keeps
+        # behavior identical on ARM hardware (runs under Prism emulation,
+        # which is fast enough for hermes-web-ui).
         url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-win-x64.zip"
     else:
         warn(f"Unsupported system for Node.js fetch: {system}"); return

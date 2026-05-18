@@ -34,7 +34,7 @@
        └─ 可选伴侣 App (macOS 菜单栏 / iOS / Android 节点)
 ```
 
-- **运行时**：Node 24（或 22.16+）+ npm/pnpm/bun
+- **运行时**：Node 24（active LTS，2028-04 EOL）+ npm/pnpm/bun
 - **安装**：`npm install -g openclaw@latest` → `openclaw onboard --install-daemon`
 - **守护方式**：launchd / systemd user service，开机自启
 - **数据位置**：本机磁盘 `~/.openclaw/`
