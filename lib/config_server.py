@@ -1494,10 +1494,14 @@ function init() {
 }
 
 function renderProviders() {
+  const iconMap = {custom:'openrouter',nous:'nousresearch'};
   const g = document.getElementById('providerGrid');
-  g.innerHTML = PROVIDERS.map(p => `
-    <button type="button" class="provider-btn ${p.id===activeProvider?'active':''}"
-            onclick="selectProvider('${p.id}')">${p.name}</button>`).join('');
+  g.innerHTML = PROVIDERS.map(p => {
+    const iconName = iconMap[p.id] || p.id;
+    const icon = `<img src="/icons/${iconName}.svg" width="16" height="16" alt="" style="border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.style.display='none'">`;
+    return `<button type="button" class="provider-btn ${p.id===activeProvider?'active':''}"
+            onclick="selectProvider('${p.id}')">${icon}${p.name}</button>`;
+  }).join('');
 }
 
 function selectProvider(id) { activeProvider = id; renderProviders(); renderApiKeySection(); updateModelSelect(); }
@@ -1994,6 +1998,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._serve_html()
         elif self.path == "/favicon.svg":
             self._serve_favicon()
+        elif self.path.startswith("/icons/") and self.path.endswith(".svg"):
+            self._serve_icon(self.path[7:])  # strip "/icons/"
         elif self.path == "/api/config":
             self._json_response(read_config())
         elif self.path == "/api/version":
@@ -2089,6 +2095,23 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "image/svg+xml")
             self.end_headers()
             self.wfile.write(favicon_path.read_bytes())
+        else:
+            self.send_error(404)
+
+    def _serve_icon(self, filename):
+        """Serve SVG icons from the icons/ directory."""
+        import re
+        # Security: only allow simple filenames (alphanumeric + hyphen + .svg)
+        if not re.match(r'^[a-zA-Z0-9_-]+\.svg$', filename):
+            self.send_error(400)
+            return
+        icon_path = PORTABLE_ROOT / "icons" / filename
+        if icon_path.exists() and icon_path.resolve().parent == (PORTABLE_ROOT / "icons").resolve():
+            self.send_response(200)
+            self.send_header("Content-Type", "image/svg+xml")
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.end_headers()
+            self.wfile.write(icon_path.read_bytes())
         else:
             self.send_error(404)
 
