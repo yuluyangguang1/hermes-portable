@@ -9,6 +9,8 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 from http.server import HTTPServer, ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
@@ -22,6 +24,182 @@ else:
     PORTABLE_ROOT = SCRIPT_DIR
 DATA_DIR = PORTABLE_ROOT / "data"
 PORTABLE_REPO = "yuluyangguang1/hermes-portable"
+
+# ─── Live model catalog (Hermes upstream) ───────────────────────────
+# Hermes upstream publishes a JSON manifest of curated, tool-call-capable
+# models for OpenRouter and Nous Portal. Pulling it lets users see new
+# models without us shipping a new release. Network failures fall back
+# silently to the bundled PROVIDERS list below.
+#
+# Schema: https://hermes-agent.nousresearch.com/docs/reference/model-catalog
+MODEL_CATALOG_URL = "https://hermes-agent.nousresearch.com/docs/api/model-catalog.json"
+MODEL_CATALOG_CACHE_TTL_SEC = 6 * 3600  # 6 hours
+MODEL_CATALOG_CACHE_FILE = DATA_DIR / ".model-catalog-cache.json"
+_model_catalog_lock = threading.Lock()
+_model_catalog_state = {"data": None, "fetched_at": 0.0}
+
+
+def _load_catalog_from_disk():
+    """Load the persisted catalog cache from disk if recent enough.
+
+    Used so the first request after a fresh launch doesn't have to wait
+    for the network round-trip. Caller still validates TTL.
+    """
+    try:
+        if not MODEL_CATALOG_CACHE_FILE.exists():
+            return None
+        raw = MODEL_CATALOG_CACHE_FILE.read_text(encoding="utf-8")
+        cached = json.loads(raw)
+        if not isinstance(cached, dict):
+            return None
+        return cached
+    except Exception:
+        return None
+
+
+def _save_catalog_to_disk(payload):
+    """Persist the latest catalog to disk so subsequent launches start hot."""
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = MODEL_CATALOG_CACHE_FILE.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2),
+                       encoding="utf-8")
+        if hasattr(os, "replace"):
+            os.replace(str(tmp), str(MODEL_CATALOG_CACHE_FILE))
+        else:
+            tmp.rename(MODEL_CATALOG_CACHE_FILE)
+    except Exception:
+        # Cache miss is non-fatal — we just refetch next time.
+        pass
+
+
+def _fetch_catalog_remote(timeout=8):
+    """Fetch the upstream catalog JSON. Returns None on any failure.
+
+    Some portable Python builds end up without a usable system trust
+    store (Windows servers, locked-down corp images, USB-stick installs
+    where the host cert bundle doesn't follow). Try certifi first if it
+    is available, then fall through to the system default. We do NOT
+    silently disable verification — losing TLS verification would let a
+    captive portal inject a malicious model list. Better to fall back
+    to the bundled snapshot than to trust an unverified manifest."""
+    import ssl
+    contexts = []
+    try:
+        import certifi  # type: ignore
+        contexts.append(ssl.create_default_context(cafile=certifi.where()))
+    except Exception:
+        pass
+    contexts.append(None)  # default context
+    for ctx in contexts:
+        try:
+            req = urllib.request.Request(
+                MODEL_CATALOG_URL,
+                headers={"User-Agent": "HermesPortable/ConfigServer"},
+            )
+            kwargs = {"timeout": timeout}
+            if ctx is not None:
+                kwargs["context"] = ctx
+            with urllib.request.urlopen(req, **kwargs) as resp:
+                if resp.status != 200:
+                    continue
+                data = json.loads(resp.read(512 * 1024).decode("utf-8"))
+                if isinstance(data, dict) and isinstance(data.get("providers"), dict):
+                    return data
+                continue
+        except (urllib.error.URLError, urllib.error.HTTPError,
+                TimeoutError, OSError, ValueError, json.JSONDecodeError):
+            continue
+    return None
+
+
+def get_live_catalog(force_refresh=False):
+    """Return the latest model catalog, fetching/caching as needed.
+
+    Caches in memory for MODEL_CATALOG_CACHE_TTL_SEC. On expiry tries the
+    network; on failure keeps serving the stale cache (also persisted to
+    disk so a brand-new launcher starts with last-known-good).
+    """
+    now = time.time()
+    with _model_catalog_lock:
+        cached = _model_catalog_state.get("data")
+        fetched_at = _model_catalog_state.get("fetched_at", 0.0)
+        if not force_refresh and cached and (now - fetched_at) < MODEL_CATALOG_CACHE_TTL_SEC:
+            return cached
+        # Try disk cache first if we have nothing in memory
+        if not cached:
+            disk = _load_catalog_from_disk()
+            if disk:
+                _model_catalog_state["data"] = disk
+                _model_catalog_state["fetched_at"] = disk.get("_fetched_at", 0.0)
+                cached = disk
+                # If the disk copy is fresh enough, use it without hitting net
+                if (now - _model_catalog_state["fetched_at"]) < MODEL_CATALOG_CACHE_TTL_SEC:
+                    return cached
+        # Stale or missing — try the network
+        fresh = _fetch_catalog_remote()
+        if fresh is not None:
+            fresh = dict(fresh)
+            fresh["_fetched_at"] = now
+            _model_catalog_state["data"] = fresh
+            _model_catalog_state["fetched_at"] = now
+            _save_catalog_to_disk(fresh)
+            return fresh
+        # Network failed — keep serving whatever we have (could be None)
+        return cached
+
+
+def _merge_catalog_into_providers(providers, catalog):
+    """Return a new providers list with `models` overridden from the live
+    catalog for providers it covers (openrouter, nous). Other providers
+    pass through unchanged.
+
+    The catalog only carries an `id` per model. We turn each into the
+    same dict shape the bundled list uses (just the id string), so the
+    downstream HTML/JS doesn't need to special-case the source. Models
+    flagged `recommended` or `free` are surfaced via a `__catalog_meta`
+    side-channel so the UI can badge them.
+    """
+    if not catalog or not isinstance(catalog.get("providers"), dict):
+        return providers
+    cat_providers = catalog["providers"]
+    merged = []
+    for p in providers:
+        pid = p.get("id")
+        cat_entry = cat_providers.get(pid)
+        if not cat_entry or not isinstance(cat_entry.get("models"), list):
+            merged.append(p)
+            continue
+        live_ids = []
+        live_meta = {}
+        for m in cat_entry["models"]:
+            if not isinstance(m, dict):
+                continue
+            mid = m.get("id")
+            if not isinstance(mid, str) or not mid:
+                continue
+            live_ids.append(mid)
+            desc = m.get("description") or ""
+            if desc:
+                live_meta[mid] = desc
+        if not live_ids:
+            merged.append(p)
+            continue
+        # Stable order: catalog order. Drop duplicates while keeping order.
+        seen = set()
+        deduped = []
+        for mid in live_ids:
+            if mid in seen:
+                continue
+            seen.add(mid)
+            deduped.append(mid)
+        new_p = dict(p)
+        new_p["models"] = deduped
+        if live_meta:
+            new_p["model_meta"] = live_meta
+        new_p["catalog_source"] = "live"
+        merged.append(new_p)
+    return merged
 
 
 def _detect_venv_dir():
@@ -66,16 +244,46 @@ PORT = 17520
 # ═══════════════════════════════════════════════════════════════
 
 PROVIDERS = [
+    # NOTE: For OpenRouter and Nous Portal the live model list is fetched
+    # from the upstream Hermes catalog at runtime (see get_live_catalog).
+    # The lists below are last-known-good snapshots used when the network
+    # is unavailable. Keep them roughly in sync with the upstream
+    # manifest at https://hermes-agent.nousresearch.com/docs/api/model-catalog.json
     {"id": "openrouter",  "name": "OpenRouter",     "env": "OPENROUTER_API_KEY", "models": [
-        "anthropic/claude-opus-4.7","anthropic/claude-sonnet-4.6","anthropic/claude-haiku-4.5",
-        "openai/gpt-5.5","openai/gpt-5.5-pro","openai/gpt-5.4","openai/gpt-5","openai/gpt-5-mini","openai/o3",
-        "google/gemini-3.1-pro","google/gemini-3-flash","google/gemini-2.5-pro",
-        "deepseek/deepseek-v4-pro","deepseek/deepseek-v4-flash",
+        "anthropic/claude-opus-4.7","anthropic/claude-opus-4.6","anthropic/claude-sonnet-4.6",
+        "anthropic/claude-haiku-4.5",
+        "moonshotai/kimi-k2.6",
+        "openai/gpt-5.5","openai/gpt-5.5-pro","openai/gpt-5.4-mini","openai/gpt-5.4-nano",
+        "openai/gpt-5.3-codex",
+        "google/gemini-3.1-pro-preview","google/gemini-3.1-flash-lite-preview",
+        "google/gemini-3-flash-preview","google/gemini-3-pro-image-preview",
+        "qwen/qwen3.6-plus","qwen/qwen3.6-35b-a3b",
+        "deepseek/deepseek-v4-pro",
+        "x-ai/grok-4.3","x-ai/grok-4.20",
+        "z-ai/glm-5.1","minimax/minimax-m2.7","stepfun/step-3.5-flash",
+        "xiaomi/mimo-v2.5-pro","tencent/hy3-preview",
+        "nvidia/nemotron-3-super-120b-a12b",
+        "openrouter/pareto-code",
+        "openrouter/elephant-alpha","openrouter/owl-alpha",
+        "tencent/hy3-preview:free","nvidia/nemotron-3-super-120b-a12b:free",
+        "inclusionai/ring-2.6-1t:free",
+    ]},
+    {"id": "nous",        "name": "Nous Portal",    "env": "NOUS_API_KEY",       "models": [
+        "anthropic/claude-opus-4.7","anthropic/claude-opus-4.6","anthropic/claude-sonnet-4.6",
+        "anthropic/claude-haiku-4.5",
+        "moonshotai/kimi-k2.6",
+        "openai/gpt-5.5","openai/gpt-5.5-pro","openai/gpt-5.4-mini","openai/gpt-5.4-nano",
+        "openai/gpt-5.3-codex",
+        "google/gemini-3.1-pro-preview","google/gemini-3.1-flash-lite-preview",
+        "google/gemini-3-pro-preview","google/gemini-3-flash-preview",
+        "qwen/qwen3.6-plus","qwen/qwen3.6-35b-a3b",
+        "deepseek/deepseek-v4-pro",
         "x-ai/grok-4.3",
-        "meta-llama/llama-4-maverick","meta-llama/llama-4-scout",
-        "mistralai/mistral-large-3","qwen/qwen3-max","qwen/qwen3-coder-plus",
-        "z-ai/glm-5.1","z-ai/glm-4.7","moonshotai/kimi-k2.6","moonshotai/kimi-k2.5",
-        "minimax/minimax-m2.5","minimax/minimax-m2",
+        "z-ai/glm-5.1","minimax/minimax-m2.7","stepfun/step-3.5-flash",
+        "xiaomi/mimo-v2.5-pro","tencent/hy3-preview",
+        "nvidia/nemotron-3-super-120b-a12b",
+        "nousresearch/hermes-4-405b","nousresearch/hermes-4-70b",
+        "nousresearch/deephermes-3-mistral-24b",
     ]},
     {"id": "anthropic",   "name": "Anthropic",      "env": "ANTHROPIC_API_KEY",  "models": [
         "claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5",
@@ -83,7 +291,9 @@ PROVIDERS = [
         "claude-3-7-sonnet-latest","claude-3-5-haiku-latest",
     ]},
     {"id": "openai",      "name": "OpenAI",         "env": "OPENAI_API_KEY",     "models": [
-        "gpt-5.5","gpt-5.5-pro","gpt-5.5-mini","gpt-5.4","gpt-5.2","gpt-5","gpt-5-mini","gpt-5-nano",
+        "gpt-5.5","gpt-5.5-pro","gpt-5.5-mini",
+        "gpt-5.4","gpt-5.4-mini","gpt-5.4-nano",
+        "gpt-5.3-codex","gpt-5.2","gpt-5","gpt-5-mini","gpt-5-nano",
         "o3","o3-mini","o4-mini","gpt-4.1","gpt-4.1-mini",
     ]},
     {"id": "deepseek",    "name": "DeepSeek",       "env": "DEEPSEEK_API_KEY",   "models": [
@@ -91,12 +301,14 @@ PROVIDERS = [
         "deepseek-chat","deepseek-reasoner",
     ]},
     {"id": "google",      "name": "Google Gemini",  "env": "GOOGLE_API_KEY",     "models": [
-        "gemini-3.1-pro-preview","gemini-3-flash",
+        "gemini-3.1-pro-preview","gemini-3.1-flash-lite-preview",
+        "gemini-3-pro-preview","gemini-3-flash-preview","gemini-3-pro-image-preview",
         "gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-2.5-flash-image-preview",
     ]},
     # ⚠ xAI 已于 2026-05-15 退役 grok-4 / grok-4-fast / grok-4-1-fast / grok-code-fast-1 / grok-3
+    # 5月新发布 grok-4.20 (catalog confirms)
     {"id": "xai",         "name": "xAI Grok",       "env": "XAI_API_KEY",        "models": [
-        "grok-4.3",
+        "grok-4.3","grok-4.20",
     ]},
     {"id": "mistral",     "name": "Mistral AI",     "env": "MISTRAL_API_KEY",    "models": [
         "mistral-large-3","mistral-large-2411","mistral-medium-latest","mistral-small-latest",
@@ -106,6 +318,7 @@ PROVIDERS = [
         "glm-5.1","glm-5","glm-5-turbo","glm-4.7","glm-4.6","glm-4.5-air","glm-4.5-flash",
     ]},
     {"id": "dashscope",   "name": "Alibaba DashScope","env": "DASHSCOPE_API_KEY","models": [
+        "qwen3.6-plus","qwen3.6-35b-a3b",
         "qwen3-max","qwen3-max-2026-01-23","qwen3-max-preview","qwen3-coder-plus","qwen3-coder-next",
         "qwen3-vl-plus","qwen3-omni-flash",
         "qwen-max-latest","qwen-plus-latest","qwen-turbo-latest","qwen-long",
@@ -118,13 +331,10 @@ PROVIDERS = [
         "MiniMax-M2.7","MiniMax-M2.7-highspeed","MiniMax-M2.5","MiniMax-M2.5-highspeed","MiniMax-M2",
     ]},
     {"id": "xiaomi",      "name": "Xiaomi MiMo",    "env": "XIAOMI_API_KEY",     "models": [
-        "xiaomi/mimo-v2-pro","xiaomi/mimo-v2-flash",
+        "xiaomi/mimo-v2.5-pro","xiaomi/mimo-v2-pro","xiaomi/mimo-v2-flash",
     ]},
     {"id": "doubao",      "name": "豆包 / 火山引擎", "env": "DOUBAO_API_KEY",     "models": [
         "doubao-seed-1.6","doubao-seed-1.6-thinking","doubao-1.5-pro-256k","doubao-1.5-pro-32k","doubao-1.5-lite-32k",
-    ]},
-    {"id": "nous",        "name": "Nous Portal",    "env": "NOUS_API_KEY",       "models": [
-        "nousresearch/hermes-4-405b","nousresearch/hermes-4-70b","nousresearch/deephermes-3-mistral-24b",
     ]},
     {"id": "groq",        "name": "Groq",           "env": "GROQ_API_KEY",       "models": [
         "llama-3.3-70b-versatile","llama-3.1-8b-instant",
@@ -141,7 +351,7 @@ PROVIDERS = [
     {"id": "custom",      "name": "自定义 / 中转站", "env": "CUSTOM_API_KEY",
      "base_url_env": "CUSTOM_BASE_URL",
      "custom_model": True,
-     "models": ["gpt-5.5","gpt-5","claude-opus-4-7","claude-sonnet-4-6","gemini-3.1-pro","deepseek-v4-pro","grok-4.3"]},
+     "models": ["gpt-5.5","gpt-5.5-pro","claude-opus-4-7","claude-sonnet-4-6","gemini-3.1-pro-preview","deepseek-v4-pro","grok-4.3","kimi-k2.6"]},
 ]
 
 CHANNELS = [
@@ -245,17 +455,23 @@ def parse_yaml_safe(path):
 def read_config():
     env = parse_env()
     cfg = parse_yaml_safe(CONFIG_FILE)
+    # Try to merge the upstream catalog over the bundled provider list.
+    # Network failure → silently falls through to bundled list, so the
+    # UI never breaks regardless of connectivity.
+    catalog = get_live_catalog()
+    providers = _merge_catalog_into_providers(PROVIDERS, catalog) if catalog else PROVIDERS
     active_provider = "openrouter"
-    for p in PROVIDERS:
+    for p in providers:
         if env.get(p["env"]):
             active_provider = p["id"]
             break
     return {
         "env": env,
         "config": cfg,
-        "providers": PROVIDERS,
+        "providers": providers,
         "channels": CHANNELS,
         "active_provider": active_provider,
+        "catalog_updated_at": (catalog or {}).get("updated_at") if catalog else None,
     }
 
 def _yaml_dump_simple(d, indent=0):
@@ -379,6 +595,308 @@ def save_config(data):
 
     _atomic_write_text(CONFIG_FILE, "\n".join(_yaml_dump_simple(cfg)) + "\n", encoding="utf-8")
     return True
+
+
+# ═══════════════════════════════════════════════════════════════
+#  WeChat (iLink) QR-login flow
+# ═══════════════════════════════════════════════════════════════
+#
+# Hermes upstream supports WeChat via the iLink Bot API. Users normally
+# complete login via `hermes gateway setup`, which prints a terminal-
+# rendered QR code. We replicate that flow here so users can scan from
+# the config panel without dropping to the CLI. Same iLink surface
+# OpenClaw uses.
+#
+# On confirm we save WEIXIN_TOKEN, WEIXIN_ACCOUNT_ID, and WEIXIN_BASE_URL
+# to data/.env where hermes' Weixin adapter reads them at startup. Spec:
+#   https://hermes-agent.nousresearch.com/docs/user-guide/messaging/weixin
+
+ILINK_DEFAULT_BASE = "https://ilinkai.weixin.qq.com"
+ILINK_BOT_TYPE = "3"
+ILINK_QR_POLL_TIMEOUT_SEC = 35
+ILINK_LOGIN_TTL_SEC = 5 * 60
+ILINK_MAX_QR_REFRESH = 3
+
+_wechat_logins = {}
+_wechat_lock = threading.Lock()
+
+
+def _wechat_cleanup_expired_locked():
+    """Drop login sessions older than the TTL. Caller holds _wechat_lock."""
+    now = time.time()
+    stale = [k for k, v in _wechat_logins.items()
+             if now - v.get("started_at", 0) > ILINK_LOGIN_TTL_SEC]
+    for k in stale:
+        _wechat_logins.pop(k, None)
+
+
+def _ilink_request(path, base_url=None, method="GET", body=None,
+                   headers=None, timeout=15):
+    """Call the iLink Bot API and return parsed JSON.
+
+    Raises RuntimeError with a user-facing message on any failure so
+    the HTTP handler can surface it cleanly. Tries certifi-backed TLS
+    first to dodge broken system trust stores on locked-down machines.
+    """
+    import ssl
+    base = (base_url or ILINK_DEFAULT_BASE).rstrip("/")
+    url = base + path
+    req_headers = {"User-Agent": "HermesPortable/iLink",
+                   "iLink-App-ClientVersion": "1"}
+    if headers:
+        req_headers.update(headers)
+    data = None
+    if body is not None:
+        if isinstance(body, (dict, list)):
+            data = json.dumps(body).encode("utf-8")
+            req_headers.setdefault("Content-Type", "application/json")
+        elif isinstance(body, str):
+            data = body.encode("utf-8")
+        else:
+            data = body
+    req = urllib.request.Request(url, data=data, headers=req_headers,
+                                 method=method)
+
+    contexts = []
+    try:
+        import certifi  # type: ignore
+        contexts.append(ssl.create_default_context(cafile=certifi.where()))
+    except Exception:
+        pass
+    contexts.append(None)
+
+    last_err = None
+    for ctx in contexts:
+        try:
+            kwargs = {"timeout": timeout}
+            if ctx is not None:
+                kwargs["context"] = ctx
+            with urllib.request.urlopen(req, **kwargs) as resp:
+                payload = resp.read(2 * 1024 * 1024)
+                if resp.status != 200:
+                    raise RuntimeError(
+                        f"iLink API returned HTTP {resp.status}: "
+                        f"{payload[:200].decode('utf-8', errors='replace')}")
+                try:
+                    return json.loads(payload.decode("utf-8"))
+                except json.JSONDecodeError as e:
+                    raise RuntimeError(f"iLink response was not JSON: {e}")
+        except urllib.error.HTTPError as e:
+            text = ""
+            try:
+                text = e.read().decode("utf-8", errors="replace")[:200]
+            except Exception:
+                pass
+            raise RuntimeError(f"iLink API HTTP {e.code}: {text}")
+        except urllib.error.URLError as e:
+            last_err = RuntimeError(f"iLink API unreachable: {e.reason}")
+            # SSL failures are the main reason we have multiple contexts;
+            # try the next one. Other URLErrors (DNS, connection refused)
+            # also benefit from the retry — cheap.
+            continue
+        except (TimeoutError, OSError) as e:
+            last_err = RuntimeError(f"iLink API timed out: {e}")
+            continue
+    raise last_err or RuntimeError("iLink API request failed")
+
+
+def _ilink_fetch_qr(base_url=None):
+    """Ask iLink for a fresh QR. Returns the parsed response with
+    fields {qrcode, qrcode_img_content, ...}."""
+    return _ilink_request(
+        f"/ilink/bot/get_bot_qrcode?bot_type={ILINK_BOT_TYPE}",
+        base_url=base_url,
+    )
+
+
+def _ilink_poll_qr(qrcode_token, base_url=None):
+    """Long-poll iLink for QR status. The server holds the request for
+    ~35s. Treat client-side timeouts as 'still waiting' so the UI keeps
+    polling rather than seeing an error."""
+    import urllib.parse as _uparse
+    try:
+        return _ilink_request(
+            "/ilink/bot/get_qrcode_status?qrcode="
+            + _uparse.quote(qrcode_token),
+            base_url=base_url, timeout=ILINK_QR_POLL_TIMEOUT_SEC,
+        )
+    except RuntimeError as e:
+        if "timed out" in str(e).lower():
+            return {"status": "wait"}
+        raise
+
+
+def _qr_data_url(content):
+    """Render a QR PNG as a data URL.
+
+    Prefers the optional `qrcode` library when present (zero network),
+    falls back to api.qrserver.com (free, no key, public). If both fail,
+    returns an empty string and lets the frontend render the raw token
+    so the user can copy-paste into any QR app.
+    """
+    if not isinstance(content, str) or not content:
+        raise RuntimeError("QR content is empty")
+    try:
+        import io as _io
+        import base64 as _b64
+        import qrcode as _qr  # type: ignore
+        img = _qr.make(content)
+        buf = _io.BytesIO()
+        img.save(buf, format="PNG")
+        return ("data:image/png;base64,"
+                + _b64.b64encode(buf.getvalue()).decode("ascii"))
+    except Exception:
+        pass
+    try:
+        import base64 as _b64
+        import urllib.parse as _uparse
+        url = ("https://api.qrserver.com/v1/create-qr-code/"
+               "?size=300x300&margin=10&data="
+               + _uparse.quote(content, safe=""))
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            png = resp.read(512 * 1024)
+            return ("data:image/png;base64,"
+                    + _b64.b64encode(png).decode("ascii"))
+    except Exception:
+        return ""
+
+
+def _persist_wechat_credentials(account_id, token, base_url=None):
+    """Write WEIXIN_* keys into data/.env so hermes' Weixin adapter
+    picks them up at startup. Reuses parse_env to preserve other keys.
+    Note: this writes a flat KEY=VALUE list; save_config() will rewrite
+    with section headers on the next UI save, restoring the canonical
+    format."""
+    keys = parse_env()
+    keys["WEIXIN_ACCOUNT_ID"] = _sanitize_env_value(account_id)
+    keys["WEIXIN_TOKEN"] = _sanitize_env_value(token)
+    if base_url:
+        keys["WEIXIN_BASE_URL"] = _sanitize_env_value(base_url)
+    lines = ["# Hermes Portable .env (auto-updated by WeChat QR login)"]
+    for k, v in keys.items():
+        if v:
+            lines.append(f"{k}={v}")
+        else:
+            lines.append(f"# {k}=")
+    _atomic_write_text(ENV_FILE, "\n".join(lines) + "\n", encoding="utf-8")
+
+
+def wechat_start_login():
+    """Kick off a new QR login session. Returns dict with
+    {session, qr_data_url, qr_content, expires_in}."""
+    import secrets
+    qr = _ilink_fetch_qr()
+    qrcode_token = qr.get("qrcode")
+    img_content = qr.get("qrcode_img_content") or qrcode_token
+    if not qrcode_token or not img_content:
+        raise RuntimeError("iLink did not return a QR code")
+    session = secrets.token_urlsafe(16)
+    data_url = _qr_data_url(img_content)
+    with _wechat_lock:
+        _wechat_cleanup_expired_locked()
+        _wechat_logins[session] = {
+            "qrcode": qrcode_token,
+            "qr_data_url": data_url,
+            "qr_content": img_content,
+            "started_at": time.time(),
+            "base_url": ILINK_DEFAULT_BASE,
+            "refresh_count": 0,
+        }
+    return {
+        "session": session,
+        "qr_data_url": data_url,
+        "qr_content": img_content,
+        "expires_in": ILINK_LOGIN_TTL_SEC,
+    }
+
+
+def wechat_check_status(session):
+    """Poll the iLink server for QR status. Persists creds and returns
+    {status: 'confirmed', account_id, ...} when the user confirms on
+    the phone, {status: 'refreshed', qr_data_url, ...} when iLink
+    rotated the QR, or {status: 'wait'} otherwise."""
+    with _wechat_lock:
+        _wechat_cleanup_expired_locked()
+        login = _wechat_logins.get(session)
+        if not login:
+            return {"status": "expired", "message": "No active session"}
+        # Snapshot what we need OUTSIDE the lock so the 35s long-poll
+        # doesn't block other UI threads.
+        qrcode_token = login["qrcode"]
+        base_url = login.get("base_url") or ILINK_DEFAULT_BASE
+    try:
+        result = _ilink_poll_qr(qrcode_token, base_url=base_url)
+    except RuntimeError as e:
+        return {"status": "error", "message": str(e)}
+    status = (result or {}).get("status", "wait")
+    if status == "expired":
+        with _wechat_lock:
+            login = _wechat_logins.get(session)
+            if not login:
+                return {"status": "expired", "message": "session gone"}
+            login["refresh_count"] = login.get("refresh_count", 0) + 1
+            if login["refresh_count"] > ILINK_MAX_QR_REFRESH:
+                _wechat_logins.pop(session, None)
+                return {"status": "expired",
+                        "message": "QR expired too many times"}
+        try:
+            new_qr = _ilink_fetch_qr(base_url=base_url)
+        except RuntimeError as e:
+            return {"status": "error", "message": str(e)}
+        new_token = new_qr.get("qrcode")
+        new_content = new_qr.get("qrcode_img_content") or new_token
+        if not new_token:
+            return {"status": "error", "message": "iLink refused refresh"}
+        new_data_url = _qr_data_url(new_content)
+        with _wechat_lock:
+            login = _wechat_logins.get(session)
+            if not login:
+                return {"status": "expired", "message": "session gone"}
+            login["qrcode"] = new_token
+            login["qr_data_url"] = new_data_url
+            login["qr_content"] = new_content
+            login["started_at"] = time.time()
+        return {
+            "status": "refreshed",
+            "qr_data_url": new_data_url,
+            "qr_content": new_content,
+        }
+    if status == "confirmed":
+        bot_id = result.get("ilink_bot_id") or ""
+        bot_token = result.get("bot_token") or ""
+        srv_base = result.get("baseurl") or base_url
+        if not bot_id or not bot_token:
+            return {"status": "error",
+                    "message": "Server did not return credentials"}
+        # Persist BEFORE removing the session so a flaky disk write
+        # leaves the user able to retry the same QR (which iLink
+        # already considers consumed — but at least the UI flow is
+        # consistent and we surface the disk error clearly).
+        try:
+            _persist_wechat_credentials(bot_id, bot_token, base_url=srv_base)
+        except Exception as e:
+            return {"status": "error",
+                    "message": f"Failed to save credentials: {e}"}
+        with _wechat_lock:
+            _wechat_logins.pop(session, None)
+        return {
+            "status": "confirmed",
+            "account_id": bot_id,
+            "base_url": srv_base,
+            "message": "WeChat 登录成功，凭据已保存到 data/.env",
+        }
+    # scanned / wait / unknown — pass through
+    return {"status": status}
+
+
+def wechat_cancel_login(session=None):
+    """Drop a pending session (or all of them)."""
+    with _wechat_lock:
+        if session:
+            _wechat_logins.pop(session, None)
+        else:
+            _wechat_logins.clear()
+
 
 # ═══════════════════════════════════════════════════════════════
 #  HTML — matching Hermes Web UI style (port 9119)
@@ -1335,6 +1853,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
           <label>默认模型</label>
           <select id="modelSelect"></select>
           <div class="model-preview" id="modelPreview">current: —</div>
+          <div id="catalogStatus" style="margin-top:4px;font-family:var(--font-mono);font-size:9px;color:var(--fg-muted,#8aaa9a);letter-spacing:0.04em;display:none"></div>
         </div>
         <div class="row" style="margin-top:10px">
           <div class="field">
@@ -1549,6 +2068,20 @@ function renderChannels() {
   list.innerHTML = CHANNELS.map(ch => {
     const enabled = enabledChannels.includes(ch.id);
     const hasTokens = ch.fields.some(f => currentEnv[f.key]);
+    // WeChat (iLink) gets a special "扫码登录" shortcut that drives
+    // the /api/wechat/* endpoints. The hand-typed Bot Token / Account
+    // ID fields below remain available for users who already have
+    // credentials from `hermes gateway setup` or from a prior session.
+    const wechatExtra = ch.id === 'weixin' ? `
+      <div class="field" style="margin-top:8px;">
+        <button type="button" class="btn btn-launch" style="width:100%"
+                onclick="event.stopPropagation(); startWeChatLogin()">
+          📱 扫码登录微信
+        </button>
+        <div style="margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--fg-muted);">
+          扫码后自动写入 WEIXIN_TOKEN / WEIXIN_ACCOUNT_ID。手动配置见下方字段。
+        </div>
+      </div>` : '';
     return `<div class="channel-card ${enabled ? 'enabled' : ''}" id="ch-card-${ch.id}">
       <div class="channel-header" onclick="toggleChannelFields('${ch.id}')">
         <div class="channel-info">
@@ -1567,9 +2100,10 @@ function renderChannels() {
         </div>
       </div>
       <div class="channel-fields ${enabled?'show':''}" id="ch-fields-${ch.id}">
+        ${wechatExtra}
         ${ch.fields.map(f => `<div class="field">
           <label>${f.label}</label>
-          <input type="${f.type}" placeholder="${f.placeholder}"
+          <input id="ch-input-${f.key}" type="${f.type}" placeholder="${f.placeholder}"
                  value="${escapeHtml(currentEnv[f.key]||'')}"
                  oninput="currentEnv['${f.key}']=this.value; updateChannelStatus('${ch.id}')">
         </div>`).join('')}
@@ -1625,6 +2159,21 @@ function restoreConfig() {
     if (cfg.gateway && cfg.gateway.platforms) {
       enabledChannels = Object.keys(cfg.gateway.platforms).filter(k => cfg.gateway.platforms[k].enabled);
       renderChannels();
+    }
+    // Surface the upstream model catalog freshness so users know
+    // when the OpenRouter / Nous list was last updated. When the
+    // backend couldn't reach the catalog this just stays hidden.
+    const cs = document.getElementById('catalogStatus');
+    if (cs) {
+      if (data.catalog_updated_at) {
+        cs.style.display = 'block';
+        cs.textContent = '◉ 模型清单 · 上游同步于 ' + data.catalog_updated_at.slice(0,10);
+        cs.style.color = 'var(--emerald,#02966a)';
+      } else {
+        cs.style.display = 'block';
+        cs.textContent = '◌ 模型清单 · 离线（使用内置快照）';
+        cs.style.color = 'var(--fg-muted,#8aaa9a)';
+      }
     }
   }).catch(() => {});
 }
@@ -1906,6 +2455,178 @@ function clearLogView() {
 checkStatus();
 setInterval(checkStatus, 5000);
 
+// ====== WeChat (iLink) QR login flow ======
+let _wechatSession = null;
+let _wechatPolling = false;
+
+function _wechatModal() {
+  let modal = document.getElementById('wechatModal');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'wechatModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:8000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);';
+  modal.innerHTML = `
+    <div style="background:var(--card,#062424);border:1px solid var(--border,#ffe6cb26);padding:28px 24px;max-width:380px;width:90%;text-align:center;font-family:var(--font-sans);">
+      <h3 style="font-family:var(--font-serif);font-size:1.4rem;margin-bottom:8px;color:var(--fg,#ffe6cb);letter-spacing:0;">扫码登录微信</h3>
+      <p id="wechatModalHint" style="font-family:var(--font-mono);font-size:11px;color:var(--fg-muted,#8aaa9a);letter-spacing:0.04em;margin-bottom:16px;">使用微信扫描下方二维码，完成手机端确认即可</p>
+      <div id="wechatQrBox" style="background:white;padding:12px;min-width:240px;min-height:240px;display:flex;align-items:center;justify-content:center;">
+        <span style="color:#666;font-family:monospace;font-size:12px;">加载中…</span>
+      </div>
+      <div id="wechatStatusLine" style="margin-top:14px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted,#8aaa9a);min-height:1.4em;letter-spacing:0.04em;"></div>
+      <div style="display:flex;gap:8px;margin-top:18px;">
+        <button type="button" class="btn" style="flex:1" onclick="cancelWeChatLogin()">关闭</button>
+        <button type="button" class="btn btn-launch" style="flex:1" id="wechatRetryBtn" onclick="startWeChatLogin()" disabled>重试</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function _setWechatStatus(text, isError) {
+  const el = document.getElementById('wechatStatusLine');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.color = isError ? 'var(--destructive,#fb2c36)' : 'var(--fg-muted,#8aaa9a)';
+}
+
+function _renderWechatQr(dataUrl, rawContent) {
+  const box = document.getElementById('wechatQrBox');
+  if (!box) return;
+  if (dataUrl) {
+    box.innerHTML = `<img src="${dataUrl}" alt="WeChat QR" style="width:240px;height:240px;display:block;">`;
+  } else if (rawContent) {
+    // Fallback when both PNG renderers failed — let the user copy
+    // the raw URL into any QR generator app.
+    box.innerHTML = `<pre style="margin:0;padding:8px;color:#333;font-family:monospace;font-size:10px;word-break:break-all;white-space:pre-wrap;max-width:240px;">${escapeHtml(rawContent)}</pre>`;
+  } else {
+    box.innerHTML = '<span style="color:#999;font-family:monospace;font-size:12px;">二维码生成失败</span>';
+  }
+}
+
+async function startWeChatLogin() {
+  const modal = _wechatModal();
+  modal.style.display = 'flex';
+  document.getElementById('wechatRetryBtn').disabled = true;
+  _setWechatStatus('正在请求二维码…');
+  _renderWechatQr('', '');
+  try {
+    const r = await fetch('/api/wechat/start', { method: 'POST' });
+    const data = await r.json();
+    if (!data || !data.success) {
+      _setWechatStatus('启动失败：' + (data && data.error || '未知错误'), true);
+      document.getElementById('wechatRetryBtn').disabled = false;
+      return;
+    }
+    _wechatSession = data.session;
+    _renderWechatQr(data.qr_data_url, data.qr_content);
+    _setWechatStatus('请使用微信扫码并在手机上确认');
+    _pollWeChatStatus();
+  } catch (e) {
+    _setWechatStatus('网络错误：' + e.message, true);
+    document.getElementById('wechatRetryBtn').disabled = false;
+  }
+}
+
+async function _pollWeChatStatus() {
+  if (_wechatPolling || !_wechatSession) return;
+  _wechatPolling = true;
+  try {
+    while (_wechatSession) {
+      let result;
+      try {
+        const r = await fetch('/api/wechat/status?session=' + encodeURIComponent(_wechatSession));
+        result = await r.json();
+      } catch (e) {
+        _setWechatStatus('网络中断，重试中…', true);
+        await new Promise(r => setTimeout(r, 2000));
+        continue;
+      }
+      const s = (result && result.status) || 'wait';
+      if (s === 'wait') {
+        _setWechatStatus('等待扫码…');
+        // The server-side long-poll already takes ~35s, so usually we
+        // wait that long naturally. But if iLink ever returns 'wait'
+        // immediately (or our long-poll times out client-side fast),
+        // pace ourselves so we don't hot-loop.
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+      if (s === 'scanned') {
+        _setWechatStatus('已扫码，请在手机上点击确认');
+        await new Promise(r => setTimeout(r, 1500));
+        continue;
+      }
+      if (s === 'refreshed') {
+        _renderWechatQr(result.qr_data_url, result.qr_content);
+        _setWechatStatus('二维码已刷新，请重新扫描');
+        continue;
+      }
+      if (s === 'confirmed') {
+        _setWechatStatus('登录成功！凭据已保存。', false);
+        toast('微信登录成功 ✓ 重启 Hermes 后生效', 'success');
+        // The backend already wrote credentials atomically to data/.env.
+        // We MUST refetch the server-side env instead of injecting
+        // placeholder values into currentEnv — sending a placeholder
+        // back to /api/save would clobber the real token (saveConfig
+        // writes data.env verbatim into .env). Refetch keeps the
+        // in-browser mirror in sync with what's on disk.
+        try {
+          const r2 = await fetch('/api/config');
+          const fresh = await r2.json();
+          if (fresh && fresh.env) {
+            // Replace the env reference so subsequent save_config()
+            // calls send the canonical disk-backed values.
+            for (const k of Object.keys(fresh.env)) {
+              currentEnv[k] = fresh.env[k];
+            }
+          }
+        } catch (_) { /* best effort — backend wrote, that's what matters */ }
+        // Reflect new account_id in the visible input
+        const accountId = (result && result.account_id) || currentEnv['WEIXIN_ACCOUNT_ID'] || '';
+        const aiInput = document.getElementById('ch-input-WEIXIN_ACCOUNT_ID');
+        if (aiInput && accountId) aiInput.value = accountId;
+        // Auto-enable the channel since the user just authenticated.
+        if (!enabledChannels.includes('weixin')) enabledChannels.push('weixin');
+        renderChannels();
+        setTimeout(() => cancelWeChatLogin(false), 1500);
+        break;
+      }
+      if (s === 'expired') {
+        _setWechatStatus('二维码已过期：' + (result.message || ''), true);
+        document.getElementById('wechatRetryBtn').disabled = false;
+        _wechatSession = null;
+        break;
+      }
+      if (s === 'error') {
+        _setWechatStatus('错误：' + (result.message || '未知'), true);
+        document.getElementById('wechatRetryBtn').disabled = false;
+        _wechatSession = null;
+        break;
+      }
+      // Unknown status — keep polling
+    }
+  } finally {
+    _wechatPolling = false;
+  }
+}
+
+function cancelWeChatLogin(closeModal) {
+  if (closeModal === undefined) closeModal = true;
+  const session = _wechatSession;
+  _wechatSession = null;
+  if (session) {
+    fetch('/api/wechat/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session })
+    }).catch(() => {});
+  }
+  if (closeModal) {
+    const modal = document.getElementById('wechatModal');
+    if (modal) modal.style.display = 'none';
+  }
+}
+
 // ====== Disconnect detection ======
 (function() {
   let failures = 0;
@@ -2012,6 +2733,9 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._json_response(self._get_status())
         elif self.path == "/api/logs":
             self._json_response(self._get_logs())
+        elif self.path.startswith("/api/wechat/status"):
+            # GET /api/wechat/status?session=xxx — long-poll, may take 35s
+            self._serve_wechat_status()
         else:
             self.send_error(404)
 
@@ -2063,6 +2787,19 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         elif self.path == "/api/restart":
             self._json_response({"success": True})
             threading.Thread(target=self._restart_hermes, daemon=True).start()
+        elif self.path == "/api/wechat/start":
+            try:
+                payload = wechat_start_login()
+                self._json_response({"success": True, **payload})
+            except Exception as e:
+                self._json_response({"success": False, "error": str(e)[:300]})
+        elif self.path == "/api/wechat/cancel":
+            try:
+                data = json.loads(body) if body else {}
+            except Exception:
+                data = {}
+            wechat_cancel_login((data or {}).get("session"))
+            self._json_response({"success": True})
         else:
             self.send_error(404)
 
@@ -2496,6 +3233,28 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Disposition", 'attachment; filename="hermes-config.json"')
         self.end_headers()
         self.wfile.write(body)
+
+    def _serve_wechat_status(self):
+        """GET /api/wechat/status?session=<token>
+
+        Long-poll wrapper around wechat_check_status. The iLink server
+        holds the request for ~35s; we forward the result to the
+        frontend as a single JSON response per call. The frontend keeps
+        polling until status==confirmed | expired | error.
+        """
+        import urllib.parse as _uparse
+        try:
+            qs = _uparse.urlsplit(self.path).query
+            params = _uparse.parse_qs(qs)
+            session = (params.get("session") or [""])[0]
+            if not session:
+                self._json_response({"status": "error",
+                                     "message": "missing session"})
+                return
+            result = wechat_check_status(session)
+            self._json_response(result)
+        except Exception as e:
+            self._json_response({"status": "error", "message": str(e)[:200]})
 
     def _do_import(self, data):
         """Import config from uploaded JSON. 事务性写入：全部成功或全部回滚。"""
