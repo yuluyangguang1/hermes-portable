@@ -122,6 +122,7 @@ def get_local_version():
 
 def get_remote_version():
     """Get the latest version from GitHub."""
+    import ssl
     try:
         # If a GitHub token is present in the environment, use it to
         # bump the rate limit from 60/h (anonymous, per-IP) to 5000/h.
@@ -140,14 +141,40 @@ def get_remote_version():
             "https://api.github.com/repos/NousResearch/hermes-agent/commits?per_page=1",
             headers=headers,
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read())
-            if data:
-                commit = data[0]
-                sha = commit["sha"][:8]
-                date = commit["commit"]["committer"]["date"][:10]
-                msg = commit["commit"]["message"].split("\n")[0][:60]
-                return {"sha": sha, "date": date, "message": msg}
+        # TLS resilience: portable Pythons sometimes ship without a
+        # working trust store. Try certifi first, then default. Without
+        # this, "Check for Updates" silently fails on locked-down
+        # corporate Windows / older USB-stick installs. Same fallback
+        # used in lib/config_server.py.
+        contexts = []
+        try:
+            import certifi  # type: ignore
+            contexts.append(ssl.create_default_context(cafile=certifi.where()))
+        except Exception:
+            pass
+        contexts.append(None)
+        last_err = None
+        for ctx in contexts:
+            try:
+                kwargs = {"timeout": 10}
+                if ctx is not None:
+                    kwargs["context"] = ctx
+                with urllib.request.urlopen(req, **kwargs) as resp:
+                    data = json.loads(resp.read())
+                    if data:
+                        commit = data[0]
+                        sha = commit["sha"][:8]
+                        date = commit["commit"]["committer"]["date"][:10]
+                        msg = commit["commit"]["message"].split("\n")[0][:60]
+                        return {"sha": sha, "date": date, "message": msg}
+                    return {"error": "no data"}
+            except urllib.error.URLError as e:
+                last_err = e
+                # SSL failures and DNS errors both surface as URLError;
+                # try the next context.
+                continue
+        if last_err:
+            raise last_err
     except urllib.error.HTTPError as e:
         # Surface rate-limit errors specifically so the UI can show
         # something actionable instead of a generic HTTP 403.

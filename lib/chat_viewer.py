@@ -424,7 +424,32 @@ loadSessions();
 
 
 class ChatHandler(SimpleHTTPRequestHandler):
+    def _host_ok(self):
+        """Reject Host headers other than 127.0.0.1:<port> / localhost:<port>.
+
+        Defense against DNS rebinding: the chat history may contain
+        sensitive content (API keys pasted into prompts, private
+        conversations). If a malicious page can make the user's browser
+        resolve attacker.com to 127.0.0.1, the browser sends the request
+        to us with Host: attacker.com — same-origin policy considers
+        that origin separate from us, so JS on attacker.com can read
+        our responses. Pin Host to localhost.
+        """
+        host = self.headers.get("Host", "")
+        # Server stores its bound port in self.server.server_address[1]
+        try:
+            port = self.server.server_address[1]
+        except Exception:
+            port = PORT
+        return host in (f"127.0.0.1:{port}", f"localhost:{port}")
+
     def do_GET(self):
+        if not self._host_ok():
+            self.send_response(421)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"error":"Misdirected request: Host mismatch"}')
+            return
         if self.path == "/" or self.path == "/index.html":
             self._send(200, HTML_PAGE, "text/html; charset=utf-8")
         elif self.path == "/api/sessions":
@@ -452,8 +477,25 @@ class ChatHandler(SimpleHTTPRequestHandler):
 
 
 def main():
-    server = HTTPServer(("127.0.0.1", PORT), ChatHandler)
-    url = f"http://127.0.0.1:{PORT}"
+    # Auto-bump port if the default is busy. Without this a second
+    # copy of chat_viewer crashes with EADDRINUSE; users on USB sticks
+    # often double-click twice while waiting for the browser to open.
+    server = None
+    actual_port = PORT
+    for try_port in range(PORT, PORT + 10):
+        try:
+            server = HTTPServer(("127.0.0.1", try_port), ChatHandler)
+            actual_port = try_port
+            break
+        except OSError as e:
+            if e.errno in (48, 98, 10048):  # EADDRINUSE on macOS / Linux / Windows
+                continue
+            raise
+    if server is None:
+        print(f"  All ports {PORT}-{PORT+9} are busy. Close the other chat viewer first.",
+              file=sys.stderr)
+        sys.exit(1)
+    url = f"http://127.0.0.1:{actual_port}"
     dirs = list(_candidate_session_dirs())
     total = sum(len(list(d.glob("session_*.json"))) for d in dirs)
 
