@@ -147,6 +147,24 @@ rem Best-effort webui launch. Same WSLENV mechanism; the backgrounded
 rem job is detached with nohup inside bash so the outer wsl call returns.
 wsl bash -c "command -v hermes-web-ui >/dev/null 2>&1 && (cd \"$HP_HERE\" && export HOME=\"$HP_HERE/_home\" PATH=\"$HP_HERE/node-linux-x64/bin:$HP_HERE/node/bin:$PATH\" HERMES_HOME=\"$HP_HERE/data\" && nohup hermes-web-ui start --port 8648 >/dev/null 2>&1 &)" 2>nul
 
+rem Auto-open the chat UI in the user's Windows-side default browser
+rem once the WSL-side hermes-web-ui binds 8648. Without this, second-
+rem launch users (already configured) had to find the URL themselves.
+rem WSL's localhost forwarding maps WSL 127.0.0.1:8648 to Windows
+rem 127.0.0.1:8648 so a plain `start http://127.0.0.1:8648/` works.
+set "_WEBUI_READY=0"
+for /l %%I in (1,1,30) do (
+    if "!_WEBUI_READY!"=="0" (
+        powershell -NoProfile -Command "try{Invoke-WebRequest -Uri 'http://127.0.0.1:8648/' -UseBasicParsing -TimeoutSec 1 ^| Out-Null;exit 0}catch{exit 1}" >nul 2>&1
+        if !errorlevel! equ 0 (
+            start "" "http://127.0.0.1:8648/"
+            set "_WEBUI_READY=1"
+        ) else (
+            ping -n 2 -w 250 127.0.0.1 >nul 2>&1
+        )
+    )
+)
+
 wsl bash -c "cd \"$HP_HERE\" && export HOME=\"$HP_HERE/_home\" HERMES_HOME=\"$HP_HERE/data\" PATH=\"$HP_VENV/bin:$HP_HERE/node-linux-x64/bin:$HP_HERE/node/bin:$PATH\" && exec \"$HP_VENV/bin/hermes\" \"$@\"" -- %*
 set "EXITCODE=%errorlevel%"
 goto :done

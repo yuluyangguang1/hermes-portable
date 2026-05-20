@@ -255,6 +255,24 @@ if !errorlevel! equ 0 (
     for /f "tokens=2" %%A in ('tasklist /FI "IMAGENAME eq node.exe" /V /NH 2^>nul ^| findstr /I "hermes-web-ui"') do (
         if not defined WEBUI_PID set "WEBUI_PID=%%A"
     )
+    rem Auto-open the browser once the port is up. Without this, every
+    rem launch after the first (which uses the config panel auto-open)
+    rem started the chat UI but never showed it to the user. Poll up to
+    rem 15 seconds (30 × 500ms) for the listener to appear.
+    set "_WEBUI_READY=0"
+    for /l %%I in (1,1,30) do (
+        if "!_WEBUI_READY!"=="0" (
+            powershell -NoProfile -Command "try{$r=Invoke-WebRequest -Uri 'http://127.0.0.1:8648/' -UseBasicParsing -TimeoutSec 1;exit 0}catch{exit 1}" >nul 2>&1
+            if !errorlevel! equ 0 (
+                start "" "http://127.0.0.1:8648/"
+                set "_WEBUI_READY=1"
+            ) else (
+                rem 500ms wait via ping -n 2 ... -w 250 — timeout /t doesn't
+                rem support sub-second; ping is the standard idiom.
+                ping -n 2 -w 250 127.0.0.1 >nul 2>&1
+            )
+        )
+    )
 )
 
 rem Record our console PID in the lock file so future launches can

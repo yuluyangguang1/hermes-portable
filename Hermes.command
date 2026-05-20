@@ -357,9 +357,34 @@ WATCHDOG_PID=$!
 echo "  Config panel: http://127.0.0.1:17520 (change model anytime)"
 
 # ── Background web UI ─────────────────────────────────────────
+# Start in the background, then poll until the port is up and open
+# the browser. Without the auto-open, second-launch users (who skip
+# the config panel because their API key is already set) had to find
+# the URL themselves — most never realized the chat UI was running.
 if command -v hermes-web-ui >/dev/null 2>&1; then
   hermes-web-ui start --port 8648 >/dev/null 2>&1 &
   WEBUI_PID=$!
+  # Spawn a backgrounded waiter so the parent shell doesn't block
+  # on a slow webui boot. 30 × 0.5s = 15s ceiling — plenty for the
+  # hermes-web-ui Node startup, even on a slow USB.
+  (
+    for _ in $(seq 1 30); do
+      sleep 0.5
+      # /bin/sh -c 'true' is portable; we use curl when available
+      # for a real HTTP probe, otherwise fall back to /dev/tcp.
+      if command -v curl >/dev/null 2>&1; then
+        curl -s -o /dev/null --max-time 1 "http://127.0.0.1:8648/" && {
+          open_url "http://127.0.0.1:8648/"
+          break
+        }
+      else
+        if (echo > /dev/tcp/127.0.0.1/8648) 2>/dev/null; then
+          open_url "http://127.0.0.1:8648/"
+          break
+        fi
+      fi
+    done
+  ) >/dev/null 2>&1 &
 fi
 
 # ── Run hermes in foreground, BUT NOT with exec ───────────────
