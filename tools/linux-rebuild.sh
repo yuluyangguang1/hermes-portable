@@ -102,7 +102,7 @@ else
 fi
 
 echo
-echo "  ✓ Linux rebuild complete"
+echo "  [ok] Linux rebuild complete"
 echo
 echo "  Launch with:  ./Hermes.sh"
 echo

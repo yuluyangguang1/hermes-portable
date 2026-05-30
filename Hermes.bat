@@ -246,9 +246,11 @@ rem Best-effort background web UI (if user installed hermes-web-ui)
 set "WEBUI_PID="
 where hermes-web-ui >nul 2>&1
 if !errorlevel! equ 0 (
-    rem Start webui in background and capture its PID via wmic.
+    rem Start webui in background and capture its PID.
     rem We record the PID so the :cleanup section can kill exactly
     rem this instance, not a webui from a different HermesPortable folder.
+    rem (Note: tasklist title-matching can miss; the port-8648 netstat
+    rem sweep in :cleanup is the backstop.)
     start "" /b cmd /c "hermes-web-ui start --port 8648 >nul 2>&1"
     rem Give it a moment to spawn, then grab the newest hermes-web-ui PID.
     timeout /t 2 /nobreak >nul
@@ -313,6 +315,16 @@ rem would kill webui from a different HermesPortable folder if the
 rem user was running two side-by-side.
 if defined WEBUI_PID (
     taskkill /F /PID !WEBUI_PID! >nul 2>&1
+)
+
+rem Backstop: if we failed to capture WEBUI_PID (tasklist title match
+rem is fragile), kill whatever is LISTENING on our webui port 8648 so
+rem we don't leak a node process. Only one webui per port can listen,
+rem so this can't hit an unrelated app's chosen port by accident.
+if not defined WEBUI_PID (
+    for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":8648 " ^| findstr "LISTENING"') do (
+        if not "%%a"=="0" taskkill /F /PID %%a >nul 2>&1
+    )
 )
 
 rem Kill background config_server (listening on ports 17520-17529)

@@ -2704,8 +2704,42 @@ class ConfigHandler(SimpleHTTPRequestHandler):
     rbufsize = 1
     wbufsize = 0
 
+    def _host_ok(self):
+        """Reject Host headers other than 127.0.0.1:<port> / localhost:<port>.
+
+        DNS-rebinding defense. This panel reads and writes data/.env —
+        i.e. EVERY provider API key and channel token. If a malicious
+        page makes the user's browser resolve attacker.com to 127.0.0.1,
+        the browser will happily send requests here with Host:
+        attacker.com; the same-origin policy treats that as a different
+        origin from ours, so attacker JS could read /api/config (all the
+        keys) or POST /api/save. Pinning Host to localhost blocks it.
+
+        chat_viewer.py has had this since v0.14.2 — config_server.py is
+        the MORE sensitive surface and was missing it. (parity fix)
+        """
+        host = self.headers.get("Host", "")
+        try:
+            port = self.server.server_address[1]
+        except Exception:
+            port = PORT
+        return host in (f"127.0.0.1:{port}", f"localhost:{port}")
+
+    def _reject_bad_host(self):
+        """Send 421 and return True if the Host header is not localhost."""
+        if self._host_ok():
+            return False
+        self.send_response(421)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(b'{"error":"Misdirected request: Host mismatch"}')
+        return True
+
     def do_GET(self):
         try:
+            if self._reject_bad_host():
+                return
             self._dispatch_get()
         except Exception as e:
             print(f"GET {self.path} error: {e}", file=sys.stderr)
@@ -2741,6 +2775,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         try:
+            if self._reject_bad_host():
+                return
             self._dispatch_post()
         except Exception as e:
             print(f"POST {self.path} error: {e}", file=sys.stderr)
@@ -3090,16 +3126,21 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         venv_hermes = str(VENV_DIR / ("Scripts/hermes.exe" if sys.platform == "win32" else "bin/hermes"))
         try:
             if sys.platform == "win32":
+                # wmic was removed in Windows 11 24H2+; use tasklist (CSV).
+                # We can't filter by command line via tasklist, but matching
+                # the image name hermes.exe is good enough — the portable
+                # venv hermes.exe is the only one that should be running.
                 r = subprocess.run(
-                    ["wmic", "process", "where", f"name='hermes.exe'", "get", "ProcessId", "/format:list"],
+                    ["tasklist", "/FI", "IMAGENAME eq hermes.exe", "/FO", "CSV", "/NH"],
                     capture_output=True, text=True, timeout=5,
                 )
-                for line in r.stdout.splitlines():
-                    if line.startswith("ProcessId="):
+                import csv as _csv
+                for row in _csv.reader(r.stdout.splitlines()):
+                    # CSV columns: "Image Name","PID","Session Name",...
+                    if len(row) >= 2 and row[0].lower() == "hermes.exe":
                         try:
-                            p = int(line.split("=", 1)[1])
+                            pid = int(row[1])
                             running = True
-                            pid = p
                             break
                         except ValueError:
                             pass
