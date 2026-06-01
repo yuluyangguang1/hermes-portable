@@ -334,8 +334,8 @@ function renderSessions(sessions) {
          onclick="loadChat('${s.file.replace(/'/g, "\\'")}')">
       <div class="preview">${escapeHtml(s.preview)}</div>
       <div class="meta">
-        <span>${formatTime(s.start || s.updated)}</span>
-        <span class="model">${s.model.split('/').pop()}</span>
+        <span>${escapeHtml(formatTime(s.start || s.updated))}</span>
+        <span class="model">${escapeHtml((s.model || '').split('/').pop() || '')}</span>
         <span>${s.chat_count} 条消息</span>
       </div>
     </div>
@@ -356,7 +356,11 @@ async function loadChat(file) {
   renderSessions(allSessions);
   document.getElementById('layout').classList.add('chat-open');
 
-  const resp = await fetch('/api/session/' + file);
+  // encodeURIComponent on the way out: the filename is regex-validated
+  // by the backend (^session_[a-zA-Z0-9_-]+\.json$), but defense in
+  // depth — if a future schema change ever loosens that regex, this
+  // line stops a session id with `/` or `?` from breaking the route.
+  const resp = await fetch('/api/session/' + encodeURIComponent(file));
   const data = await resp.json();
   if (!data.messages) return;
 
@@ -450,12 +454,19 @@ class ChatHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'{"error":"Misdirected request: Host mismatch"}')
             return
-        if self.path == "/" or self.path == "/index.html":
+        # Strip query/fragment for path-based routing.
+        from urllib.parse import urlsplit, unquote
+        path_only = urlsplit(self.path).path
+        if path_only == "/" or path_only == "/index.html":
             self._send(200, HTML_PAGE, "text/html; charset=utf-8")
-        elif self.path == "/api/sessions":
+        elif path_only == "/api/sessions":
             self._send(200, json.dumps(list_sessions(), ensure_ascii=False))
-        elif self.path.startswith("/api/session/"):
-            fname = self.path.split("/api/session/")[1]
+        elif path_only.startswith("/api/session/"):
+            # unquote because the frontend now encodeURIComponent's the
+            # filename. The backend regex in get_session() rejects
+            # anything that doesn't match session_<safe>.json so a
+            # malicious encoded payload still bounces.
+            fname = unquote(path_only.split("/api/session/", 1)[1])
             data = get_session(fname)
             self._send(200, json.dumps(data or {}, ensure_ascii=False))
         else:

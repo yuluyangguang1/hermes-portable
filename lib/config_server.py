@@ -529,7 +529,39 @@ def _sanitize_env_value(v):
 
 _save_config_lock = threading.Lock()
 
+
+def _known_env_keys():
+    """Every env key our UI knows about (providers + channels).
+
+    Used by save_config() to detect "extras" — keys that exist in
+    data/.env but aren't in the schema (e.g. WEIXIN_BASE_URL, which
+    wechat_check_status() persists after a successful QR login). Without
+    this carry-forward, every UI save would clobber those keys silently
+    and the WeChat login would have to be redone on next launch.
+    """
+    keys = set()
+    for p in PROVIDERS:
+        keys.add(p["env"])
+        if p.get("base_url_env"):
+            keys.add(p["base_url_env"])
+    for ch in CHANNELS:
+        for field in ch.get("fields", []):
+            keys.add(field["key"])
+    return keys
+
+
 def save_config(data):
+    # Serialize concurrent saves: ThreadingHTTPServer can dispatch two
+    # POST /api/save requests in parallel, and without this lock both
+    # would race on parse_env() → write tmp → os.replace. The atomic
+    # rename gives per-write atomicity but not "two concurrent saves
+    # both land": the second write blindly overwrites the first.
+    # _save_config_lock was defined but never acquired pre-fix.
+    with _save_config_lock:
+        return _save_config_locked(data)
+
+
+def _save_config_locked(data):
     lines = []
     lines.append("# ═══════════════════════════════════════════")
     lines.append("#  Hermes Portable — Environment Variables")
@@ -553,6 +585,45 @@ def save_config(data):
                 lines.append(f"{field['key']}={val}")
             else:
                 lines.append(f"# {field['key']}=")
+
+    # ── Preserve out-of-schema keys ──
+    # Some keys are written to .env by code paths that don't go through
+    # the form (e.g. WEIXIN_BASE_URL set by the WeChat QR-login flow).
+    # Read the on-disk .env, find anything we don't know about, and
+    # carry it forward. Without this, every save click silently nuked
+    # those keys and broke the feature on the next launch.
+    known = _known_env_keys()
+    submitted_env = data.get("env") or {}
+    extras = {}
+    # Source 1: keys the frontend included in its POST body. We accept
+    # them only if they're not in `known` (so frontend can't bypass the
+    # schema validation we'd add later) AND look like reasonable env
+    # keys (uppercase + digits + underscores, can't shadow a comment).
+    for k, v in submitted_env.items():
+        if k in known or not v:
+            continue
+        if not k or not all(c.isalnum() or c == "_" for c in k) or not k[0].isalpha():
+            continue
+        extras[k] = v
+    # Source 2: keys already on disk that the frontend didn't echo back
+    # (true unknowns from out-of-band writers). On-disk wins ties with
+    # the submitted set if we've already seen the key.
+    try:
+        on_disk = parse_env()
+    except Exception:
+        on_disk = {}
+    for k, v in on_disk.items():
+        if k in known or not v or k in extras:
+            continue
+        if not k or not all(c.isalnum() or c == "_" for c in k) or not k[0].isalpha():
+            continue
+        extras[k] = v
+    if extras:
+        lines.append("")
+        lines.append("# ── Other (preserved across saves) ──")
+        for k in sorted(extras):
+            lines.append(f"{k}={_sanitize_env_value(extras[k])}")
+
     lines.append("")
     _atomic_write_text(ENV_FILE, "\n".join(lines), encoding="utf-8")
 
@@ -616,6 +687,14 @@ ILINK_BOT_TYPE = "3"
 ILINK_QR_POLL_TIMEOUT_SEC = 35
 ILINK_LOGIN_TTL_SEC = 5 * 60
 ILINK_MAX_QR_REFRESH = 3
+# Cap on concurrent in-flight QR sessions. Anything from localhost can
+# POST /api/wechat/start (no auth — by design, this is a localhost-only
+# panel), so without a cap, a buggy or hostile localhost process could
+# fill _wechat_logins. The TTL cleanup runs on every start/check call,
+# so the live count is roughly proportional to legitimate concurrent
+# users. A handful of slots is plenty for a single-user portable
+# install. Hitting the cap returns a clear error so the UI can show it.
+ILINK_MAX_ACTIVE_LOGINS = 16
 
 _wechat_logins = {}
 _wechat_lock = threading.Lock()
@@ -783,8 +862,23 @@ def _persist_wechat_credentials(account_id, token, base_url=None):
 
 def wechat_start_login():
     """Kick off a new QR login session. Returns dict with
-    {session, qr_data_url, qr_content, expires_in}."""
+    {session, qr_data_url, qr_content, expires_in}.
+
+    Refuses to start if too many sessions are already in flight. This
+    is a localhost-only API but everyone on localhost can hit it, so a
+    cap protects against accidental and intentional resource leaks.
+    """
     import secrets
+    # Cap check FIRST — before we hit the iLink API. We don't want to
+    # burn upstream quota on requests we're going to refuse anyway.
+    with _wechat_lock:
+        _wechat_cleanup_expired_locked()
+        if len(_wechat_logins) >= ILINK_MAX_ACTIVE_LOGINS:
+            raise RuntimeError(
+                f"Too many WeChat QR sessions in flight "
+                f"({len(_wechat_logins)}); wait for them to expire "
+                f"or call /api/wechat/cancel."
+            )
     qr = _ilink_fetch_qr()
     qrcode_token = qr.get("qrcode")
     img_content = qr.get("qrcode_img_content") or qrcode_token
@@ -793,7 +887,15 @@ def wechat_start_login():
     session = secrets.token_urlsafe(16)
     data_url = _qr_data_url(img_content)
     with _wechat_lock:
+        # Re-run cleanup + recheck the cap because we released the lock
+        # while talking to iLink.
         _wechat_cleanup_expired_locked()
+        if len(_wechat_logins) >= ILINK_MAX_ACTIVE_LOGINS:
+            raise RuntimeError(
+                f"Too many WeChat QR sessions in flight (recheck); "
+                f"another caller filled the slots while we were "
+                f"fetching the QR. Try again."
+            )
         _wechat_logins[session] = {
             "qrcode": qrcode_token,
             "qr_data_url": data_url,
@@ -2698,6 +2800,72 @@ def _extract_date(s):
     return m.group(1) if m else ""
 
 
+def _detect_release_asset_label():
+    """Compute the platform label that matches our release assets.
+
+    Release assets are named:
+      HermesPortable-macOS-arm64.zip
+      HermesPortable-macOS-x64.zip
+      HermesPortable-Linux-x64.zip
+      HermesPortable-Linux-arm64.zip
+      HermesPortable-Windows-x64.zip
+      HermesPortable-Universal.zip
+    Returns e.g. "macOS-arm64" / "Linux-x64" / "Windows-x64" or None if
+    we can't tell.
+    """
+    import platform as _p
+    system = _p.system()
+    arch = _p.machine().lower()
+    if arch in ("x86_64", "amd64"):
+        arch = "x64"
+    elif arch in ("aarch64", "arm64"):
+        arch = "arm64"
+    sys_label = {"Darwin": "macOS", "Linux": "Linux", "Windows": "Windows"}.get(system)
+    if not sys_label:
+        return None
+    return f"{sys_label}-{arch}"
+
+
+def _pick_release_asset(release):
+    """Pick the right asset for THIS host out of a GitHub release.
+
+    Bug fix: the previous code blindly took ``assets[0]`` which is
+    alphabetically the first one — in practice always
+    ``HermesPortable-Linux-arm64.zip``. Mac and Windows users who
+    clicked "Check for Updates" got a Linux-ARM zip dumped on top of
+    their installation, corrupting the venv.
+
+    Strategy:
+      1. Look for an asset matching the host's platform label exactly
+         (HermesPortable-macOS-arm64.zip on Apple Silicon, etc).
+      2. Fall back to the Universal zip if available (it carries
+         per-platform venvs and works everywhere).
+      3. Return None if neither matches — caller surfaces an error
+         rather than installing the wrong thing.
+    """
+    assets = (release or {}).get("assets") or []
+    if not assets:
+        return None
+    label = _detect_release_asset_label()
+    universal = None
+    exact = None
+    for a in assets:
+        name = (a or {}).get("name", "")
+        if not isinstance(name, str):
+            continue
+        if not name.endswith(".zip"):
+            continue
+        if "Universal" in name:
+            universal = a
+            continue
+        if label and label in name:
+            exact = a
+            # don't break; in case of duplicates we want the first
+            # exact match, which is what we already have
+            break
+    return exact or universal
+
+
 class ConfigHandler(SimpleHTTPRequestHandler):
     # 防止单个请求挂死整个线程：30 秒超时
     timeout = 30
@@ -2749,26 +2917,35 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 pass
 
     def _dispatch_get(self):
-        if self.path in ("/", "/index.html"):
+        # Normalize the request line: strip query string and fragment
+        # for path-based routing. urllib's split makes us forgiving of
+        # things like /icons/openai.svg?v=2, /api/config?_=cachebust,
+        # which the previous exact-match `self.path == "/api/foo"`
+        # checks would 404 on. Routes that NEED the query (currently
+        # only /api/wechat/status) keep reading self.path directly.
+        from urllib.parse import urlsplit
+        path_only = urlsplit(self.path).path
+        if path_only in ("/", "/index.html"):
             self._serve_html()
-        elif self.path == "/favicon.svg":
+        elif path_only == "/favicon.svg":
             self._serve_favicon()
-        elif self.path.startswith("/icons/") and self.path.endswith(".svg"):
-            self._serve_icon(self.path[7:])  # strip "/icons/"
-        elif self.path == "/api/config":
+        elif path_only.startswith("/icons/") and path_only.endswith(".svg"):
+            self._serve_icon(path_only[7:])  # strip "/icons/"
+        elif path_only == "/api/config":
             self._json_response(read_config())
-        elif self.path == "/api/version":
+        elif path_only == "/api/version":
             self._json_response(self._get_version())
-        elif self.path == "/api/heartbeat":
+        elif path_only == "/api/heartbeat":
             self._json_response({"alive": True})
-        elif self.path == "/api/export":
+        elif path_only == "/api/export":
             self._serve_export()
-        elif self.path == "/api/status":
+        elif path_only == "/api/status":
             self._json_response(self._get_status())
-        elif self.path == "/api/logs":
+        elif path_only == "/api/logs":
             self._json_response(self._get_logs())
-        elif self.path.startswith("/api/wechat/status"):
-            # GET /api/wechat/status?session=xxx — long-poll, may take 35s
+        elif path_only == "/api/wechat/status":
+            # GET /api/wechat/status?session=xxx — long-poll, may take 35s.
+            # Reads self.path directly to keep query string.
             self._serve_wechat_status()
         else:
             self.send_error(404)
@@ -2950,7 +3127,14 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                     "tag": release.get("tag_name", ""),
                     "body": release.get("body", "")[:300],
                     "url": release.get("html_url", ""),
-                    "download": release["assets"][0]["browser_download_url"] if release.get("assets") else None,
+                    "download": (
+                        # Prefer the asset matching this host. Falling
+                        # back to assets[0] would always point at the
+                        # alphabetically first asset (Linux-arm64) for
+                        # Mac/Windows users — see _pick_release_asset.
+                        (_pick_release_asset(release) or {}).get("browser_download_url")
+                        if release.get("assets") else None
+                    ),
                 }
         except Exception:
             pass
@@ -3015,20 +3199,66 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                         release = json.loads(resp.read())
                     assets = release.get("assets", [])
                     if not assets:
+                        print("Update failed: release has no assets",
+                              file=sys.stderr)
                         return
 
-                    download_url = assets[0]["browser_download_url"]
+                    asset = _pick_release_asset(release)
+                    if asset is None:
+                        # No exact platform match and no Universal
+                        # fallback. Refuse rather than blindly grabbing
+                        # assets[0] (the v0.14.x bug — see
+                        # _pick_release_asset docstring).
+                        host_label = _detect_release_asset_label() or "unknown"
+                        print(
+                            f"Update failed: no release asset matches host "
+                            f"({host_label}); available: "
+                            f"{[a.get('name') for a in assets]}",
+                            file=sys.stderr,
+                        )
+                        return
+                    download_url = asset["browser_download_url"]
                     tmp_zip = Path(tempfile.gettempdir()) / "hermes-portable-update.zip"
                     tmp_extract = Path(tempfile.gettempdir()) / "hermes-portable-extract"
 
                     # Download
                     urllib.request.urlretrieve(download_url, str(tmp_zip))
 
-                    # Extract
+                    # Extract — with zip-slip protection.
+                    # zipfile.extractall doesn't reject members with
+                    # absolute paths or `..` segments on Python < 3.12,
+                    # which lets a malicious / corrupt release write
+                    # arbitrary files outside tmp_extract. Validate every
+                    # member's resolved path before extracting.
                     if tmp_extract.exists():
                         import shutil
                         shutil.rmtree(tmp_extract)
+                    tmp_extract.mkdir(parents=True, exist_ok=True)
+                    extract_root = tmp_extract.resolve()
                     with zipfile.ZipFile(str(tmp_zip), 'r') as zf:
+                        for member in zf.infolist():
+                            name = member.filename
+                            if not name or name.endswith("/"):
+                                # Directory or empty entry — Python
+                                # creates parents on demand for files,
+                                # so we don't have to materialize these,
+                                # but we still need to validate them.
+                                pass
+                            # Reject absolute paths and Windows drive
+                            # letters outright.
+                            if name.startswith(("/", "\\")) or (
+                                len(name) > 1 and name[1] == ":"
+                            ):
+                                raise RuntimeError(
+                                    f"Refusing zip member with absolute "
+                                    f"path: {name!r}")
+                            target = (tmp_extract / name).resolve()
+                            try:
+                                target.relative_to(extract_root)
+                            except ValueError:
+                                raise RuntimeError(
+                                    f"Refusing zip member that escapes "
+                                    f"extract root: {name!r}")
                         zf.extractall(str(tmp_extract))
 
                     # Find root dir inside zip
@@ -3074,8 +3304,14 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                     if new_tag:
                         (PORTABLE_ROOT / "VERSION").write_text(new_tag)
                     return
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Surface release-zip update failures to the
+                    # operator. Frontend polls /api/version for the new
+                    # version; if that never changes the user is stuck
+                    # without a hint why. Stderr → systemd / launchd
+                    # journal / terminal where the launcher started us.
+                    print(f"Update via release zip failed: {e}",
+                          file=sys.stderr)
                 return
 
             if not update_script.exists():
@@ -3334,50 +3570,76 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             raise RuntimeError(f"Import failed, rolled back: {e}")
 
     def _write_imported(self, data):
-        """实际写入逻辑，可能抛出异常。"""
+        """实际写入逻辑，可能抛出异常。
+
+        Hardening notes:
+          * Every value goes through _sanitize_env_value to strip CR/LF.
+            Without this, an imported value like "sk-...\\nMALICIOUS=1"
+            would inject an extra env line.
+          * Final write uses _atomic_write_text (tmp + os.replace) so a
+            crash mid-write can't leave a half-written .env / config.yaml
+            on disk. _do_import has its own backup+rollback layer above
+            this; the atomic write makes that layer's job easier.
+        """
         env = data.get("env", {})
         if env:
-            # Build .env content
+            # Build .env content. Filter via PROVIDERS / CHANNELS schema
+            # so import can't smuggle in arbitrary env keys.
             lines = ["#  Hermes Portable - Imported"]
             for p in PROVIDERS:
                 if p["env"] in env and env[p["env"]]:
-                    lines.append(f'{p["env"]}={env[p["env"]]}')
+                    lines.append(f'{p["env"]}={_sanitize_env_value(env[p["env"]])}')
                 if "base_url_env" in p and p["base_url_env"] in env:
-                    lines.append(f'{p["base_url_env"]}={env[p["base_url_env"]]}')
+                    lines.append(f'{p["base_url_env"]}={_sanitize_env_value(env[p["base_url_env"]])}')
             # Channel keys
             for ch in CHANNELS:
                 for f in ch.get("fields", []):
                     if f["key"] in env and env[f["key"]]:
-                        lines.append(f'{f["key"]}={env[f["key"]]}')
+                        lines.append(f'{f["key"]}={_sanitize_env_value(env[f["key"]])}')
             ENV_FILE.parent.mkdir(parents=True, exist_ok=True)
-            ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            _atomic_write_text(ENV_FILE, "\n".join(lines) + "\n", encoding="utf-8")
         # Save config
         cfg_data = data.get("config", {})
         if cfg_data:
-            from pathlib import Path
             cfg_path = DATA_DIR / "config.yaml"
             cfg_path.parent.mkdir(parents=True, exist_ok=True)
-            # Use a simple yaml-like writer if pyyaml not available
+            # Use PyYAML if available, otherwise fall back to JSON (still
+            # parseable by hermes' yaml loader).
             try:
                 import yaml
-                cfg_path.write_text(yaml.safe_dump(cfg_data, allow_unicode=True), encoding="utf-8")
+                cfg_text = yaml.safe_dump(cfg_data, allow_unicode=True)
             except ImportError:
-                cfg_path.write_text(json.dumps(cfg_data, ensure_ascii=False, indent=2), encoding="utf-8")
+                cfg_text = json.dumps(cfg_data, ensure_ascii=False, indent=2)
+            _atomic_write_text(cfg_path, cfg_text, encoding="utf-8")
 
     def _do_reset(self):
-        """Backup and clear current config."""
+        """Backup and clear current config.
+
+        Uses unlink(missing_ok=True) so a concurrent _do_reset or other
+        deleter can't make us crash with FileNotFoundError between the
+        exists() check and the unlink. Also wraps the destructive part
+        in the save-config lock so a save running in parallel can't
+        race against the reset.
+        """
         import shutil
         from datetime import datetime
         backup_dir = DATA_DIR / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        if ENV_FILE.exists():
-            shutil.copy(ENV_FILE, backup_dir / f".env.{ts}")
-            ENV_FILE.unlink()
         cfg_path = DATA_DIR / "config.yaml"
-        if cfg_path.exists():
-            shutil.copy(cfg_path, backup_dir / f"config.yaml.{ts}")
-            cfg_path.unlink()
+        with _save_config_lock:
+            if ENV_FILE.exists():
+                try:
+                    shutil.copy(ENV_FILE, backup_dir / f".env.{ts}")
+                except FileNotFoundError:
+                    pass
+                ENV_FILE.unlink(missing_ok=True)
+            if cfg_path.exists():
+                try:
+                    shutil.copy(cfg_path, backup_dir / f"config.yaml.{ts}")
+                except FileNotFoundError:
+                    pass
+                cfg_path.unlink(missing_ok=True)
 
     def _test_provider(self, data):
         """Test an API key by making a minimal request."""
@@ -3493,6 +3755,23 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             return {"success": False, "error": f"Unknown provider: {provider_id}"}
         if not cfg.get("url"):
             return {"success": False, "error": "Missing base URL for custom provider"}
+
+        # Scheme guard — refuse to fetch local-file / javascript / data
+        # / ftp URLs through the Test button. urllib.request.urlopen()
+        # honors file:// natively, which would let a user-controlled
+        # base_url field exfiltrate /etc/hosts or any other readable
+        # file via the JSON response. Pin the scheme to http(s) for
+        # every provider, including 'custom'.
+        try:
+            from urllib.parse import urlsplit
+            scheme = urlsplit(cfg["url"]).scheme.lower()
+        except Exception:
+            scheme = ""
+        if scheme not in ("http", "https"):
+            return {
+                "success": False,
+                "error": f"Refusing non-http(s) URL scheme: {scheme!r}",
+            }
 
         try:
             method = cfg.get("method", "GET")
