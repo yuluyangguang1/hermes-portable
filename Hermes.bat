@@ -145,24 +145,59 @@ if "%LAUNCH_MODE%"=="desktop" (
     )
 
     if not defined DESKTOP_APP (
-        rem Fallback: installer was copied as-is (7z not found during build)
+        rem Installer present but app not extracted yet — run silent install
         if exist "%HERE%\runtime\desktop\dist\Hermes-Setup.exe" (
-            echo   Desktop app needs extraction.
+            echo   Installing desktop app (first run, ~1 min)...
             echo.
-            echo   Option 1: Install 7-Zip and rebuild:
-            echo     python tools\build.py
-            echo.
-            echo   Option 2: Run the installer directly:
-            echo     %HERE%\runtime\desktop\dist\Hermes-Setup.exe
-            echo.
-            echo   Falling back to CLI mode...
-            echo.
-            goto :cli_mode
+            rem NSIS /D= does not support quotes and must be last arg.
+            rem Paths with spaces break it, so install to a short temp path
+            rem and then copy to the final location.
+            set "INSTALL_DIR=%TEMP%\HermesInstall_%RANDOM%"
+            "%HERE%\runtime\desktop\dist\Hermes-Setup.exe" /S /D=!INSTALL_DIR!
+            set "FINAL_DIR=%HERE%\runtime\desktop\dist\win-unpacked"
+            if exist "!INSTALL_DIR!\Hermes.exe" (
+                if exist "!FINAL_DIR!" rmdir /S /Q "!FINAL_DIR!"
+                xcopy /E /I /Q "!INSTALL_DIR!" "!FINAL_DIR!" >nul 2>&1
+                set "DESKTOP_APP=!FINAL_DIR!\Hermes.exe"
+                rmdir /S /Q "!INSTALL_DIR!" >nul 2>&1
+                echo   Desktop app installed.
+                echo.
+            ) else (
+                rem Try default install location (NSIS may ignore /D=)
+                if exist "!INSTALL_DIR!" rmdir /S /Q "!INSTALL_DIR!" >nul 2>&1
+                set "FOUND_APP="
+                for /f "delims=" %%F in ('dir /b /s "%LOCALAPPDATA%\Hermes\Hermes.exe" 2^>nul') do (
+                    if not defined FOUND_APP set "FOUND_APP=%%F"
+                )
+                for /f "delims=" %%F in ('dir /b /s "%PROGRAMFILES%\Hermes\Hermes.exe" 2^>nul') do (
+                    if not defined FOUND_APP set "FOUND_APP=%%F"
+                )
+                if defined FOUND_APP (
+                    for %%P in ("!FOUND_APP!") do set "APP_DIR=%%~dpP"
+                    if exist "!FINAL_DIR!" rmdir /S /Q "!FINAL_DIR!"
+                    xcopy /E /I /Q "!APP_DIR!" "!FINAL_DIR!" >nul 2>&1
+                    set "DESKTOP_APP=!FINAL_DIR!\Hermes.exe"
+                    echo   Desktop app installed (from default location).
+                    echo.
+                ) else (
+                    echo   [ERROR] Silent install failed.
+                    echo.
+                    echo   Try running the installer manually:
+                    echo     %HERE%\runtime\desktop\dist\Hermes-Setup.exe
+                    echo.
+                    echo   Falling back to CLI mode...
+                    echo.
+                    goto :cli_mode
+                )
+            )
         )
         echo   [ERROR] Desktop app not found
         echo.
-        echo   Please build the desktop version first:
-        echo     python tools\build.py
+        echo   Expected one of:
+        echo     %HERE%\runtime\desktop\dist\win-unpacked\Hermes.exe
+        echo     %HERE%\runtime\desktop\dist\Hermes-Setup.exe
+        echo.
+        echo   Please rebuild: python tools\build.py
         echo.
         pause
         exit /b 1
