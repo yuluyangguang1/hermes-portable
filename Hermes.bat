@@ -138,13 +138,27 @@ if "%LAUNCH_MODE%"=="desktop" (
     echo   Starting desktop version...
     echo.
 
-    rem Check if desktop app exists
+    rem Check if desktop app exists (extracted or installer)
     set "DESKTOP_APP="
     if exist "%HERE%\runtime\desktop\dist\win-unpacked\Hermes.exe" (
         set "DESKTOP_APP=%HERE%\runtime\desktop\dist\win-unpacked\Hermes.exe"
     )
 
     if not defined DESKTOP_APP (
+        rem Fallback: installer was copied as-is (7z not found during build)
+        if exist "%HERE%\runtime\desktop\dist\Hermes-Setup.exe" (
+            echo   Desktop app needs extraction.
+            echo.
+            echo   Option 1: Install 7-Zip and rebuild:
+            echo     python tools\build.py
+            echo.
+            echo   Option 2: Run the installer directly:
+            echo     %HERE%\runtime\desktop\dist\Hermes-Setup.exe
+            echo.
+            echo   Falling back to CLI mode...
+            echo.
+            goto :cli_mode
+        )
         echo   [ERROR] Desktop app not found
         echo.
         echo   Please build the desktop version first:
@@ -168,6 +182,7 @@ if "%LAUNCH_MODE%"=="desktop" (
     start "" "!DESKTOP_APP!"
     exit /b 0
 )
+:cli_mode
 rem Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
 for /f "delims=" %%D in ('dir /b /s /ad "%PYTHON_DIR%\install\lib" 2^>nul') do (
     for %%P in ("%%D\..") do set "PYTHONHOME=%%~fP"
