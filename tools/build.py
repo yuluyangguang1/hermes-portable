@@ -632,10 +632,7 @@ DESKTOP_URLS = {
     "Windows": {
         "x64": "https://hermes-assets.nousresearch.com/Hermes-Setup.exe",
     },
-    "Linux": {
-        "x64": "https://github.com/NousResearch/hermes-agent/releases/latest/download/Hermes-Linux-x86_64.AppImage",
-        "arm64": "https://github.com/NousResearch/hermes-agent/releases/latest/download/Hermes-Linux-aarch64.AppImage",
-    },
+    # Linux: no official desktop app yet — step_desktop() skips gracefully
 }
 
 
