@@ -708,20 +708,16 @@ def _download_macos_desktop(url, runtime_dir):
 
 
 def _download_windows_desktop(url, runtime_dir):
-    """Download Windows installer for runtime extraction by Hermes.bat
+    """Skip Windows desktop bundling — installer is a web downloader.
 
-    The official Windows installer is a small (~7 MB) NSIS web installer that
-    downloads the actual Tauri app at install time.  It cannot be extracted
-    offline by 7z or any other tool.  Instead, we bundle the installer as-is
-    and Hermes.bat runs it silently (/S) on first launch to populate
-    dist/win-unpacked/.
+    The official Hermes Desktop Windows installer (~7 MB) is a web installer
+    that downloads the real app at install time.  It cannot be extracted
+    offline and hangs in headless/CI environments.  Users install the desktop
+    app separately; Hermes.bat falls back to CLI mode until then.
     """
-    dist_dir = runtime_dir / "dist"
-    dist_dir.mkdir(parents=True, exist_ok=True)
-    exe_path = dist_dir / "Hermes-Setup.exe"
-    download(url, exe_path)
-    info(f"  Downloaded: dist/Hermes-Setup.exe ({exe_path.stat().st_size // 1024} KB)")
-    info("  (Desktop app will be installed on first launch by Hermes.bat)")
+    warn("Windows desktop app is a web installer and cannot be bundled.")
+    warn("Users can install it manually: https://hermes.nousresearch.com")
+    warn("Hermes.bat will use CLI mode until the desktop app is installed.")
 
 
 def _download_linux_desktop(url, runtime_dir):
