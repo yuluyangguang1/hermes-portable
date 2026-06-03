@@ -338,7 +338,42 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
     exit 1
   fi
 
-  # 设置桌面版环境变量
+  # macOS: 检查桌面版二进制架构是否匹配
+  if [ "$OS" = "Darwin" ] && command -v file >/dev/null 2>&1; then
+    _APP_BIN=""
+    _PLIST="$DESKTOP_APP/Contents/Info.plist"
+    if [ -f "$_PLIST" ]; then
+      _EXEC_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$_PLIST" 2>/dev/null || true)
+      if [ -n "$_EXEC_NAME" ] && [ -f "$DESKTOP_APP/Contents/MacOS/$_EXEC_NAME" ]; then
+        _APP_BIN="$DESKTOP_APP/Contents/MacOS/$_EXEC_NAME"
+      fi
+    fi
+    if [ -n "$_APP_BIN" ]; then
+      _BIN_INFO="$(file -b "$_APP_BIN" 2>/dev/null || true)"
+      case "$ARCH" in
+        x86_64|amd64)
+          if echo "$_BIN_INFO" | grep -q "arm64" && ! echo "$_BIN_INFO" | grep -qE "x86_64|universal"; then
+            echo "  桌面版为 arm64 架构，当前 Mac 为 x86_64"
+            echo "  回退到 CLI 模式（需要 Rosetta 2 或 arm64 Mac 才能运行桌面版）"
+            echo ""
+            LAUNCH_MODE="cli"
+          fi
+          ;;
+        arm64|aarch64)
+          if echo "$_BIN_INFO" | grep -q "x86_64" && ! echo "$_BIN_INFO" | grep -qE "arm64|universal"; then
+            echo "  桌面版为 x86_64 架构，当前 Mac 为 arm64"
+            echo "  回退到 CLI 模式"
+            echo ""
+            LAUNCH_MODE="cli"
+          fi
+          ;;
+      esac
+    fi
+  fi
+fi
+
+# 桌面版正常启动（架构匹配）
+if [ "$LAUNCH_MODE" = "desktop" ]; then
   export HERMES_DESKTOP_USER_DATA_DIR="$HERE/data/desktop-userdata"
   export HERMES_PORTABLE_ROOT="$HERE"
   export HERMES_PORTABLE_MODE="1"
