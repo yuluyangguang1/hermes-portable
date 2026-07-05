@@ -43,7 +43,7 @@ if sys.platform == "win32":
 
 # ─── Config ────────────────────────────────────────────────────
 HERMES_REPO = "https://github.com/NousResearch/hermes-agent.git"
-HERMES_TAG = "v2026.6.5"  # v0.16.0 — The Surface Release
+HERMES_TAG = "v2026.7.1"  # v0.18.0 — The Judgment Release
 PYTHON_VERSION = "3.12"
 EXTRAS = "cron,messaging,cli,mcp,web,tts-premium"
 # Node 24 LTS (active LTS until 2026-10, maintenance until 2028-04).
