@@ -1076,10 +1076,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
     --bg: #170d02;
     --card: #1a1208;
     --secondary: #1e1508;
-    --muted: #1c1409;
-    --fg: #f5f5f5;
-    --fg-muted: #9a968e;
-    --border: #f5f5f526;
+    --muted: rgba(245,240,232,0.15);
+    --fg: #f5f0e8;
+    --fg-muted: rgba(245,240,232,0.6);
+    --border: rgba(245,240,232,0.15);
     --accent: #f5f5f5;
     --emerald: oklch(0.765 0.177 163.223);
     --emerald-dim: oklch(0.696 0.17 162.48);
@@ -1093,7 +1093,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     --dim: var(--fg-muted);
     /* Font stack matched to yu.ai */
     --font-sans: system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-    --font-serif: Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --font-serif: 'LXGW WenKai', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
     --font-mono: 'Courier New', 'Menlo', monospace;
   }
   [data-theme="light"] {
@@ -1910,6 +1910,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
 
 </style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" />
 </head>
 <body>
 <div class="bg-i" aria-hidden="true"><img alt="" src="https://yuai-r.cn/egret-ink.jpg" width="1920" height="1080" loading="lazy" decoding="async" onerror="this.parentNode.style.display='none'"></div>
