@@ -1073,53 +1073,62 @@ HTML_PAGE = r"""<!DOCTYPE html>
   /* Google Fonts removed for China compatibility */
 
   :root {
-    --bg: #170d02;
-    --card: #1a1208;
-    --secondary: #1e1508;
-    --muted: rgba(245,240,232,0.15);
-    --fg: #f5f0e8;
-    --fg-muted: rgba(245,240,232,0.6);
-    --border: rgba(245,240,232,0.15);
-    --accent: #f5f5f5;
-    --emerald: oklch(0.765 0.177 163.223);
-    --emerald-dim: oklch(0.696 0.17 162.48);
-    --blue: oklch(0.707 0.165 254.624);
-    --purple: oklch(0.714 0.203 305.504);
-    --warning: #ffbd38;
-    --success: #4ade80;
-    --destructive: #fb2c36;
-    /* yu.ai-aligned aliases */
-    --mid: var(--fg);
-    --dim: var(--fg-muted);
-    /* Font stack matched to yu.ai */
+    /* yu.ai v2 Design System */
+    --bg-base: 23 13 2;
+    --mid-base: 245 240 232;
+    --dim-base: 154 150 142;
+    --accent-base: 237 255 69;
+    --warn-base: 255 189 56;
+    --danger-base: 255 138 107;
+    
+    --bg: rgb(var(--bg-base));
+    --mid: rgb(var(--mid-base));
+    --dim: rgb(var(--dim-base));
+    --accent: rgb(var(--accent-base));
+    --warn: rgb(var(--warn-base));
+    --danger: rgb(var(--danger-base));
+    
+    --border: rgb(var(--mid-base) / .12);
+    --border-strong: rgb(var(--mid-base) / .24);
+    --hover: rgb(var(--mid-base) / .05);
+    --hover-strong: rgb(var(--mid-base) / .08);
+    
+    --fg: var(--mid);
+    --fg-muted: var(--dim);
+    --card: var(--bg);
+    --secondary: var(--bg);
+    --muted: var(--border);
+    --accent: var(--accent);
+    --emerald: var(--accent);
+    --emerald-dim: var(--accent);
+    --warning: var(--warn);
+    --success: var(--accent);
+    --destructive: var(--danger);
+    
     --font-sans: system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
     --font-serif: 'LXGW WenKai', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
     --font-mono: 'Courier New', 'Menlo', monospace;
   }
   [data-theme="light"] {
-    --bg: #f5f0e8;
-    --card: #f5f0e8;
-    --secondary: #f5f0e8;
-    --muted: #c8c4bb;
-    --fg: #3d3a35;
-    --fg-muted: #7a7670;
-    --border: rgba(61,58,53,0.14);
-    --accent: #d4e600;
-    --emerald: #d4e600;
-    --emerald-dim: #028a60;
+    --bg-base: 245 245 245;
+    --mid-base: 23 13 2;
+    --dim-base: 138 122 102;
+    --accent-base: 0 0 200;
+    --border: rgb(var(--mid-base) / .14);
+    --border-strong: rgb(var(--mid-base) / .26);
+    --hover: rgb(var(--mid-base) / .04);
+    --hover-strong: rgb(var(--mid-base) / .07);
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
-      --bg: #f5f0e8;
-      --card: #f5f0e8;
-      --secondary: #f5f0e8;
-      --muted: #c8c4bb;
-      --fg: #3d3a35;
-      --fg-muted: #7a7670;
-      --border: rgba(61,58,53,0.14);
-      --accent: #d4e600;
-      --emerald: #d4e600;
-      --emerald-dim: #028a60;
+      --bg-base: 245 245 245;
+      --mid-base: 23 13 2;
+      --dim-base: 138 122 102;
+      --accent-base: 0 0 200;
+      --border: rgb(var(--mid-base) / .14);
+      --border-strong: rgb(var(--mid-base) / .26);
+      --hover: rgb(var(--mid-base) / .04);
+      --hover-strong: rgb(var(--mid-base) / .07);
     }
   }
 
@@ -1952,8 +1961,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     <a class="y-nav-link" href="https://yuai-r.cn/#products"><span class="y-label">products <span class="y-blink"></span></span></a>
   </div>
   <div class="y-cell" style="justify-content:space-between">
-    <span class="y-label y-op-5">github</span>
-    <a href="https://github.com/yuluyangguang1/hermes-portable" target="_blank" rel="noopener" aria-label="GitHub" style="opacity:.5;line-height:0;transition:opacity .2s;color:inherit" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12a10 10 0 0 0 6.839 9.49c.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.934.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.577.688.48A10 10 0 0 0 22 12c0-5.523-4.477-10-10-10z"/></svg></a>
+    <span class="y-label y-op-5">config</span>
   </div>
   <div class="y-cell" style="justify-content:space-between">
     <span class="y-label y-op-5">theme</span>
