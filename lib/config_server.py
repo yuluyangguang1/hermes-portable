@@ -2802,7 +2802,7 @@ init();
 <footer class="y-footer">
   <div class="c"><span class="y-label y-op-7">yu.ai</span></div>
   <div class="c"><a class="y-label" href="https://yuai-r.cn/" style="opacity:.7;color:inherit;text-decoration:none">home ↗</a></div>
-  <div class="c"><a class="y-label" href="https://github.com/yuluyangguang1/hermes-portable" target="_blank" rel="noopener" style="opacity:.7;color:inherit;text-decoration:none">github ↗</a></div>
+  <div class="c"><span class="y-label y-op-5">config</span></div>
   <div class="c"><span class="y-label y-op-5">hermes portable</span></div>
   <div class="c"><span class="y-label y-op-5" style="color:var(--accent)">hermes config</span></div>
 </footer>
