@@ -3261,7 +3261,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 self._json_response({'ok': False, 'error': 'Failed to stop'}, 500)
         else:
             self.send_error(404)
-\ndef do_POST(self):
+
+def do_POST(self):
         try:
             if self._reject_bad_host():
                 return
