@@ -107,7 +107,7 @@ def detect_platform():
     if system == "Darwin":
         label = f"macos-{arch}"
     elif system == "Linux":
-        label = f"linux-{arch}"
+        fail("Linux is not supported in this build. Use macOS or Windows.")
     elif system == "Windows":
         label = f"windows-{arch}"
     else:
@@ -151,8 +151,7 @@ def step_uv(ctx):
     uv_arch = {"x64": "x86_64", "arm64": "aarch64", "x86": "i686"}.get(arch, arch)
     if system == "Darwin":
         url = f"https://github.com/astral-sh/uv/releases/latest/download/uv-{uv_arch}-apple-darwin.tar.gz"
-    elif system == "Linux":
-        url = f"https://github.com/astral-sh/uv/releases/latest/download/uv-{uv_arch}-unknown-linux-gnu.tar.gz"
+
     else:  # Windows
         url = f"https://github.com/astral-sh/uv/releases/latest/download/uv-{uv_arch}-pc-windows-msvc.zip"
 
@@ -368,13 +367,7 @@ def step_nodejs(ctx):
     node_arch = {"x64": "x64", "arm64": "arm64"}.get(arch, arch)
     if system == "Darwin":
         url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-darwin-{node_arch}.tar.gz"
-    elif system == "Linux":
-        # Prebuilt Linux tarballs require glibc ≥ 2.28 (no change from
-        # v22 → v24). On older hosts (RHEL 7, Debian 9, Ubuntu 18.04 and
-        # earlier) the binary fails with GLIBC_2.xx-not-found — that's
-        # a target-side issue we can't paper over here; document it in
-        # README.txt instead.
-        url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-linux-{node_arch}.tar.gz"
+
     elif system == "Windows":
         # Node.js v24+ does ship Windows arm64 prebuilt, but the launcher
         # bat file currently only knows about x64; sticking with x64 keeps
@@ -577,7 +570,7 @@ def step_readme(ctx):
         "How to run\n"
         "----------\n"
         "  macOS    →  double-click  Hermes.command\n"
-        "  Linux    →  ./Hermes.sh  (from a terminal)\n"
+
         "  Windows  →  double-click  Hermes.bat\n"
         "\n"
         "First run opens a config panel at http://127.0.0.1:17520 for\n"
@@ -612,7 +605,7 @@ def step_readme(ctx):
         "Universal zip\n"
         "-------------\n"
         "  The Universal zip contains venv-<platform>/ and python-<platform>/\n"
-        "  dirs for macOS, Linux, and Windows. Each launcher auto-picks the\n"
+        "  dirs for macOS and Windows. Each launcher auto-picks the\n"
         "  right one; you don't need to do anything.\n"
         "\n"
         "Data\n"
@@ -671,8 +664,7 @@ def step_desktop(ctx):
         _download_macos_desktop(url, runtime_dir)
     elif system == "Windows":
         _download_windows_desktop(url, runtime_dir)
-    elif system == "Linux":
-        _download_linux_desktop(url, runtime_dir)
+
 
     ok("Desktop app ready")
 
