@@ -487,7 +487,7 @@ _STATIC_ASSETS = [
 
 def step_launchers(ctx):
     ROOT = ctx["ROOT"]
-    repo = Path(__file__).parent.parent  # tools/ -> repo root
+    repo = Path(__file__).parent.parent.parent  # system/tools/ -> repo root
     for fname in _STATIC_ASSETS:
         src = repo / fname
         if not src.exists():
