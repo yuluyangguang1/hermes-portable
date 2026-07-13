@@ -49,13 +49,13 @@ case "$OS" in
 esac
 
 # ── Multi-layout venv detection ───────────────────────────────
-# Universal zips carry e.g. venv-macos-arm64/; single-platform zips carry venv/.
-if [ -d "$HERE/venv-$PLATFORM" ]; then
-  VENV_DIR="$HERE/venv-$PLATFORM"
-  PYTHON_DIR="$HERE/python-$PLATFORM"
-elif [ -d "$HERE/venv" ]; then
-  VENV_DIR="$HERE/venv"
-  PYTHON_DIR="$HERE/python"
+# Universal zips carry e.g. runtime/venv-macos-arm64/; single-platform zips carry runtime/venv/.
+if [ -d "$HERE/runtime/venv-$PLATFORM" ]; then
+  VENV_DIR="$HERE/runtime/venv-$PLATFORM"
+  PYTHON_DIR="$HERE/runtime/python-$PLATFORM"
+elif [ -d "$HERE/runtime/venv" ]; then
+  VENV_DIR="$HERE/runtime/venv"
+  PYTHON_DIR="$HERE/runtime/python"
 else
   echo "" >&2
   echo "  [ERROR] venv not found for platform: $PLATFORM" >&2
@@ -66,11 +66,11 @@ else
   exit 1
 fi
 
-# Node runtime (optional; universal zip has node-<platform>)
-if [ -d "$HERE/node-$PLATFORM" ]; then
-  NODE_DIR="$HERE/node-$PLATFORM"
-elif [ -d "$HERE/node" ]; then
-  NODE_DIR="$HERE/node"
+# Node runtime (optional; universal zip has runtime/node-<platform>)
+if [ -d "$HERE/runtime/node-$PLATFORM" ]; then
+  NODE_DIR="$HERE/runtime/node-$PLATFORM"
+elif [ -d "$HERE/runtime/node" ]; then
+  NODE_DIR="$HERE/runtime/node"
 else
   NODE_DIR=""
 fi

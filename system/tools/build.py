@@ -479,9 +479,7 @@ def step_nodejs(ctx):
 _STATIC_ASSETS = [
     # Launchers (root — user-facing)
     "Hermes.command",
-    "Hermes.sh",
     "Hermes.bat",
-    "Hermes-WSL.bat",
     "HermesPortable使用说明.html",
     "README.txt",
     # runtime/ — all system files
@@ -490,9 +488,7 @@ _STATIC_ASSETS = [
     "system/lib/update.py",
     "system/lib/update.sh",
     "system/lib/fix_shims.py",
-    "system/favicon.svg",
     "system/tools/build.py",
-    "system/tools/linux-rebuild.sh",
     "system/tools/mac-rebuild.sh",
 ]
 
@@ -798,15 +794,15 @@ def main():
         ROOT = Path(__file__).parent.parent / "dist" / "HermesPortable"
     ROOT.mkdir(parents=True, exist_ok=True)
 
-    # Platform-suffixed dir names for universal layout
+    # Platform-suffixed dir names for universal layout (inside runtime/)
     if args.layout == "universal":
-        venv_name = f"venv-{label}"
-        python_name = f"python-{label}"
-        node_name = f"node-{label}"
+        venv_name = f"runtime/venv-{label}"
+        python_name = f"runtime/python-{label}"
+        node_name = f"runtime/node-{label}"
     else:
-        venv_name = "venv"
-        python_name = "python"
-        node_name = "node"
+        venv_name = "runtime/venv"
+        python_name = "runtime/python"
+        node_name = "runtime/node"
 
     ctx = {
         "ROOT": ROOT,
