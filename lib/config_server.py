@@ -2951,6 +2951,36 @@ function cancelWeChatLogin(closeModal) {
 })();
 
 init();
+
+  // Hermes Web UI integration
+  async function toggleWebUI() {
+    const btn = document.getElementById('webui-btn');
+    try {
+      const res = await fetch('/api/webui/status');
+      const data = await res.json();
+      if (data.running) {
+        window.open('http://127.0.0.1:8648', '_blank');
+      } else {
+        btn.textContent = '启动中...';
+        btn.disabled = true;
+        const startRes = await fetch('/api/webui/start');
+        const startData = await startRes.json();
+        if (startData.ok) {
+          setTimeout(() => {
+            window.open('http://127.0.0.1:8648', '_blank');
+            btn.textContent = '打开';
+            btn.disabled = false;
+          }, 2000);
+        } else {
+          btn.textContent = '启动失败';
+          btn.disabled = false;
+        }
+      }
+    } catch (err) {
+      btn.textContent = '错误';
+      btn.disabled = false;
+    }
+  }
 </script>
 
 </main>
@@ -2985,6 +3015,36 @@ init();
     syncIcons(nowLight);
   };
 })();
+
+  // Hermes Web UI integration
+  async function toggleWebUI() {
+    const btn = document.getElementById('webui-btn');
+    try {
+      const res = await fetch('/api/webui/status');
+      const data = await res.json();
+      if (data.running) {
+        window.open('http://127.0.0.1:8648', '_blank');
+      } else {
+        btn.textContent = '启动中...';
+        btn.disabled = true;
+        const startRes = await fetch('/api/webui/start');
+        const startData = await startRes.json();
+        if (startData.ok) {
+          setTimeout(() => {
+            window.open('http://127.0.0.1:8648', '_blank');
+            btn.textContent = '打开';
+            btn.disabled = false;
+          }, 2000);
+        } else {
+          btn.textContent = '启动失败';
+          btn.disabled = false;
+        }
+      }
+    } catch (err) {
+      btn.textContent = '错误';
+      btn.disabled = false;
+    }
+  }
 </script>
 </body>
 </html>"""
@@ -3150,7 +3210,20 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
-    def do_POST(self):
+    
+        elif path_only == '/api/webui/status':
+            self._json_response({'running': webui_status()})
+        elif path_only == '/api/webui/start':
+            if webui_start():
+                self._json_response({'ok': True, 'port': WEB_UI_PORT})
+            else:
+                self._json_response({'ok': False, 'error': 'Failed to start'}, 500)
+        elif path_only == '/api/webui/stop':
+            if webui_stop():
+                self._json_response({'ok': True})
+            else:
+                self._json_response({'ok': False, 'error': 'Failed to stop'}, 500)
+\ndef do_POST(self):
         try:
             if self._reject_bad_host():
                 return
