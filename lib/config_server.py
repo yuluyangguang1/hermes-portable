@@ -3262,7 +3262,7 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
-def do_POST(self):
+    def do_POST(self):
         try:
             if self._reject_bad_host():
                 return
