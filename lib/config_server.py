@@ -1387,7 +1387,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   /* Section labels like 9119 */
   .section-label {
     font-family: var(--font-sans);
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 0.15em;
     text-transform: uppercase;
     color: var(--fg-muted);
@@ -1453,7 +1453,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     border-radius: 6px;
     color: var(--fg-muted);
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 0.05em;
     cursor: pointer;
     text-align: center;
@@ -1471,7 +1471,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   label {
     display: block;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--fg-muted);
@@ -1526,7 +1526,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .toggle-desc {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 11px;
     color: var(--fg-muted);
     margin-top: 2px;
   }
@@ -1588,12 +1588,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .channel-desc {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 11px;
     color: var(--fg-muted);
   }
   .channel-status {
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 2px 8px;
@@ -1616,7 +1616,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     background: var(--bg);
     border-radius: 4px;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 11px;
     color: var(--emerald);
     letter-spacing: 0.05em;
   }
@@ -1632,14 +1632,23 @@ HTML_PAGE = r"""<!DOCTYPE html>
     padding: 12px 16px;
     border: 1px solid var(--border);
     border-radius: 8px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    letter-spacing: 0.02em;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     text-align: center;
-    font-weight: 700;
+    font-weight: 600;
+    background: var(--bg);
+    color: var(--mid);
+  }
+  .btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--hover);
+  }
+  .btn:active {
+    transform: scale(0.97);
   }
   .btn-save {
     background: var(--secondary);
@@ -1684,7 +1693,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     text-align: center;
     padding: 8px 0;
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--fg-muted);
@@ -1753,7 +1762,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     background: var(--secondary);
     border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
-    font-size: 10px; color: var(--emerald);
+    font-size: 11px; color: var(--emerald);
     flex-shrink: 0;
     margin-top: -1px;
   }
@@ -1840,7 +1849,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   .y-td { width: 10px; height: 10px; border-radius: 50%; }
   .y-td:nth-child(1) { background: var(--fg); }
   .y-td:nth-child(2) { background: var(--fg); opacity: 0.6; }
-  .y-td:nth-child(3) { background: var(--fg); opacity: 0.3; }
+  .y-td:nth-child(3) { background: var(--fg); opacity: 0.5; }
   .y-term-label { margin-left: auto; font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.1875rem; opacity: 0.5; }
   .y-term-b { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.85; padding: 18px 16px; white-space: pre-wrap; min-height: 100px; word-break: break-word; text-align: left; }
   .y-term-b .p { color: var(--accent); }
