@@ -372,7 +372,15 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
   export HERMES_PORTABLE_ROOT="$HERE"
   export HERMES_PORTABLE_MODE="1"
 
-  # 后台启动配置中心（端口 17520）
+  
+# ── Start Hermes Web UI (optional) ──────────────────────────────
+if command -v hermes-web-ui >/dev/null 2>&1; then
+  echo "  Starting Hermes Web UI on port 8648..."
+  hermes-web-ui start 8648 >/dev/null 2>&1 || true
+  echo "  Hermes Web UI: http://127.0.0.1:8648"
+fi
+
+# 后台启动配置中心（端口 17520）
   export HERMES_BROWSER_OPENED=1
   nohup "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" \
     > "$HERE/data/config_server.log" 2>&1 &
