@@ -630,7 +630,48 @@ CHANNELS = [
 ]
 
 # ═══════════════════════════════════════════════════════════════
-#  CONFIG READ/WRITE
+#  CONFIG READ/WRITE @@
+# ═══════════════════════════════════════════════════════════════
+#  HERMES WEB UI INTEGRATION
+# ═══════════════════════════════════════════════════════════════
+
+WEB_UI_PORT = 8648
+
+def webui_status():
+    """Check if hermes-web-ui is running."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ['hermes-web-ui', 'status'],
+            capture_output=True, text=True, timeout=5
+        )
+        return 'running' in result.stdout.lower()
+    except Exception:
+        return False
+
+def webui_start():
+    """Start hermes-web-ui."""
+    import subprocess
+    try:
+        subprocess.Popen(
+            ['hermes-web-ui', 'start', str(WEB_UI_PORT)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return True
+    except Exception:
+        return False
+
+def webui_stop():
+    """Stop hermes-web-ui."""
+    import subprocess
+    try:
+        subprocess.run(['hermes-web-ui', 'stop'], capture_output=True, timeout=5)
+        return True
+    except Exception:
+        return False
+
+# ═══════════════════════════════════════════════════════════════
 # ═══════════════════════════════════════════════════════════════
 
 def parse_env():
@@ -2193,6 +2234,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
     <span class="y-label y-op-5">config</span>
   </div>
   <div class="y-cell" style="justify-content:space-between">
+    <span class="y-label y-op-5">web ui</span>
+    <button id="webui-btn" class="y-btn" onclick="toggleWebUI()" style="font-size:11px;padding:4px 8px;">启动</button>
+  </div>
+  <div class="y-cell" style="justify-content:space-between">
     <span class="y-label y-op-5">theme</span>
     <button id="y-theme-btn" aria-label="切换主题" class="y-theme-toggle" type="button"><svg class="y-theme-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><svg class="y-theme-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
   </div>
@@ -3092,34 +3137,7 @@ init();
 })();
 
   // Hermes Web UI integration
-  async function toggleWebUI() {
-    const btn = document.getElementById('webui-btn');
-    try {
-      const res = await fetch('/api/webui/status');
-      const data = await res.json();
-      if (data.running) {
-        window.open('http://127.0.0.1:8648', '_blank');
-      } else {
-        btn.textContent = '启动中...';
-        btn.disabled = true;
-        const startRes = await fetch('/api/webui/start');
-        const startData = await startRes.json();
-        if (startData.ok) {
-          setTimeout(() => {
-            window.open('http://127.0.0.1:8648', '_blank');
-            btn.textContent = '打开';
-            btn.disabled = false;
-          }, 2000);
-        } else {
-          btn.textContent = '启动失败';
-          btn.disabled = false;
-        }
-      }
-    } catch (err) {
-      btn.textContent = '错误';
-      btn.disabled = false;
-    }
-  }
+  
 </script>
 </body>
 </html>"""
