@@ -1378,7 +1378,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .header .subtitle {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--fg-muted);
     letter-spacing: 0.08em;
     margin-top: 4px;
@@ -1387,7 +1387,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   /* Section labels like 9119 */
   .section-label {
     font-family: var(--font-sans);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.15em;
     text-transform: uppercase;
     color: var(--fg-muted);
@@ -1420,7 +1420,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     padding: 8px 0;
     text-align: center;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.05em;
     cursor: pointer;
     border: none;
@@ -1453,7 +1453,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     border-radius: 6px;
     color: var(--fg-muted);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.05em;
     cursor: pointer;
     text-align: center;
@@ -1471,7 +1471,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   label {
     display: block;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--fg-muted);
@@ -1526,7 +1526,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .toggle-desc {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--fg-muted);
     margin-top: 2px;
   }
@@ -1588,12 +1588,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .channel-desc {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--fg-muted);
   }
   .channel-status {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 2px 8px;
@@ -1616,7 +1616,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     background: var(--bg);
     border-radius: 4px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--emerald);
     letter-spacing: 0.05em;
   }
@@ -1690,7 +1690,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     padding: 10px 16px;
     border-radius: 6px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.05em;
     transform: translateX(120%);
@@ -1707,7 +1707,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     text-align: center;
     padding: 8px 0;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--fg-muted);
@@ -1747,7 +1747,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .onboarding-card p {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--fg-muted);
     line-height: 1.6;
     margin-bottom: 8px;
@@ -1765,7 +1765,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     display: flex; align-items: flex-start; gap: 10px;
     padding: 8px 0;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--fg-muted);
     letter-spacing: 0.03em;
   }
@@ -1776,7 +1776,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     background: var(--secondary);
     border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; color: var(--emerald);
+    font-size: 12px; color: var(--emerald);
     flex-shrink: 0;
     margin-top: -1px;
   }
@@ -1855,7 +1855,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   .y-nav-link:hover .y-blink, .y-nav-link:focus-visible .y-blink { display: inline-block; }
   .y-nav-link:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
   .y-nav-link::before { content: ""; position: absolute; inset: -12px; background: var(--fg); pointer-events: none; opacity: 0; transition: opacity 0.25s; z-index: -1; }
-  .y-nav-link:hover::before { opacity: 0.05; }
+  .y-nav-link:hover::before { opacity: 0.1; }
 
   .y-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 60px 20px 44px; width: 100%; }
   .y-term { width: 100%; max-width: 560px; border: 4px double var(--border); }
