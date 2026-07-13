@@ -1303,21 +1303,21 @@ HTML_PAGE = r"""<!DOCTYPE html>
   [data-theme="light"] {
     --bg-base: 245 245 245;
     --mid-base: 23 13 2;
-    --dim-base:100 90 75;
+    --dim-base: 80 70 60;
     --accent-base: 0 0 200;
-    --border: rgb(var(--mid-base) / .14);
-    --border-strong: rgb(var(--mid-base) / .26);
-    --hover: rgb(var(--mid-base) / .04);
-    --hover-strong: rgb(var(--mid-base) / .07);
+    --border: rgb(var(--mid-base) / .18);
+    --border-strong: rgb(var(--mid-base) / .3);
+    --hover: rgb(var(--mid-base) / .06);
+    --hover-strong: rgb(var(--mid-base) / .1);
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
       --bg-base: 245 245 245;
       --mid-base: 23 13 2;
-      --dim-base:100 90 75;
+      --dim-base: 80 70 60;
       --accent-base: 0 0 200;
-      --border: rgb(var(--mid-base) / .14);
-      --border-strong: rgb(var(--mid-base) / .26);
+      --border: rgb(var(--mid-base) / .18);
+      --border-strong: rgb(var(--mid-base) / .3);
       --hover: rgb(var(--mid-base) / .04);
       --hover-strong: rgb(var(--mid-base) / .07);
     }
