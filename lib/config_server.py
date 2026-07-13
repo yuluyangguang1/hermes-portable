@@ -414,6 +414,21 @@ PROVIDERS = [
         "deepseek-ai/DeepSeek-V4-Pro","Qwen/Qwen3-235B-A22B",
         "meta-llama/Llama-4-Scout-17B-Instruct","Pro/deepseek-ai/DeepSeek-R1",
     ]},
+    {"id": "coze",       "name": "Coze / 扣子",    "env": "COZE_API_KEY",       "models": [
+        "coze-gpt-4o","coze-claude-3.5-sonnet","coze-gemini-1.5-pro",
+    ],
+     "key_hint": "粘扣子 API Key", "note": "字节跳动扣子平台，多模型",
+     "tags": ["cn"]},
+    {"id": "volcengine",  "name": "火山引擎",       "env": "VOLCENGINE_API_KEY",  "models": [
+        "doubao-seed-1.6","doubao-seed-1.6-thinking","doubao-1.5-pro-256k",
+    ],
+     "key_hint": "粘火山引擎 API Key", "note": "字节跳动火山引擎，豆包直连",
+     "tags": ["cn"]},
+    {"id": "alibaba",    "name": "阿里云",         "env": "ALIBABA_API_KEY",     "models": [
+        "qwen3.7-max","qwen3.7-plus","qwen3.6-max","qwen3.6-plus",
+    ],
+     "key_hint": "粘阿里云 API Key", "note": "阿里云，通义千问直连",
+     "tags": ["cn"]},
     {"id": "custom",      "name": "自定义 / 中转站", "env": "CUSTOM_API_KEY",
      "base_url_env": "CUSTOM_BASE_URL",
      "custom_model": True,
