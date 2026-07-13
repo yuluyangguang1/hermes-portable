@@ -2223,22 +2223,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
 <main class="y-page" role="main" id="main">
 
 <nav class="y-row nav-row" aria-label="Primary">
-  <div class="y-cell s1"><a href="https://yuai-r.cn/" class="y-title" style="text-decoration:none;color:inherit">yu.ai</a></div>
+  <div class="y-cell s2"><a href="https://yuai-r.cn/" class="y-title" style="text-decoration:none;color:inherit">yu.ai</a></div>
   <div class="y-cell s2" style="padding:0">
-    <a class="y-nav-link" href="https://yuai-r.cn/"><span class="y-label">hermes config <span class="y-blink"></span></span></a>
+    <a class="y-nav-link" href="https://yuai-r.cn/"><span class="y-label">hermes config</span></a>
   </div>
-  <div class="y-cell s1" style="padding:0">
-    <a class="y-nav-link" href="https://yuai-r.cn/#products"><span class="y-label">products <span class="y-blink"></span></span></a>
-  </div>
-  <div class="y-cell" style="justify-content:space-between">
-    <span class="y-label y-op-5">config</span>
-  </div>
-  <div class="y-cell" style="justify-content:space-between">
-    <span class="y-label y-op-5">web ui</span>
-    <button id="webui-btn" class="y-btn" onclick="toggleWebUI()" style="font-size:11px;padding:4px 8px;">启动</button>
-  </div>
-  <div class="y-cell" style="justify-content:space-between">
-    <span class="y-label y-op-5">theme</span>
+  <div class="y-cell" style="justify-content:flex-end;gap:8px">
+    <button id="webui-btn" class="y-btn" onclick="toggleWebUI()" style="font-size:11px;padding:4px 8px;">Web UI</button>
     <button id="y-theme-btn" aria-label="切换主题" class="y-theme-toggle" type="button"><svg class="y-theme-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><svg class="y-theme-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
   </div>
 </nav>
@@ -3107,8 +3097,6 @@ init();
 
 <footer class="y-footer">
   <div class="c"><span class="y-label y-op-7">yu.ai</span></div>
-  <div class="c"><a class="y-label" href="https://yuai-r.cn/" style="opacity:.7;color:inherit;text-decoration:none">home ↗</a></div>
-  <div class="c"><span class="y-label y-op-5">config</span></div>
   <div class="c"><span class="y-label y-op-5">hermes portable</span></div>
   <div class="c"><span class="y-label y-op-5" style="color:var(--accent)">hermes config</span></div>
 </footer>
