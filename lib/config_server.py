@@ -3382,8 +3382,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
-    def _json_response(self, data):
-        self.send_response(200)
+    def _json_response(self, data, status=200):
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")

@@ -428,10 +428,14 @@ if [ "${1-}" = "--config" ] || [ "$HAS_KEY" = "false" ]; then
   # Tell config_server we already opened the browser, so it doesn't
   # open a second tab (see config_server.main).
   export HERMES_BROWSER_OPENED=1
-  # Run in foreground; trap handlers still fire on exit.
-  "$VENV_DIR/bin/python" "$HERE/lib/config_server.py"
-  exit $?
-fi
+   # Run in background and keep alive
+   "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" &
+   CONFIG_PID=$!
+   echo "  Config panel PID: $CONFIG_PID"
+   echo "  Press Ctrl+C to stop"
+   wait $CONFIG_PID
+   exit $?
+  fi
 
 # ── Background config server with watchdog (auto-restart on crash) ──
 CONFIG_PID=""
