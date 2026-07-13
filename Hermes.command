@@ -374,10 +374,22 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
 
   
 # ── Start Hermes Web UI (optional) ──────────────────────────────
-if command -v hermes-web-ui >/dev/null 2>&1; then
-  echo "  Starting Hermes Web UI on port 8648..."
-  hermes-web-ui start 8648 >/dev/null 2>&1 || true
-  echo "  Hermes Web UI: http://127.0.0.1:8648"
+# Check if Node.js is available and version >= 22
+NODE_OK=false
+if [ -n "$NODE_DIR" ] && [ -x "$NODE_DIR/bin/node" ]; then
+  NODE_VER=$("$NODE_DIR/bin/node" -v 2>/dev/null | sed 's/v//' | cut -d. -f1)
+  if [ -n "$NODE_VER" ] && [ "$NODE_VER" -ge 22 ] 2>/dev/null; then
+    NODE_OK=true
+  fi
+fi
+if [ "$NODE_OK" = "true" ]; then
+  if command -v hermes-web-ui >/dev/null 2>&1 || [ -x "$NODE_DIR/bin/hermes-web-ui" ]; then
+    echo "  Starting Hermes Web UI on port 8648..."
+    hermes-web-ui start 8648 >/dev/null 2>&1 || true
+    echo "  Hermes Web UI: http://127.0.0.1:8648"
+  fi
+else
+  echo "  Hermes Web UI: skipped (Node.js >= 22 required)"
 fi
 
 # 后台启动配置中心（端口 17520）

@@ -158,6 +158,18 @@ if "%LAUNCH_MODE%"=="desktop" (
     set "HERMES_PORTABLE_ROOT=%HERE%"
     set "HERMES_PORTABLE_MODE=1"
 
+    rem Start hermes-web-ui (port 8648) if Node.js is available
+    set "NODE_DIR="
+    if exist "%HERE%\node-windows-x64" set "NODE_DIR=%HERE%\node-windows-x64"
+    if exist "%HERE%\node" set "NODE_DIR=%HERE%\node"
+    if defined NODE_DIR (
+        if exist "%NODE_DIR%\bin\node.exe" (
+            echo   Starting Hermes Web UI on port 8648...
+            start "" /b "%NODE_DIR%\bin\node.exe" "%NODE_DIR%\bin\hermes-web-ui" start 8648
+            echo   Hermes Web UI: http://127.0.0.1:8648
+        )
+    )
+
     rem Start config server in background (port 17520)
     set "HERMES_BROWSER_OPENED=1"
     start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
