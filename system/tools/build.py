@@ -782,7 +782,7 @@ def main():
         if ROOT.name != "HermesPortable":
             ROOT = ROOT / "HermesPortable"
     else:
-        ROOT = Path(__file__).parent.parent / "dist" / "HermesPortable"
+        ROOT = Path(__file__).parent.parent.parent / "dist" / "HermesPortable"
     ROOT.mkdir(parents=True, exist_ok=True)
 
     # Platform-first layout: runtime/<platform>/{venv,python,node}
