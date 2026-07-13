@@ -481,7 +481,6 @@ _STATIC_ASSETS = [
     "Hermes.command",
     "Hermes.bat",
     "HermesPortable使用说明.html",
-    "README.txt",
     # runtime/ — all system files
     "system/lib/config_server.py",
     "system/lib/chat_viewer.py",
@@ -794,11 +793,11 @@ def main():
         ROOT = Path(__file__).parent.parent / "dist" / "HermesPortable"
     ROOT.mkdir(parents=True, exist_ok=True)
 
-    # Platform-suffixed dir names for universal layout (inside runtime/)
+    # Platform-first layout: runtime/<platform>/{venv,python,node}
     if args.layout == "universal":
-        venv_name = f"runtime/venv-{label}"
-        python_name = f"runtime/python-{label}"
-        node_name = f"runtime/node-{label}"
+        venv_name = f"runtime/{label}/venv"
+        python_name = f"runtime/{label}/python"
+        node_name = f"runtime/{label}/node"
     else:
         venv_name = "runtime/venv"
         python_name = "runtime/python"

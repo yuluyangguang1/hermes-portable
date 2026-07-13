@@ -49,10 +49,10 @@ case "$OS" in
 esac
 
 # ── Multi-layout venv detection ───────────────────────────────
-# Universal zips carry e.g. runtime/venv-macos-arm64/; single-platform zips carry runtime/venv/.
-if [ -d "$HERE/runtime/venv-$PLATFORM" ]; then
-  VENV_DIR="$HERE/runtime/venv-$PLATFORM"
-  PYTHON_DIR="$HERE/runtime/python-$PLATFORM"
+# Universal zips: runtime/<platform>/venv; single-platform: runtime/venv
+if [ -d "$HERE/runtime/$PLATFORM/venv" ]; then
+  VENV_DIR="$HERE/runtime/$PLATFORM/venv"
+  PYTHON_DIR="$HERE/runtime/$PLATFORM/python"
 elif [ -d "$HERE/runtime/venv" ]; then
   VENV_DIR="$HERE/runtime/venv"
   PYTHON_DIR="$HERE/runtime/python"
@@ -66,9 +66,9 @@ else
   exit 1
 fi
 
-# Node runtime (optional; universal zip has runtime/node-<platform>)
-if [ -d "$HERE/runtime/node-$PLATFORM" ]; then
-  NODE_DIR="$HERE/runtime/node-$PLATFORM"
+# Node runtime (optional; universal zip has runtime/<platform>/node)
+if [ -d "$HERE/runtime/$PLATFORM/node" ]; then
+  NODE_DIR="$HERE/runtime/$PLATFORM/node"
 elif [ -d "$HERE/runtime/node" ]; then
   NODE_DIR="$HERE/runtime/node"
 else
