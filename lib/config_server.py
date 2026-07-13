@@ -318,7 +318,7 @@ PROVIDERS = [
         "glm-5.2","glm-5.1","glm-5","glm-5-turbo","glm-4.7","glm-4.6","glm-4.5-air","glm-4.5-flash",
     ]},
     {"id": "dashscope",   "name": "Alibaba DashScope","env": "DASHSCOPE_API_KEY","models": [
-        "qwen3.6-plus","qwen3.6-35b-a3b",
+        "qwen3.7-max","qwen3.7-plus","qwen3.6-max","qwen3.6-plus","qwen3.6-35b-a3b",
         "qwen3-max","qwen3-max-2026-01-23","qwen3-max-preview","qwen3-coder-plus","qwen3-coder-next",
         "qwen3-vl-plus","qwen3-omni-flash",
         "qwen-max-latest","qwen-plus-latest","qwen-turbo-latest","qwen-long",
@@ -357,7 +357,7 @@ PROVIDERS = [
         "meta/llama-4-maverick-17b-128e-instruct","deepseek-ai/deepseek-r1",
     ]},
     {"id": "stepfun",     "name": "StepFun 阶跃",   "env": "STEPFUN_API_KEY",    "models": [
-        "step-3.5-flash","step-3.5","step-2-16k","step-1v-8k",
+        "step-3.7-flash","step-3.5-flash","step-3.5","step-2-16k","step-1v-8k",
     ]},
     {"id": "novita",      "name": "NovitaAI",       "env": "NOVITA_API_KEY",     "models": [
         "deepseek/deepseek-v4-pro","meta/llama-4-maverick-17b-128e-instruct",
@@ -385,7 +385,7 @@ PROVIDERS = [
         "mistralai/mistral-small-3.2-24b-instruct",
     ]},
     {"id": "baidu",       "name": "百度文心",         "env": "BAIDU_API_KEY",          "models": [
-        "ernie-4.5-8k","ernie-4.0-8k","ernie-3.5-8k","ernie-speed-128k",
+        "ernie-4.5-turbo-128k","ernie-x1-turbo","ernie-4.5-8k","ernie-4.0-8k","ernie-3.5-8k","ernie-speed-128k",
     ]},
     {"id": "baichuan",    "name": "百川智能",         "env": "BAICHUAN_API_KEY",       "models": [
         "Baichuan4","Baichuan3-Turbo","Baichuan2-Turbo",
@@ -399,6 +399,16 @@ PROVIDERS = [
     {"id": "cloudflare",  "name": "Cloudflare AI",   "env": "CLOUDFLARE_API_TOKEN",   "models": [
         "@cf/meta/llama-3.3-70b-instruct-fp8","@cf/deepseek-ai/deepseek-v3","@cf/qwen/qwen3-32b",
     ]},
+        {"id": "tencent",     "name": "腾讯混元",       "env": "TENCENT_API_KEY",     "models": [
+        "hunyuan-turbo","hunyuan-large","hunyuan-pro","hunyuan-standard",
+    ],
+     "key_hint": "粘贴腾讯 API Key", "note": "腾讯混元，Turbo 最新",
+     "tags": ["cn"]},
+        {"id": "iflytek",     "name": "讯飞星火",       "env": "IFLYTEK_API_KEY",     "models": [
+        "spark-max","spark-pro","spark-lite",
+    ],
+     "key_hint": "粘贴讯飞 API Key", "note": "讯飞星火，Max 最新",
+     "tags": ["cn"]},
     {"id": "siliconflow", "name": "硅基流动",         "env": "SILICONFLOW_API_KEY",    "models": [
         "deepseek-ai/DeepSeek-V4-Pro","Qwen/Qwen3-235B-A22B",
         "meta-llama/Llama-4-Scout-17B-Instruct","Pro/deepseek-ai/DeepSeek-R1",
