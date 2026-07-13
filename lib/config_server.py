@@ -1840,7 +1840,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
   .y-label { font-size: 0.9375rem; letter-spacing: 0.1875rem; text-transform: uppercase; }
   .y-label-sm { font-size: 0.75rem; letter-spacing: 0.1875rem; text-transform: uppercase; }
-  .y-label-xs { font-size: 0.625rem; letter-spacing: 0.125rem; text-transform: uppercase; }
+  .y-label-xs { font-size: 0.6875rem; letter-spacing: 0.125rem; text-transform: uppercase; }
   .y-title { font-family: var(--font-serif); font-size: 2.625rem; font-weight: 700; line-height: 1; letter-spacing: 0.0525rem; }
   .y-display { font-family: var(--font-serif); font-size: 3.5rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; mix-blend-mode: plus-lighter; }
   .y-sub { font-size: 1.125rem; line-height: 1.6; opacity: 0.6; }
@@ -1864,7 +1864,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   .y-td:nth-child(1) { background: var(--fg); }
   .y-td:nth-child(2) { background: var(--fg); opacity: 0.6; }
   .y-td:nth-child(3) { background: var(--fg); opacity: 0.5; }
-  .y-term-label { margin-left: auto; font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.1875rem; opacity: 0.5; }
+  .y-term-label { margin-left: auto; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.1875rem; opacity: 0.5; }
   .y-term-b { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.85; padding: 18px 16px; white-space: pre-wrap; min-height: 100px; word-break: break-word; text-align: left; }
   .y-term-b .p { color: var(--accent); }
   .y-term-b .t { opacity: 0.6; }
@@ -1883,11 +1883,15 @@ HTML_PAGE = r"""<!DOCTYPE html>
     .y-footer { grid-template-columns: 1fr; border-left: none; }
     .y-footer .c { border-right: none; }
   }
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     .y-display { font-size: 2.2rem; }
     .y-sub { font-size: 0.95rem; }
     .y-hero { padding: 40px 16px 28px; }
     .y-term-b { font-size: 0.72rem; padding: 14px 12px; }
+  }
+  @media (max-width: 640px) {
+    .y-display { font-size: 1.8rem; }
+    .y-hero { padding: 32px 12px 20px; }
   }
 
 
@@ -2135,7 +2139,15 @@ HTML_PAGE = r"""<!DOCTYPE html>
 .skip-link{position:absolute;top:-40px;left:0;background:var(--accent);color:var(--bg);padding:8px 16px;z-index:1000;transition:top .3s;font-family:var(--font-sans);font-size:13px}
 .skip-link:focus{top:0}
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" crossorigin />
+<style>
+  /* LXGW WenKai fallback for offline */
+  @font-face {
+    font-family: 'LXGW WenKai';
+    src: local('LXGW WenKai'), local('LXGWWenKai-Regular');
+    font-display: swap;
+  }
+</style>
 </head>
 <body>
 <a href="#main" class="skip-link">跳到主要内容</a>
