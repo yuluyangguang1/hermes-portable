@@ -2963,8 +2963,6 @@ init();
   <div class="c"><span class="y-label y-op-5" style="color:var(--accent)">hermes config</span></div>
 </footer>
 
-</div>
-
 <script>
 (function(){
   function lsGet(k){try{return localStorage.getItem(k);}catch(_){return null;}}
