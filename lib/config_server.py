@@ -1765,7 +1765,47 @@ HTML_PAGE = r"""<!DOCTYPE html>
   .onboarding-card .btn { margin-top: 8px; }
 
 
-  /* ─────── yu.ai aligned shell ─────── */
+  
+  /* ─────── Button Styles ─────── */
+  .y-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 4px);
+    color: var(--mid);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+  }
+  .y-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--hover);
+  }
+  .y-btn:active {
+    transform: scale(0.97);
+  }
+  .y-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .y-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+  }
+  .y-btn.primary:hover {
+    background: var(--accent-dim, var(--accent));
+    opacity: 0.9;
+  }
+
+/* ─────── yu.ai aligned shell ─────── */
   .y-page { position: relative; z-index: 200; max-width: 1100px; margin: 0 auto; padding: 0; overflow-x: hidden; }
   .y-row { display: grid; grid-template-columns: 1fr; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
   .y-cell { padding: 16px; border-right: 1px solid var(--border); min-width: 0; display: flex; align-items: center; }
@@ -2098,7 +2138,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
       </div>
     </div>
     <p style="opacity:0.6">API Key 仅存储在本机 data/.env 中</p>
-    <button class="btn btn-launch" style="width:100%;margin-top:12px" onclick="dismissOnboarding()">
+    <button class="y-btn primary btn-launch" style="width:100%;margin-top:12px" onclick="dismissOnboarding()">
       开始配置
     </button>
   </div>
@@ -2242,7 +2282,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
           </button>
         </div>
         <div id="updateAction" style="margin-top:8px;display:none">
-          <button type="button" class="btn btn-launch" style="width:100%" onclick="runUpdate()">
+          <button type="button" class="y-btn primary btn-launch" style="width:100%" onclick="runUpdate()">
             更新到最新版
           </button>
         </div>
@@ -2273,7 +2313,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     <div class="actions">
       <button type="button" class="btn btn-save" onclick="saveConfig()">保存</button>
       <button type="button" class="btn" id="restartBtn" onclick="restartHermes()" style="display:none">重启 Hermes</button>
-      <button type="button" class="btn btn-launch" id="launchBtn" onclick="launchHermes()">启动</button>
+      <button type="button" class="y-btn primary btn-launch" id="launchBtn" onclick="launchHermes()">启动</button>
     </div>
   </form>
 
@@ -2393,7 +2433,7 @@ function renderChannels() {
     // credentials from `hermes gateway setup` or from a prior session.
     const wechatExtra = ch.id === 'weixin' ? `
       <div class="field" style="margin-top:8px;">
-        <button type="button" class="btn btn-launch" style="width:100%"
+        <button type="button" class="y-btn primary btn-launch" style="width:100%"
                 onclick="event.stopPropagation(); startWeChatLogin()">
           📱 扫码登录微信
         </button>
@@ -2777,7 +2817,7 @@ function _wechatModal() {
       <div id="wechatStatusLine" style="margin-top:14px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted,#9a968e);min-height:1.4em;letter-spacing:0.04em;"></div>
       <div style="display:flex;gap:8px;margin-top:18px;">
         <button type="button" class="btn" style="flex:1" onclick="cancelWeChatLogin()">关闭</button>
-        <button type="button" class="btn btn-launch" style="flex:1" id="wechatRetryBtn" onclick="startWeChatLogin()" disabled>重试</button>
+        <button type="button" class="y-btn primary btn-launch" style="flex:1" id="wechatRetryBtn" onclick="startWeChatLogin()" disabled>重试</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
