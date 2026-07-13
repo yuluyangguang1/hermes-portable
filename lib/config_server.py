@@ -2104,7 +2104,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   </div>
 </div>
 
-<main class="y-page" role="main" id="main"> role="main" id="main">>
+<main class="y-page" role="main" id="main">
 
 <nav class="y-row nav-row" aria-label="Primary">
   <div class="y-cell s1"><a href="https://yuai-r.cn/" class="y-title" style="text-decoration:none;color:inherit">yu.ai</a></div>
@@ -2952,6 +2952,8 @@ function cancelWeChatLogin(closeModal) {
 
 init();
 </script>
+
+</main>
 
 <footer class="y-footer">
   <div class="c"><span class="y-label y-op-7">yu.ai</span></div>
