@@ -3247,10 +3247,6 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             # GET /api/wechat/status?session=xxx — long-poll, may take 35s.
             # Reads self.path directly to keep query string.
             self._serve_wechat_status()
-        else:
-            self.send_error(404)
-
-    
         elif path_only == '/api/webui/status':
             self._json_response({'running': webui_status()})
         elif path_only == '/api/webui/start':
@@ -3263,6 +3259,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 self._json_response({'ok': True})
             else:
                 self._json_response({'ok': False, 'error': 'Failed to stop'}, 500)
+        else:
+            self.send_error(404)
 \ndef do_POST(self):
         try:
             if self._reject_bad_host():
