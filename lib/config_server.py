@@ -286,12 +286,12 @@ PROVIDERS = [
         "nousresearch/deephermes-3-mistral-24b",
     ]},
     {"id": "anthropic",   "name": "Anthropic",      "env": "ANTHROPIC_API_KEY",  "models": [
-        "claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5",
+        "claude-fable-5","claude-opus-4.8","claude-opus-4.8-fast","claude-sonnet-5","claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5",
         "claude-haiku-4-5-20251001","claude-sonnet-4-20250514","claude-opus-4-20250514",
         "claude-3-7-sonnet-latest","claude-3-5-haiku-latest",
     ]},
     {"id": "openai",      "name": "OpenAI",         "env": "OPENAI_API_KEY",     "models": [
-        "gpt-5.5","gpt-5.5-pro","gpt-5.5-mini",
+        "gpt-5.6-sol","gpt-5.6-sol-pro","gpt-5.6-terra","gpt-5.6-terra-pro","gpt-5.6-luna","gpt-5.6-luna-pro","gpt-5.5","gpt-5.5-pro","gpt-5.5-mini",
         "gpt-5.4","gpt-5.4-mini","gpt-5.4-nano",
         "gpt-5.3-codex","gpt-5.2","gpt-5","gpt-5-mini","gpt-5-nano",
         "o3","o3-mini","o4-mini","gpt-4.1","gpt-4.1-mini",
@@ -301,21 +301,21 @@ PROVIDERS = [
         "deepseek-chat","deepseek-reasoner",
     ]},
     {"id": "google",      "name": "Google Gemini",  "env": "GOOGLE_API_KEY",     "models": [
-        "gemini-3.1-pro-preview","gemini-3.1-flash-lite-preview",
+        "gemini-3.5-flash","gemini-3-pro-preview","gemini-3.1-pro-preview","gemini-3.1-flash-lite-preview",
         "gemini-3-pro-preview","gemini-3-flash-preview","gemini-3-pro-image-preview",
         "gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-2.5-flash-image-preview",
     ]},
     # ⚠ xAI 已于 2026-05-15 退役 grok-4 / grok-4-fast / grok-4-1-fast / grok-code-fast-1 / grok-3
     # 5月新发布 grok-4.20 (catalog confirms)
     {"id": "xai",         "name": "xAI Grok",       "env": "XAI_API_KEY",        "models": [
-        "grok-4.3","grok-4.20",
+        "grok-4.5","grok-4.3","grok-4.20",
     ]},
     {"id": "mistral",     "name": "Mistral AI",     "env": "MISTRAL_API_KEY",    "models": [
         "mistral-large-3","mistral-large-2411","mistral-medium-latest","mistral-small-latest",
         "ministral-3b-latest","ministral-8b-latest","codestral-latest","pixtral-large-latest",
     ]},
     {"id": "zhipu",       "name": "Zhipu GLM",      "env": "ZHIPU_API_KEY",      "models": [
-        "glm-5.1","glm-5","glm-5-turbo","glm-4.7","glm-4.6","glm-4.5-air","glm-4.5-flash",
+        "glm-5.2","glm-5.1","glm-5","glm-5-turbo","glm-4.7","glm-4.6","glm-4.5-air","glm-4.5-flash",
     ]},
     {"id": "dashscope",   "name": "Alibaba DashScope","env": "DASHSCOPE_API_KEY","models": [
         "qwen3.6-plus","qwen3.6-35b-a3b",
@@ -324,11 +324,11 @@ PROVIDERS = [
         "qwen-max-latest","qwen-plus-latest","qwen-turbo-latest","qwen-long",
     ]},
     {"id": "kimi",        "name": "Kimi / Moonshot","env": "KIMI_API_KEY",       "models": [
-        "kimi-k2.6","kimi-k2.5","kimi-k2-thinking-turbo","kimi-k2-thinking",
+        "kimi-k2.7-code","kimi-k2.6","kimi-k2.5","kimi-k2-thinking-turbo","kimi-k2-thinking",
         "moonshot-v1-128k","moonshot-v1-32k",
     ]},
     {"id": "minimax",     "name": "MiniMax",        "env": "MINIMAX_API_KEY",    "models": [
-        "MiniMax-M2.7","MiniMax-M2.7-highspeed","MiniMax-M2.5","MiniMax-M2.5-highspeed","MiniMax-M2",
+        "MiniMax-M3","MiniMax-M2.7","MiniMax-M2.7-highspeed","MiniMax-M2.5","MiniMax-M2.5-highspeed","MiniMax-M2",
     ]},
     {"id": "xiaomi",      "name": "Xiaomi MiMo",    "env": "XIAOMI_API_KEY",     "models": [
         "xiaomi/mimo-v2.5-pro","xiaomi/mimo-v2-pro","xiaomi/mimo-v2-flash",
