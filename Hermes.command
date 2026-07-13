@@ -136,9 +136,9 @@ if [ -n "$MISMATCH" ]; then
   # Prefer the in-place rebuild if the helper is available (platform-only
   # zips ship tools/mac-rebuild.sh + tools/build.py). Universal zips strip build.py
   # to save space, so they fall back to the download path.
-  if [ -f "$HERE/tools/mac-rebuild.sh" ] && [ -f "$HERE/tools/build.py" ]; then
+  if [ -f "$HERE/system/tools/mac-rebuild.sh" ] && [ -f "$HERE/system/tools/build.py" ]; then
     echo "  Recommended fix (rebuilds the runtime on this Mac, ~2-3 min):" >&2
-    echo "    bash \"$HERE/tools/mac-rebuild.sh\"" >&2
+    echo "    bash \"$HERE/system/tools/mac-rebuild.sh\"" >&2
     echo "" >&2
     echo "  Requires Xcode Command Line Tools (python3 + git + curl)." >&2
     echo "  If you don't have them:  xcode-select --install" >&2
@@ -217,7 +217,7 @@ fi
 # python. Harmless (no-op) when shebangs are already `/bin/sh`-
 # wrapped relocatable stubs, which is the common case on macOS.
 # Kept in sync with Hermes.sh — previously only Hermes.sh ran this.
-if [ -f "$HERE/lib/fix_shims.py" ]; then
+if [ -f "$HERE/system/lib/fix_shims.py" ]; then
   PORTABLE_PY=""
   # Prefer the real python-build-standalone binary (never a trampoline).
   for cand in "$PYTHON_DIR"/*/bin/python3.12 \
@@ -226,7 +226,7 @@ if [ -f "$HERE/lib/fix_shims.py" ]; then
     if [ -x "$cand" ]; then PORTABLE_PY="$cand"; break; fi
   done
   if [ -n "$PORTABLE_PY" ]; then
-    "$PORTABLE_PY" "$HERE/lib/fix_shims.py" 2>/dev/null || true
+    "$PORTABLE_PY" "$HERE/system/lib/fix_shims.py" 2>/dev/null || true
   fi
 fi
 
@@ -394,7 +394,7 @@ fi
 
 # 后台启动配置中心（端口 17520）
   export HERMES_BROWSER_OPENED=1
-  nohup "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" \
+  nohup "$VENV_DIR/bin/python" "$HERE/system/lib/config_server.py" \
     > "$HERE/data/config_server.log" 2>&1 &
   echo "  Config panel: http://127.0.0.1:17520"
 
@@ -429,7 +429,7 @@ if [ "${1-}" = "--config" ] || [ "$HAS_KEY" = "false" ]; then
   # open a second tab (see config_server.main).
   export HERMES_BROWSER_OPENED=1
    # Run in background and keep alive
-   "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" &
+   "$VENV_DIR/bin/python" "$HERE/system/lib/config_server.py" &
    CONFIG_PID=$!
    echo "  Config panel PID: $CONFIG_PID"
    echo "  Press Ctrl+C to stop"
@@ -442,7 +442,7 @@ CONFIG_PID=""
 export HERMES_BROWSER_OPENED=1
 
 start_config_server() {
-  "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" >/dev/null 2>&1 &
+  "$VENV_DIR/bin/python" "$HERE/system/lib/config_server.py" >/dev/null 2>&1 &
   CONFIG_PID=$!
 }
 

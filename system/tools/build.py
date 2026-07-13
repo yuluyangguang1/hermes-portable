@@ -475,16 +475,16 @@ def step_nodejs(ctx):
 # Files that must be *copied verbatim* from the repo into the portable folder.
 # This is the single source of truth — no more inlined bat/sh strings.
 # Paths are relative to the repo root. Directory structure is preserved
-# in the dist (e.g. "lib/config_server.py" → ROOT/lib/config_server.py).
+# in the dist (e.g. "system/lib/config_server.py" → ROOT/lib/config_server.py).
 _STATIC_ASSETS = [
     # lib/ — runtime internals (referenced by launchers)
-    "lib/config_server.py",
-    "lib/chat_viewer.py",
-    "lib/update.py",
-    "lib/update.sh",
-    "lib/fix_shims.py",
+    "system/lib/config_server.py",
+    "system/lib/chat_viewer.py",
+    "system/lib/update.py",
+    "system/lib/update.sh",
+    "system/lib/fix_shims.py",
     # Root — user-facing docs and assets
-    "favicon.svg",
+    "system/favicon.svg",
     "HermesPortable使用说明.html",
     # Launchers
     "Hermes.command",
@@ -493,9 +493,9 @@ _STATIC_ASSETS = [
     "Hermes-WSL.bat",
     # tools/ — rebuild helpers shipped so a user who carried a macOS-built
     # zip onto a Linux box can rebuild the runtime without re-downloading.
-    "tools/build.py",
-    "tools/linux-rebuild.sh",
-    "tools/mac-rebuild.sh",
+    "system/tools/build.py",
+    "system/tools/linux-rebuild.sh",
+    "system/tools/mac-rebuild.sh",
 ]
 
 
