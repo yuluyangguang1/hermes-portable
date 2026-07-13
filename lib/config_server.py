@@ -429,6 +429,17 @@ PROVIDERS = [
     ],
      "key_hint": "粘阿里云 API Key", "note": "阿里云，通义千问直连",
      "tags": ["cn"]},
+    {"id": "amazon",     "name": "Amazon Bedrock", "env": "AMAZON_API_KEY",     "models": [
+        "nova-premier-v1","nova-pro-v1","nova-lite-v1","nova-micro-v1",
+    ],
+     "key_hint": "粘贴 AWS Bedrock API Key", "note": "Amazon Nova 系列，AWS 原生",
+     "tags": []},
+    {"id": "deepinfra",  "name": "DeepInfra",      "env": "DEEPINFRA_API_KEY",  "models": [
+        "deepseek-ai/DeepSeek-V4-Pro","meta-llama/Llama-4-Maverick-17B-128E-Instruct",
+        "Qwen/Qwen3-Coder-480B-A35B-Instruct","zai-org/GLM-5.1",
+    ],
+     "key_hint": "粘贴 DeepInfra API Key", "note": "极低价格开源模型",
+     "tags": ["cheap"]},
     {"id": "custom",      "name": "自定义 / 中转站", "env": "CUSTOM_API_KEY",
      "base_url_env": "CUSTOM_BASE_URL",
      "custom_model": True,
