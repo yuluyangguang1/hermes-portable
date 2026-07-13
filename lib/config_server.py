@@ -1831,43 +1831,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
   
   /* ─────── Button Styles ─────── */
-  .y-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius, 4px);
-    color: var(--mid);
-    font-family: var(--font-sans);
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    white-space: nowrap;
-  }
-  .y-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--hover);
-  }
-  .y-btn:active {
-    transform: scale(0.97);
-  }
-  .y-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  .y-btn.primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--bg);
-  }
-  .y-btn.primary:hover {
-    background: var(--accent-dim, var(--accent));
-    opacity: 0.9;
-  }
+
 
 /* ─────── yu.ai aligned shell ─────── */
   .y-page { position: relative; z-index: 200; max-width: 1100px; margin: 0 auto; padding: 0; overflow-x: hidden; }
@@ -1950,10 +1914,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
     margin: 24px 0 0;
   }
   .tab {
-    background: transparent !important;
-    border: none !important;
-    border-right: 1px solid var(--border) !important;
-    border-radius: 0 !important;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border);
+    border-radius: 0;
     padding: 14px 22px;
     font-family: var(--font-mono);
     font-size: 0.78rem;
@@ -1963,11 +1927,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
     cursor: pointer;
     transition: color 0.2s, background 0.2s;
   }
-  .tabs > .tab:last-child { border-right: none !important; }
+  .tabs > .tab:last-child { border-right: none; }
   .tab:hover { color: var(--fg); }
   .tab.active {
-    color: var(--accent) !important;
-    background: rgba(237,255,69,0.04) !important;
+    color: var(--accent);
+    background: rgba(237,255,69,0.04);
   }
 
   .tab-panel { padding: 24px 0; }
@@ -1994,11 +1958,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
     border: 1px solid var(--border);
   }
   .provider-btn {
-    background: transparent !important;
-    border: none !important;
-    border-right: 1px solid var(--border) !important;
-    border-bottom: 1px solid var(--border) !important;
-    border-radius: 0 !important;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
     padding: 16px 14px;
     text-align: left;
     cursor: pointer;
@@ -2007,23 +1971,23 @@ HTML_PAGE = r"""<!DOCTYPE html>
     transition: background 0.2s, color 0.2s;
   }
   .provider-btn:hover {
-    background: rgba(245,240,232,0.04) !important;
+    background: rgba(245,240,232,0.04);
   }
   .provider-btn.active {
-    background: rgba(237,255,69,0.06) !important;
-    color: var(--accent) !important;
+    background: rgba(237,255,69,0.06);
+    color: var(--accent);
   }
 
   /* Channel cards — flat */
   .channel-card {
-    background: transparent !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0 !important;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 0;
     transition: border-color 0.2s, background 0.2s;
   }
   .channel-card:hover {
-    border-color: var(--accent) !important;
-    background: rgba(245,240,232,0.02) !important;
+    border-color: var(--accent);
+    background: rgba(245,240,232,0.02);
   }
   .channel-name {
     font-family: var(--font-serif);
@@ -2039,44 +2003,44 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
   /* Buttons */
   .btn, .btn-save, .btn-launch {
-    border-radius: 0 !important;
+    border-radius: 0;
     font-family: var(--font-mono);
     letter-spacing: 0.12em;
     text-transform: uppercase;
   }
   .btn-launch, .btn-save {
-    border: 1px solid var(--accent) !important;
-    color: var(--accent) !important;
-    background: transparent !important;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    background: transparent;
     padding: 12px 24px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .btn-launch:hover, .btn-save:hover {
-    background: var(--accent) !important;
-    color: var(--bg) !important;
+    background: var(--accent);
+    color: var(--bg);
   }
   .btn-launch:disabled, .btn-save:disabled {
-    border-color: var(--border) !important;
-    color: var(--fg-muted) !important;
+    border-color: var(--border);
+    color: var(--fg-muted);
     cursor: not-allowed;
     opacity: 0.5;
   }
 
   /* Inputs / selects */
   .field input, .field select, .field textarea, .api-key-row input {
-    border-radius: 0 !important;
-    font-family: var(--font-mono) !important;
-    background: transparent !important;
+    border-radius: 0;
+    font-family: var(--font-mono);
+    background: transparent;
   }
 
   /* Switch (toggle) — keep functional shape but recolor */
-  .switch input:checked + .slider { background-color: var(--accent) !important; }
+  .switch input:checked + .slider { background-color: var(--accent); }
 
   /* Toggle rows — flatter */
   .toggle-row {
-    background: transparent !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0 !important;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 0;
   }
   .toggle-label {
     font-family: var(--font-serif);
@@ -2091,9 +2055,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
   /* Onboarding card — yu.ai-styled */
   .onboarding-card {
-    border: 1px solid var(--border) !important;
-    border-radius: 0 !important;
-    background: var(--card) !important;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--card);
   }
   .onboarding-card h2 {
     font-family: var(--font-serif);
@@ -2101,21 +2065,21 @@ HTML_PAGE = r"""<!DOCTYPE html>
     mix-blend-mode: plus-lighter;
   }
   .onboarding-step {
-    border-radius: 0 !important;
+    border-radius: 0;
   }
   .step-num {
-    border-radius: 50% !important;
+    border-radius: 50%;
     font-family: var(--font-mono);
   }
 
   /* Toast */
-  .toast { border-radius: 0 !important; font-family: var(--font-mono); letter-spacing: 0.05em; }
+  .toast { border-radius: 0; font-family: var(--font-mono); letter-spacing: 0.05em; }
 
   /* Card class generic */
   .card {
-    background: transparent !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0 !important;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 0;
   }
 
   /* Fields */
@@ -2140,7 +2104,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   [style*="background: var(--card)"],
   [style*="background:var(--muted)"],
   [style*="background: var(--muted)"] {
-    background: transparent !important;
+    background: transparent;
   }
 
   /* CSS-rule level: any block that uses --card / --secondary / --muted
@@ -2148,30 +2112,30 @@ HTML_PAGE = r"""<!DOCTYPE html>
      property value, so we override the most common offenders by
      class name. */
   .api-key-row, .channel-fields, .field {
-    background: transparent !important;
+    background: transparent;
   }
 
   /* Inputs / selects transparent */
   .container input,
   .container select,
   .container textarea {
-    background: transparent !important;
-    border-color: var(--border) !important;
-    border-radius: 0 !important;
-    font-family: var(--font-mono) !important;
+    background: transparent;
+    border-color: var(--border);
+    border-radius: 0;
+    font-family: var(--font-mono);
   }
   .container input:focus,
   .container select:focus,
   .container textarea:focus {
-    border-color: var(--accent) !important;
+    border-color: var(--accent);
     outline: none;
   }
 
   /* Toast — flat with accent border */
   .toast {
-    background: var(--bg) !important;
-    border: 1px solid var(--accent) !important;
-    border-radius: 0 !important;
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    border-radius: 0;
     font-family: var(--font-mono);
     letter-spacing: 0.05em;
   }
@@ -2214,7 +2178,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
       </div>
     </div>
     <p style="opacity:0.6">API Key 仅存储在本机 data/.env 中</p>
-    <button class="y-btn primary btn-launch" style="width:100%;margin-top:12px" onclick="dismissOnboarding()">
+    <button class="btn primary btn-launch" style="width:100%;margin-top:12px" onclick="dismissOnboarding()">
       开始配置
     </button>
   </div>
@@ -2228,7 +2192,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     <a class="y-nav-link" href="https://yuai-r.cn/"><span class="y-label">hermes config</span></a>
   </div>
   <div class="y-cell" style="justify-content:flex-end;gap:8px">
-    <button id="webui-btn" class="y-btn" onclick="toggleWebUI()" style="font-size:11px;padding:4px 8px;">Web UI</button>
+    <button id="webui-btn" class="btn" onclick="toggleWebUI()" style="font-size:11px;padding:4px 8px;">Web UI</button>
     <button id="y-theme-btn" aria-label="切换主题" class="y-theme-toggle" type="button"><svg class="y-theme-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><svg class="y-theme-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
   </div>
 </nav>
@@ -2352,7 +2316,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
           </button>
         </div>
         <div id="updateAction" style="margin-top:8px;display:none">
-          <button type="button" class="y-btn primary btn-launch" style="width:100%" onclick="runUpdate()">
+          <button type="button" class="btn primary btn-launch" style="width:100%" onclick="runUpdate()">
             更新到最新版
           </button>
         </div>
@@ -2383,7 +2347,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     <div class="actions">
       <button type="button" class="btn btn-save" onclick="saveConfig()">保存</button>
       <button type="button" class="btn" id="restartBtn" onclick="restartHermes()" style="display:none">重启 Hermes</button>
-      <button type="button" class="y-btn primary btn-launch" id="launchBtn" onclick="launchHermes()">启动</button>
+      <button type="button" class="btn primary btn-launch" id="launchBtn" onclick="launchHermes()">启动</button>
     </div>
   </form>
 
@@ -2503,7 +2467,7 @@ function renderChannels() {
     // credentials from `hermes gateway setup` or from a prior session.
     const wechatExtra = ch.id === 'weixin' ? `
       <div class="field" style="margin-top:8px;">
-        <button type="button" class="y-btn primary btn-launch" style="width:100%"
+        <button type="button" class="btn primary btn-launch" style="width:100%"
                 onclick="event.stopPropagation(); startWeChatLogin()">
           📱 扫码登录微信
         </button>
@@ -2887,7 +2851,7 @@ function _wechatModal() {
       <div id="wechatStatusLine" style="margin-top:14px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted,#9a968e);min-height:1.4em;letter-spacing:0.04em;"></div>
       <div style="display:flex;gap:8px;margin-top:18px;">
         <button type="button" class="btn" style="flex:1" onclick="cancelWeChatLogin()">关闭</button>
-        <button type="button" class="y-btn primary btn-launch" style="flex:1" id="wechatRetryBtn" onclick="startWeChatLogin()" disabled>重试</button>
+        <button type="button" class="btn primary btn-launch" style="flex:1" id="wechatRetryBtn" onclick="startWeChatLogin()" disabled>重试</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
