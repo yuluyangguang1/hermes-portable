@@ -477,22 +477,20 @@ def step_nodejs(ctx):
 # Paths are relative to the repo root. Directory structure is preserved
 # in the dist (e.g. "system/lib/config_server.py" → ROOT/lib/config_server.py).
 _STATIC_ASSETS = [
-    # lib/ — runtime internals (referenced by launchers)
+    # Launchers (root — user-facing)
+    "Hermes.command",
+    "Hermes.sh",
+    "Hermes.bat",
+    "Hermes-WSL.bat",
+    "HermesPortable使用说明.html",
+    "README.txt",
+    # runtime/ — all system files
     "system/lib/config_server.py",
     "system/lib/chat_viewer.py",
     "system/lib/update.py",
     "system/lib/update.sh",
     "system/lib/fix_shims.py",
-    # Root — user-facing docs and assets
     "system/favicon.svg",
-    "HermesPortable使用说明.html",
-    # Launchers
-    "Hermes.command",
-    "Hermes.sh",
-    "Hermes.bat",
-    "Hermes-WSL.bat",
-    # tools/ — rebuild helpers shipped so a user who carried a macOS-built
-    # zip onto a Linux box can rebuild the runtime without re-downloading.
     "system/tools/build.py",
     "system/tools/linux-rebuild.sh",
     "system/tools/mac-rebuild.sh",
@@ -507,14 +505,18 @@ def step_launchers(ctx):
         if not src.exists():
             warn(f"missing in repo: {fname}")
             continue
-        dst = ROOT / fname
+        # Put system files in runtime/ subfolder
+        if fname.startswith("system/"):
+            dst = ROOT / "runtime" / fname[7:]  # Remove "system/" prefix
+        else:
+            dst = ROOT / fname
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
         # executable bits for unix launchers / scripts
         if fname.endswith((".sh", ".command")):
             try: dst.chmod(0o755)
             except Exception: pass
-    ok("Launchers + lib/ + tools/ copied from repo")
+    ok("Launchers + runtime/ copied from repo")
 
 
 def step_cleanup(ctx):

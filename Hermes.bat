@@ -172,7 +172,7 @@ if "%LAUNCH_MODE%"=="desktop" (
 
     rem Start config server in background (port 17520)
     set "HERMES_BROWSER_OPENED=1"
-    start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\system\lib\config_server.py"
+    start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\runtime\lib\config_server.py"
     echo   Config panel: http://127.0.0.1:17520
 
     rem Launch desktop app
@@ -205,7 +205,7 @@ rem  We drive fix_shims.py with the portable python directly (the real
 rem  python-build-standalone binary under %PYTHON_DIR%) rather than
 rem  venv\Scripts\python.exe, because the latter is itself a uv
 rem  trampoline and might be broken too.
-if exist "%HERE%\system\lib\fix_shims.py" (
+if exist "%HERE%\runtime\lib\fix_shims.py" (
     rem Locate the portable python.exe under %PYTHON_DIR%. It lives
     rem inside a cpython-3.12-... subdirectory we don't know the exact
     rem name of, so glob for it.
@@ -214,11 +214,11 @@ if exist "%HERE%\system\lib\fix_shims.py" (
         if not defined PORTABLE_PY set "PORTABLE_PY=%%F"
     )
     if defined PORTABLE_PY (
-        "!PORTABLE_PY!" "%HERE%\system\lib\fix_shims.py" 2>nul
+        "!PORTABLE_PY!" "%HERE%\runtime\lib\fix_shims.py" 2>nul
     ) else if exist "%VENV_DIR%\Scripts\python.exe" (
         rem Fallback: venv's python (also a trampoline, but usually
         rem works because uv venv --relocatable stores a relative path).
-        "%VENV_DIR%\Scripts\python.exe" "%HERE%\system\lib\fix_shims.py" 2>nul
+        "%VENV_DIR%\Scripts\python.exe" "%HERE%\runtime\lib\fix_shims.py" 2>nul
     )
 )
 
@@ -288,14 +288,14 @@ echo   Opening config panel at http://127.0.0.1:17520 ...
 echo.
 start "" "http://127.0.0.1:17520"
 set "HERMES_BROWSER_OPENED=1"
-"%VENV_DIR%\Scripts\python.exe" "%HERE%\system\lib\config_server.py"
+"%VENV_DIR%\Scripts\python.exe" "%HERE%\runtime\lib\config_server.py"
 set "EXITCODE=%errorlevel%"
 goto :cleanup
 
 :run_hermes
 rem Background config server (always available for model changes)
 set "HERMES_BROWSER_OPENED=1"
-start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\system\lib\config_server.py"
+start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\runtime\lib\config_server.py"
 echo   Config panel: http://127.0.0.1:17520 (change model anytime)
 
 rem Record our console PID in the lock file so future launches can
