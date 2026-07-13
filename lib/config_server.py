@@ -1226,7 +1226,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     /* yu.ai v2 Design System */
     --bg-base: 23 13 2;
     --mid-base: 245 240 232;
-    --dim-base: 154 150 142;
+    --dim-base: 170 166 158;
     --accent-base: 237 255 69;
     --warn-base: 255 189 56;
     --danger-base: 255 138 107;
@@ -1262,7 +1262,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   [data-theme="light"] {
     --bg-base: 245 245 245;
     --mid-base: 23 13 2;
-    --dim-base: 138 122 102;
+    --dim-base:100 90 75;
     --accent-base: 0 0 200;
     --border: rgb(var(--mid-base) / .14);
     --border-strong: rgb(var(--mid-base) / .26);
@@ -1273,7 +1273,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     :root:not([data-theme="dark"]) {
       --bg-base: 245 245 245;
       --mid-base: 23 13 2;
-      --dim-base: 138 122 102;
+      --dim-base:100 90 75;
       --accent-base: 0 0 200;
       --border: rgb(var(--mid-base) / .14);
       --border-strong: rgb(var(--mid-base) / .26);
