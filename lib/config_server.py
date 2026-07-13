@@ -1629,9 +1629,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .btn {
     flex: 1;
-    padding: 12px 16px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    padding: 10px 16px;
+    border: 1px solid var(--border-strong, var(--border));
+    border-radius: 6px;
     font-family: var(--font-sans);
     font-size: 13px;
     letter-spacing: 0.02em;
@@ -1639,16 +1639,30 @@ HTML_PAGE = r"""<!DOCTYPE html>
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     text-align: center;
     font-weight: 600;
-    background: var(--bg);
+    background: var(--hover);
     color: var(--mid);
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
   }
   .btn:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: var(--hover);
+    background: var(--hover-strong, var(--hover));
   }
   .btn:active {
     transform: scale(0.97);
+    background: var(--border);
+  }
+  .btn.destructive {
+    color: var(--danger, #ff6b6b);
+    border-color: var(--danger, #ff6b6b);
+  }
+  .btn.destructive:hover {
+    background: var(--danger, #ff6b6b);
+    color: var(--bg);
   }
   .btn-save {
     background: var(--secondary);
@@ -2304,7 +2318,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
           <button type="button" class="btn" style="flex:1;min-width:120px" onclick="exportConfig()">导出配置</button>
           <button type="button" class="btn" style="flex:1;min-width:120px" onclick="startImport()">导入配置</button>
           <button type="button" class="btn" style="flex:1;min-width:120px" onclick="viewEnv()">查看 .env</button>
-          <button type="button" class="btn" style="flex:1;min-width:120px;color:var(--destructive)" onclick="resetConfig()">重置</button>
+          <button type="button" class="btn destructive" style="flex:1;min-width:120px" onclick="resetConfig()">重置</button>
         </div>
         <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="doImport(event)">
       </div>
