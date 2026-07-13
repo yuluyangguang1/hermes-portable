@@ -1704,7 +1704,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     position: fixed; inset: 0; z-index: 300;
     background: rgba(4,28,28,0.92);
     display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(8px);
+    /* backdrop-filter: blur(8px);
   }
   .onboarding.hidden { display: none; }
   .onboarding-card {
@@ -1941,7 +1941,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     color: var(--accent) !important;
     background: transparent !important;
     padding: 12px 24px;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .btn-launch:hover, .btn-save:hover {
     background: var(--accent) !important;
@@ -2104,7 +2104,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   </div>
 </div>
 
-<div class="y-page" role="main" id="main">>
+<main class="y-page" role="main" id="main"> role="main" id="main">>
 
 <nav class="y-row nav-row" aria-label="Primary">
   <div class="y-cell s1"><a href="https://yuai-r.cn/" class="y-title" style="text-decoration:none;color:inherit">yu.ai</a></div>
@@ -2766,7 +2766,7 @@ function _wechatModal() {
   if (modal) return modal;
   modal = document.createElement('div');
   modal.id = 'wechatModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:8000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:8000;display:flex;align-items:center;justify-content:center;/* backdrop-filter:blur(6px);';
   modal.innerHTML = `
     <div style="background:var(--card,#1a1208);border:1px solid var(--border,#f5f5f526);padding:28px 24px;max-width:380px;width:90%;text-align:center;font-family:var(--font-sans);">
       <h3 style="font-family:var(--font-serif);font-size:1.4rem;margin-bottom:8px;color:var(--fg,#f5f5f5);letter-spacing:0;">扫码登录微信</h3>
@@ -2942,7 +2942,7 @@ function cancelWeChatLogin(closeModal) {
       if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'disconnectOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;/* backdrop-filter:blur(4px);';
         overlay.innerHTML = '<div style="background:#1a1208;padding:32px 40px;border-radius:14px;text-align:center;border:1px solid rgba(237,255,69,0.15);max-width:360px;"><h3 style="color:#f5f5f5;margin-bottom:8px;font-size:1em;">连接已断开</h3><p style="color:#9a968e;font-size:0.85em;line-height:1.6;">Hermes 进程已停止。请重新双击启动器。</p></div>';
         document.body.appendChild(overlay);
       }
