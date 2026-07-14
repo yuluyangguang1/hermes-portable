@@ -295,6 +295,15 @@ def step_venv(ctx):
     py_venv = (venv / "Scripts" / "python.exe") if system == "Windows" \
         else (venv / "bin" / "python")
 
+    # Fix permissions on venv binaries
+    bin_dir = venv / ("Scripts" if system == "Windows" else "bin")
+    if bin_dir.exists():
+        for f in bin_dir.iterdir():
+            if f.is_file() and not f.suffix:
+                try: f.chmod(0o755)
+                except Exception: pass
+        ok("Fixed venv binary permissions")
+
     info(f"Installing hermes-agent[{EXTRAS}] (non-editable) …")
     # IMPORTANT: no `-e` flag. editable installs write absolute paths into
     # site-packages/*.pth and break the moment the folder moves (USB key
