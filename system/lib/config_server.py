@@ -749,6 +749,7 @@ def _atomic_write_text(path, content, encoding="utf-8"):
     """原子写文件：先写 tmp，再 rename。防止半写状态损坏文件。"""
     import os as _os
     path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(content, encoding=encoding)
     try:
