@@ -29,29 +29,29 @@ if "%HERE:~-1%"=="\" set "HERE=%HERE:~0,-1%"
 
 rem -- Multi-layout venv detection ------------------------
 rem  Universal / per-platform layouts all supported:
-rem    HermesPortable\venv-windows-x64\Scripts\hermes.exe   (Universal)
-rem    HermesPortable\venv\Scripts\hermes.exe               (platform-only)
-if exist "%HERE%\venv-windows-x64\Scripts\hermes.exe" (
-    set "VENV_DIR=%HERE%\venv-windows-x64"
-    set "PYTHON_DIR=%HERE%\python-windows-x64"
-) else if exist "%HERE%\venv\Scripts\hermes.exe" (
-    set "VENV_DIR=%HERE%\venv"
-    set "PYTHON_DIR=%HERE%\python"
+rem    HermesPortable\runtime\windows-x64\venv\Scripts\hermes.exe   (Universal)
+rem    HermesPortable\runtime\venv\Scripts\hermes.exe               (platform-only)
+if exist "%HERE%\runtime\windows-x64\venv\Scripts\hermes.exe" (
+    set "VENV_DIR=%HERE%\runtime\windows-x64\venv"
+    set "PYTHON_DIR=%HERE%\runtime\windows-x64\python"
+) else if exist "%HERE%\runtime\venv\Scripts\hermes.exe" (
+    set "VENV_DIR=%HERE%\runtime\venv"
+    set "PYTHON_DIR=%HERE%\runtime\python"
 ) else (
     echo.
     echo   [ERROR] Windows venv not found.
     echo.
     echo   Looks like this is the source repo, not a release zip.
     echo   Expected one of these to exist next to Hermes.bat:
-    echo     %HERE%\venv-windows-x64\Scripts\hermes.exe
-    echo     %HERE%\venv\Scripts\hermes.exe
+    echo     %HERE%\runtime\windows-x64\venv\Scripts\hermes.exe
+    echo     %HERE%\runtime\venv\Scripts\hermes.exe
     echo.
-    echo   Fix: download HermesPortable-Windows.zip from
+    echo   Fix: download HermesPortable-Universal.zip from
     echo     https://github.com/yuluyangguang1/hermes-portable/releases
     echo   and double-click the Hermes.bat inside the extracted folder.
     echo.
     echo   Or rebuild from source in a separate cmd window:
-    echo     python tools\build.py
+    echo     python system\tools\build.py
     echo   then use dist\HermesPortable\Hermes.bat instead.
     echo.
     pause
