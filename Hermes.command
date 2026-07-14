@@ -54,6 +54,9 @@ if [ -d "$HERE/runtime/$PLATFORM/venv" ]; then
 elif [ -d "$HERE/runtime/venv" ]; then
   VENV_DIR="$HERE/runtime/venv"
   PYTHON_DIR="$HERE/runtime/python"
+elif [ -d "$HERE/venv" ]; then
+  VENV_DIR="$HERE/venv"
+  PYTHON_DIR="$HERE/python"
 else
   echo "" >&2
   echo "  [ERROR] venv not found for platform: $PLATFORM" >&2

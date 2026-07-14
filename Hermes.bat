@@ -37,6 +37,9 @@ if exist "%HERE%\runtime\windows-x64\venv\Scripts\hermes.exe" (
 ) else if exist "%HERE%\runtime\venv\Scripts\hermes.exe" (
     set "VENV_DIR=%HERE%\runtime\venv"
     set "PYTHON_DIR=%HERE%\runtime\python"
+) else if exist "%HERE%\venv\Scripts\hermes.exe" (
+    set "VENV_DIR=%HERE%\venv"
+    set "PYTHON_DIR=%HERE%\python"
 ) else (
     echo.
     echo   [ERROR] Windows venv not found.
