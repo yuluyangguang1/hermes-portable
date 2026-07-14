@@ -52,7 +52,15 @@ jobs:
           for p in Universal; do
             if [ -d "$p" ]; then
               cd "$p"
+              # Fix permissions for all binaries
               chmod +x *.command *.sh 2>/dev/null || true
+              chmod +x runtime/*/venv/bin/* 2>/dev/null || true
+              chmod +x runtime/venv/bin/* 2>/dev/null || true
+              chmod +x runtime/*/node/bin/* 2>/dev/null || true
+              chmod +x runtime/node/bin/* 2>/dev/null || true
+              chmod +x runtime/*/python/bin/* 2>/dev/null || true
+              chmod +x runtime/python/bin/* 2>/dev/null || true
+              chmod +x uv 2>/dev/null || true
               zip -r "../../HermesPortable-${p}.zip" .
               cd ..
             fi
