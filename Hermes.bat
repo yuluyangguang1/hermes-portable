@@ -158,15 +158,21 @@ if "%LAUNCH_MODE%"=="desktop" (
     set "HERMES_PORTABLE_ROOT=%HERE%"
     set "HERMES_PORTABLE_MODE=1"
 
-    rem Start hermes-web-ui (port 8648) if Node.js is available
+    rem Start hermes-web-ui (port 8648) if Node.js >= 23
     set "NODE_DIR="
-    if exist "%HERE%\node-windows-x64" set "NODE_DIR=%HERE%\node-windows-x64"
-    if exist "%HERE%\node" set "NODE_DIR=%HERE%\node"
+    if exist "%HERE%\runtime\windows-x64\node" set "NODE_DIR=%HERE%\runtime\windows-x64\node"
+    if exist "%HERE%\runtime\node" set "NODE_DIR=%HERE%\runtime\node"
     if defined NODE_DIR (
         if exist "%NODE_DIR%\bin\node.exe" (
-            echo   Starting Hermes Web UI on port 8648...
-            start "" /b "%NODE_DIR%\bin\node.exe" "%NODE_DIR%\bin\hermes-web-ui" start 8648
-            echo   Hermes Web UI: http://127.0.0.1:8648
+            for /f "tokens=1 delims=." %%a in ('"%NODE_DIR%\bin\node.exe" --version 2^>nul') do set "NODE_MAJOR=%%a"
+            set "NODE_MAJOR=!NODE_MAJOR:v=!"
+            if !NODE_MAJOR! GEQ 23 (
+                echo   Starting Hermes Web UI on port 8648...
+                start "" /b "%NODE_DIR%\bin\node.exe" "%NODE_DIR%\bin\hermes-web-ui" start 8648
+                echo   Hermes Web UI: http://127.0.0.1:8648
+            ) else (
+                echo   Hermes Web UI: skipped (Node.js ^>= 23 required^)
+            )
         )
     )
 

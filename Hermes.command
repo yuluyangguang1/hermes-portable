@@ -375,7 +375,7 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
 NODE_OK=false
 if [ -n "$NODE_DIR" ] && [ -x "$NODE_DIR/bin/node" ]; then
   NODE_VER=$("$NODE_DIR/bin/node" -v 2>/dev/null | sed 's/v//' | cut -d. -f1)
-  if [ -n "$NODE_VER" ] && [ "$NODE_VER" -ge 22 ] 2>/dev/null; then
+  if [ -n "$NODE_VER" ] && [ "$NODE_VER" -ge 23 ] 2>/dev/null; then
     NODE_OK=true
   fi
 fi
@@ -386,7 +386,7 @@ if [ "$NODE_OK" = "true" ]; then
     echo "  Hermes Web UI: http://127.0.0.1:8648"
   fi
 else
-  echo "  Hermes Web UI: skipped (Node.js >= 22 required)"
+  echo "  Hermes Web UI: skipped (Node.js >= 23 required)"
 fi
 
 # 后台启动配置中心（端口 17520）
