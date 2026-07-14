@@ -562,6 +562,16 @@ def step_cleanup(ctx):
             # packages don't import their own tests at runtime.
             for d in site.rglob("__tests__"):
                 shutil.rmtree(d, ignore_errors=True); removed += 1
+    # Fix permissions on all binaries in venv
+    if venv.exists():
+        bin_dir = venv / ("Scripts" if ctx["system"] == "Windows" else "bin")
+        if bin_dir.exists():
+            for f in bin_dir.iterdir():
+                if f.is_file():
+                    try: f.chmod(0o755)
+                    except Exception: pass
+            ok("Fixed venv binary permissions")
+
     ok(f"Cleaned {removed} artifacts")
 
 

@@ -1,0 +1,19 @@
+model:
+  default: "minimax/MiniMax-M2.7"
+  provider: "minimax"
+agent:
+  max_turns: 90
+terminal:
+  backend: "local"
+  timeout: 180
+compression:
+  enabled: true
+  threshold: 0.5
+  target_ratio: 0.2
+display:
+  skin: "default"
+  tool_progress: true
+  show_cost: true
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
