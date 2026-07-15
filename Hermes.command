@@ -183,13 +183,23 @@ export PYTHONIOENCODING=utf-8
 export PYTHONUTF8=1
 # Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
 # Find the 'install' dir containing lib/python3.12 inside PYTHON_DIR
+# Prefer 'install' subdirectory over the top-level to avoid picking wrong version
 PYTHON_HOME=""
-for _candidate in "$PYTHON_DIR"/*/install "$PYTHON_DIR"/install "$PYTHON_DIR"; do
+for _candidate in "$PYTHON_DIR"/*/install "$PYTHON_DIR"/install; do
   if [ -d "$_candidate/lib" ]; then
     PYTHON_HOME="$_candidate"
     break
   fi
 done
+# Fallback: search deeper for the actual install dir
+if [ -z "$PYTHON_HOME" ]; then
+  for _candidate in "$PYTHON_DIR"/*/bin/install "$PYTHON_DIR"/*/*/install; do
+    if [ -d "$_candidate/lib" ]; then
+      PYTHON_HOME="$_candidate"
+      break
+    fi
+  done
+fi
 if [ -n "$PYTHON_HOME" ]; then
   export PYTHONHOME="$PYTHON_HOME"
 fi
@@ -396,6 +406,26 @@ if [ "$NODE_OK" = "true" ]; then
 else
   echo "  Hermes Web UI: skipped (Node.js >= 23 required)"
 fi
+
+# ── Fix pyvenv.cfg paths ──────────────────────────────────────
+# pyvenv.cfg may contain absolute paths from the build runner.
+# Rewrite them to point at the local portable python.
+for cfg in "$VENV_DIR"/pyvenv.cfg; do
+  if [ -f "$cfg" ]; then
+    # Find the actual python directory (not symlink)
+    REAL_PYTHON=""
+    for _cand in "$PYTHON_DIR"/*/install/bin "$PYTHON_DIR"/*/bin "$PYTHON_DIR"/bin; do
+      if [ -x "$_cand/python3.12" ] || [ -x "$_cand/python3" ]; then
+        REAL_PYTHON="$_cand"
+        break
+      fi
+    done
+    if [ -n "$REAL_PYTHON" ]; then
+      sed -i.bak "s|^home = .*|home = $REAL_PYTHON|" "$cfg" 2>/dev/null
+      rm -f "${cfg}.bak" 2>/dev/null
+    fi
+  fi
+done
 
 # 启动桌面版
   case "$DESKTOP_APP" in
