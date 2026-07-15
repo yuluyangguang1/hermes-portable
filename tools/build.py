@@ -466,6 +466,17 @@ def step_nodejs(ctx):
 
     ok(f"Node.js v{NODE_VERSION} ready")
 
+    # Install hermes-web-ui globally
+    npm = node_dir / ("bin" if system != "Windows" else "") / ("npm.cmd" if system == "Windows" else "npm")
+    if npm.exists():
+        info("Installing hermes-web-ui...")
+        try:
+            env = {**ctx.get("env", {}), "PATH": str(node_dir / "bin") + ":" + ctx.get("env", {}).get("PATH", "")}
+            run([str(npm), "install", "-g", "hermes-web-ui"], env=env)
+            ok("hermes-web-ui installed")
+        except Exception as e:
+            warn(f"hermes-web-ui install failed: {e}")
+
 
 # Files that must be *copied verbatim* from the repo into the portable folder.
 # This is the single source of truth — no more inlined bat/sh strings.
