@@ -250,48 +250,49 @@ PROVIDERS = [
     # is unavailable. Keep them roughly in sync with the upstream
     # manifest at https://hermes-agent.nousresearch.com/docs/api/model-catalog.json
     {"id": "openrouter",  "name": "OpenRouter",     "env": "OPENROUTER_API_KEY", "models": [
-        "anthropic/claude-opus-4.7","anthropic/claude-opus-4.6","anthropic/claude-sonnet-4.6",
-        "anthropic/claude-haiku-4.5",
-        "moonshotai/kimi-k2.6",
-        "openai/gpt-5.5","openai/gpt-5.5-pro","openai/gpt-5.4-mini","openai/gpt-5.4-nano",
-        "openai/gpt-5.3-codex",
-        "google/gemini-3.1-pro-preview","google/gemini-3.1-flash-lite-preview",
-        "google/gemini-3-flash-preview","google/gemini-3-pro-image-preview",
-        "qwen/qwen3.6-plus","qwen/qwen3.6-35b-a3b",
-        "deepseek/deepseek-v4-pro",
-        "x-ai/grok-4.3","x-ai/grok-4.20",
-        "z-ai/glm-5.1","minimax/minimax-m2.7","stepfun/step-3.5-flash",
-        "xiaomi/mimo-v2.5-pro","tencent/hy3-preview",
-        "nvidia/nemotron-3-super-120b-a12b",
-        "openrouter/pareto-code",
-        "openrouter/elephant-alpha","openrouter/owl-alpha",
-        "tencent/hy3-preview:free","nvidia/nemotron-3-super-120b-a12b:free",
+        "anthropic/claude-fable-5","anthropic/claude-opus-4.8","anthropic/claude-opus-4.8-fast","anthropic/claude-sonnet-5","anthropic/claude-haiku-4.5",
+        "openai/gpt-5.6-sol","openai/gpt-5.6-sol-pro","openai/gpt-5.6-terra","openai/gpt-5.6-terra-pro","openai/gpt-5.6-luna","openai/gpt-5.6-luna-pro",
+        "openai/gpt-5.5","openai/gpt-5.5-pro","openai/gpt-5.4-mini","openai/gpt-5.4-nano","openai/gpt-5.3-codex",
+        "google/gemini-3.5-flash","google/gemini-3-pro-preview","google/gemini-3.1-pro-preview","google/gemini-3.1-flash-lite-preview","google/gemini-3-flash-preview","google/gemini-3-pro-image-preview",
+        "x-ai/grok-4.5","x-ai/grok-4.3","x-ai/grok-4.20",
+        "qwen/qwen3.7-max","qwen/qwen3.7-plus","qwen/qwen3.6-plus","qwen/qwen3.6-35b-a3b",
+        "deepseek/deepseek-v4-pro","deepseek/deepseek-v4-flash",
+        "z-ai/glm-5.2","z-ai/glm-5.1",
+        "minimax/minimax-m3","minimax/minimax-m2.7",
+        "stepfun/step-3.7-flash","stepfun/step-3.5-flash",
+        "xiaomi/mimo-v2.5-pro",
+        "tencent/hy3","tencent/hy3:free",
+        "nvidia/nemotron-3-super-120b-a12b","nvidia/nemotron-3-super-120b-a12b:free","nvidia/nemotron-3-ultra-550b-a55b:free",
+        "openrouter/pareto-code","openrouter/elephant-alpha","openrouter/owl-alpha",
+        "sakana/fugu-ultra",
+        "poolside/laguna-m.1:free",
         "inclusionai/ring-2.6-1t:free",
     ]},
     {"id": "nous",        "name": "Nous Portal",    "env": "NOUS_API_KEY",       "models": [
-        "anthropic/claude-opus-4.7","anthropic/claude-opus-4.6","anthropic/claude-sonnet-4.6",
-        "anthropic/claude-haiku-4.5",
-        "moonshotai/kimi-k2.6",
-        "openai/gpt-5.5","openai/gpt-5.5-pro","openai/gpt-5.4-mini","openai/gpt-5.4-nano",
-        "openai/gpt-5.3-codex",
-        "google/gemini-3.1-pro-preview","google/gemini-3.1-flash-lite-preview",
-        "google/gemini-3-pro-preview","google/gemini-3-flash-preview",
-        "qwen/qwen3.6-plus","qwen/qwen3.6-35b-a3b",
-        "deepseek/deepseek-v4-pro",
-        "x-ai/grok-4.3",
-        "z-ai/glm-5.1","minimax/minimax-m2.7","stepfun/step-3.5-flash",
-        "xiaomi/mimo-v2.5-pro","tencent/hy3-preview",
+        "anthropic/claude-fable-5","anthropic/claude-opus-4.8","anthropic/claude-sonnet-5","anthropic/claude-haiku-4.5",
+        "openai/gpt-5.6-sol","openai/gpt-5.6-sol-pro","openai/gpt-5.6-terra","openai/gpt-5.6-terra-pro","openai/gpt-5.6-luna","openai/gpt-5.6-luna-pro",
+        "openai/gpt-5.5","openai/gpt-5.5-pro","openai/gpt-5.4-mini","openai/gpt-5.4-nano","openai/gpt-5.3-codex",
+        "google/gemini-3.5-flash","google/gemini-3-pro-preview","google/gemini-3.1-pro-preview","google/gemini-3.1-flash-lite-preview","google/gemini-3-flash-preview",
+        "x-ai/grok-4.5","x-ai/grok-4.3",
+        "qwen/qwen3.7-max","qwen/qwen3.7-plus","qwen/qwen3.6-plus","qwen/qwen3.6-35b-a3b",
+        "deepseek/deepseek-v4-pro","deepseek/deepseek-v4-flash",
+        "z-ai/glm-5.2","z-ai/glm-5.1",
+        "minimax/minimax-m3","minimax/minimax-m2.7",
+        "stepfun/step-3.7-flash","stepfun/step-3.5-flash",
+        "xiaomi/mimo-v2.5-pro",
+        "tencent/hy3",
         "nvidia/nemotron-3-super-120b-a12b",
+        "sakana/fugu-ultra",
         "nousresearch/hermes-4-405b","nousresearch/hermes-4-70b",
         "nousresearch/deephermes-3-mistral-24b",
     ]},
     {"id": "anthropic",   "name": "Anthropic",      "env": "ANTHROPIC_API_KEY",  "models": [
-        "claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5",
+        "claude-fable-5","claude-opus-4.8","claude-opus-4.8-fast","claude-sonnet-5","claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5",
         "claude-haiku-4-5-20251001","claude-sonnet-4-20250514","claude-opus-4-20250514",
         "claude-3-7-sonnet-latest","claude-3-5-haiku-latest",
     ]},
     {"id": "openai",      "name": "OpenAI",         "env": "OPENAI_API_KEY",     "models": [
-        "gpt-5.5","gpt-5.5-pro","gpt-5.5-mini",
+        "gpt-5.6-sol","gpt-5.6-sol-pro","gpt-5.6-terra","gpt-5.6-terra-pro","gpt-5.6-luna","gpt-5.6-luna-pro","gpt-5.5","gpt-5.5-pro","gpt-5.5-mini",
         "gpt-5.4","gpt-5.4-mini","gpt-5.4-nano",
         "gpt-5.3-codex","gpt-5.2","gpt-5","gpt-5-mini","gpt-5-nano",
         "o3","o3-mini","o4-mini","gpt-4.1","gpt-4.1-mini",
@@ -301,34 +302,34 @@ PROVIDERS = [
         "deepseek-chat","deepseek-reasoner",
     ]},
     {"id": "google",      "name": "Google Gemini",  "env": "GOOGLE_API_KEY",     "models": [
-        "gemini-3.1-pro-preview","gemini-3.1-flash-lite-preview",
+        "gemini-3.5-flash","gemini-3-pro-preview","gemini-3.1-pro-preview","gemini-3.1-flash-lite-preview",
         "gemini-3-pro-preview","gemini-3-flash-preview","gemini-3-pro-image-preview",
         "gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-2.5-flash-image-preview",
     ]},
     # ⚠ xAI 已于 2026-05-15 退役 grok-4 / grok-4-fast / grok-4-1-fast / grok-code-fast-1 / grok-3
     # 5月新发布 grok-4.20 (catalog confirms)
     {"id": "xai",         "name": "xAI Grok",       "env": "XAI_API_KEY",        "models": [
-        "grok-4.3","grok-4.20",
+        "grok-4.5","grok-4.3","grok-4.20",
     ]},
     {"id": "mistral",     "name": "Mistral AI",     "env": "MISTRAL_API_KEY",    "models": [
         "mistral-large-3","mistral-large-2411","mistral-medium-latest","mistral-small-latest",
         "ministral-3b-latest","ministral-8b-latest","codestral-latest","pixtral-large-latest",
     ]},
     {"id": "zhipu",       "name": "Zhipu GLM",      "env": "ZHIPU_API_KEY",      "models": [
-        "glm-5.1","glm-5","glm-5-turbo","glm-4.7","glm-4.6","glm-4.5-air","glm-4.5-flash",
+        "glm-5.2","glm-5.1","glm-5","glm-5-turbo","glm-4.7","glm-4.6","glm-4.5-air","glm-4.5-flash",
     ]},
     {"id": "dashscope",   "name": "Alibaba DashScope","env": "DASHSCOPE_API_KEY","models": [
-        "qwen3.6-plus","qwen3.6-35b-a3b",
+        "qwen3.7-max","qwen3.7-plus","qwen3.6-max","qwen3.6-plus","qwen3.6-35b-a3b",
         "qwen3-max","qwen3-max-2026-01-23","qwen3-max-preview","qwen3-coder-plus","qwen3-coder-next",
         "qwen3-vl-plus","qwen3-omni-flash",
         "qwen-max-latest","qwen-plus-latest","qwen-turbo-latest","qwen-long",
     ]},
     {"id": "kimi",        "name": "Kimi / Moonshot","env": "KIMI_API_KEY",       "models": [
-        "kimi-k2.6","kimi-k2.5","kimi-k2-thinking-turbo","kimi-k2-thinking",
+        "kimi-k2.7-code","kimi-k2.6","kimi-k2.5","kimi-k2-thinking-turbo","kimi-k2-thinking",
         "moonshot-v1-128k","moonshot-v1-32k",
     ]},
     {"id": "minimax",     "name": "MiniMax",        "env": "MINIMAX_API_KEY",    "models": [
-        "MiniMax-M2.7","MiniMax-M2.7-highspeed","MiniMax-M2.5","MiniMax-M2.5-highspeed","MiniMax-M2",
+        "MiniMax-M3","MiniMax-M2.7","MiniMax-M2.7-highspeed","MiniMax-M2.5","MiniMax-M2.5-highspeed","MiniMax-M2",
     ]},
     {"id": "xiaomi",      "name": "Xiaomi MiMo",    "env": "XIAOMI_API_KEY",     "models": [
         "xiaomi/mimo-v2.5-pro","xiaomi/mimo-v2-pro","xiaomi/mimo-v2-flash",
@@ -357,7 +358,7 @@ PROVIDERS = [
         "meta/llama-4-maverick-17b-128e-instruct","deepseek-ai/deepseek-r1",
     ]},
     {"id": "stepfun",     "name": "StepFun 阶跃",   "env": "STEPFUN_API_KEY",    "models": [
-        "step-3.5-flash","step-3.5","step-2-16k","step-1v-8k",
+        "step-3.7-flash","step-3.5-flash","step-3.5","step-2-16k","step-1v-8k",
     ]},
     {"id": "novita",      "name": "NovitaAI",       "env": "NOVITA_API_KEY",     "models": [
         "deepseek/deepseek-v4-pro","meta/llama-4-maverick-17b-128e-instruct",
@@ -385,7 +386,7 @@ PROVIDERS = [
         "mistralai/mistral-small-3.2-24b-instruct",
     ]},
     {"id": "baidu",       "name": "百度文心",         "env": "BAIDU_API_KEY",          "models": [
-        "ernie-4.5-8k","ernie-4.0-8k","ernie-3.5-8k","ernie-speed-128k",
+        "ernie-4.5-turbo-128k","ernie-x1-turbo","ernie-4.5-8k","ernie-4.0-8k","ernie-3.5-8k","ernie-speed-128k",
     ]},
     {"id": "baichuan",    "name": "百川智能",         "env": "BAICHUAN_API_KEY",       "models": [
         "Baichuan4","Baichuan3-Turbo","Baichuan2-Turbo",
@@ -399,10 +400,159 @@ PROVIDERS = [
     {"id": "cloudflare",  "name": "Cloudflare AI",   "env": "CLOUDFLARE_API_TOKEN",   "models": [
         "@cf/meta/llama-3.3-70b-instruct-fp8","@cf/deepseek-ai/deepseek-v3","@cf/qwen/qwen3-32b",
     ]},
+        {"id": "tencent",     "name": "腾讯混元",       "env": "TENCENT_API_KEY",     "models": [
+        "hunyuan-turbo","hunyuan-large","hunyuan-pro","hunyuan-standard",
+    ],
+     "key_hint": "粘贴腾讯 API Key", "note": "腾讯混元，Turbo 最新",
+     "tags": ["cn"]},
+        {"id": "iflytek",     "name": "讯飞星火",       "env": "IFLYTEK_API_KEY",     "models": [
+        "spark-max","spark-pro","spark-lite",
+    ],
+     "key_hint": "粘贴讯飞 API Key", "note": "讯飞星火，Max 最新",
+     "tags": ["cn"]},
     {"id": "siliconflow", "name": "硅基流动",         "env": "SILICONFLOW_API_KEY",    "models": [
         "deepseek-ai/DeepSeek-V4-Pro","Qwen/Qwen3-235B-A22B",
         "meta-llama/Llama-4-Scout-17B-Instruct","Pro/deepseek-ai/DeepSeek-R1",
     ]},
+    {"id": "coze",       "name": "Coze / 扣子",    "env": "COZE_API_KEY",       "models": [
+        "coze-gpt-4o","coze-claude-3.5-sonnet","coze-gemini-1.5-pro",
+    ],
+     "key_hint": "粘扣子 API Key", "note": "字节跳动扣子平台，多模型",
+     "tags": ["cn"]},
+    {"id": "volcengine",  "name": "火山引擎",       "env": "VOLCENGINE_API_KEY",  "models": [
+        "doubao-seed-1.6","doubao-seed-1.6-thinking","doubao-1.5-pro-256k",
+    ],
+     "key_hint": "粘火山引擎 API Key", "note": "字节跳动火山引擎，豆包直连",
+     "tags": ["cn"]},
+    {"id": "alibaba",    "name": "阿里云",         "env": "ALIBABA_API_KEY",     "models": [
+        "qwen3.7-max","qwen3.7-plus","qwen3.6-max","qwen3.6-plus",
+    ],
+     "key_hint": "粘阿里云 API Key", "note": "阿里云，通义千问直连",
+     "tags": ["cn"]},
+    {"id": "amazon",     "name": "Amazon Bedrock", "env": "AMAZON_API_KEY",     "models": [
+        "nova-premier-v1","nova-pro-v1","nova-lite-v1","nova-micro-v1",
+    ],
+     "key_hint": "粘贴 AWS Bedrock API Key", "note": "Amazon Nova 系列，AWS 原生",
+     "tags": []},
+    {"id": "deepinfra",  "name": "DeepInfra",      "env": "DEEPINFRA_API_KEY",  "models": [
+        "deepseek-ai/DeepSeek-V4-Pro","meta-llama/Llama-4-Maverick-17B-128E-Instruct",
+        "Qwen/Qwen3-Coder-480B-A35B-Instruct","zai-org/GLM-5.1",
+    ],
+     "key_hint": "粘贴 DeepInfra API Key", "note": "极低价格开源模型",
+     "tags": ["cheap"]},
+    {"id": "lmstudio",    "name": "LM Studio",      "env": "LMSTUDIO_API_KEY",   "models": [],
+     "key_hint": "本地 LM Studio", "note": "本地模型，无需 API Key",
+     "tags": []},
+    {"id": "gmi",         "name": "GMI Cloud",      "env": "GMI_API_KEY",        "models": [
+        "deepseek-ai/DeepSeek-V4-Pro","meta-llama/Llama-4-Maverick-17B-128E-Instruct",
+    ],
+     "key_hint": "粘贴 GMI API Key", "note": "GMI 云推理",
+     "tags": []},
+    {"id": "kilocode",    "name": "Kilo Code",      "env": "KILOCODE_API_KEY",   "models": [
+        "gpt-5.5","claude-opus-4-7","gemini-3-pro-preview",
+    ],
+     "key_hint": "粘贴 Kilo Code API Key", "note": "代码助手",
+     "tags": []},
+    {"id": "ai-gateway",  "name": "Vercel AI Gateway","env": "VERCEL_API_KEY",    "models": [
+        "gpt-5.5","claude-opus-4-7","gemini-3-pro-preview",
+    ],
+     "key_hint": "粘贴 Vercel API Key", "note": "Vercel AI 网关",
+     "tags": []},
+    {"id": "longcat",     "name": "LongCat",        "env": "LONGCAT_API_KEY",    "models": [
+        "LongCat-Flash-Lite","LongCat-2.0-Preview",
+    ],
+     "key_hint": "粘贴 LongCat API Key", "note": "长猫模型",
+     "tags": []},
+    {"id": "arcee",       "name": "Arcee AI",       "env": "ARCEE_API_KEY",      "models": [
+        "arcee-large","arcee-small",
+    ],
+     "key_hint": "粘贴 Arcee API Key", "note": "Arcee 模型",
+     "tags": []},
+    {"id": "zai",         "name": "Z.AI / 智谱",    "env": "ZAI_API_KEY",        "models": [
+        "glm-5.2","glm-5.1","glm-5","glm-5v-turbo","glm-5-turbo","glm-4.7","glm-4.5","glm-4.5-flash",
+    ],
+     "key_hint": "粘贴 Z.AI API Key", "note": "智谱直连",
+     "tags": ["cn"]},
+    {"id": "glm",         "name": "GLM 代码计划",    "env": "GLM_API_KEY",        "models": [
+        "glm-5.2","glm-5.1","glm-5v-turbo","glm-4.7",
+    ],
+     "key_hint": "粘贴 GLM API Key", "note": "智谱代码计划",
+     "tags": ["cn"]},
+    {"id": "kimi-coding", "name": "Kimi 代码版",    "env": "KIMI_CODING_API_KEY","models": [
+        "kimi-k2.7-code","kimi-k2.6","kimi-k2.5","kimi-for-coding","kimi-k2-thinking","kimi-k2-thinking-turbo",
+    ],
+     "key_hint": "粘贴 Kimi API Key", "note": "Kimi 代码版",
+     "tags": ["cn"]},
+    {"id": "kimi-coding-cn","name": "Kimi 中国代码版","env": "KIMI_CODING_CN_API_KEY","models": [
+        "kimi-k2.6","kimi-k2.5","kimi-k2-thinking","kimi-k2-turbo-preview",
+    ],
+     "key_hint": "粘贴 Kimi API Key", "note": "Kimi 中国代码版",
+     "tags": ["cn"]},
+    {"id": "minimax-cn",  "name": "MiniMax 中国版", "env": "MINIMAX_CN_API_KEY",  "models": [
+        "MiniMax-M3","MiniMax-M2.7","MiniMax-M2.7-highspeed","MiniMax-M2.5","MiniMax-M2.5-highspeed",
+    ],
+     "key_hint": "粘贴 MiniMax API Key", "note": "MiniMax 中国版",
+     "tags": ["cn"]},
+    {"id": "alibaba-coding-plan","name": "阿里云代码计划","env": "ALIBABA_CODING_API_KEY","models": [
+        "qwen3.7-max","qwen3.7-plus","qwen3.6-max","qwen3.6-plus",
+    ],
+     "key_hint": "粘贴阿里云 API Key", "note": "阿里云代码计划",
+     "tags": ["cn"]},
+    {"id": "xiaomi-token-plan","name": "小米 Token 计划","env": "XIAOMI_TOKEN_API_KEY","models": [
+        "xiaomi/mimo-v2.5-pro","xiaomi/mimo-v2-pro","xiaomi/mimo-v2-flash",
+    ],
+     "key_hint": "粘贴小米 API Key", "note": "小米 Token 计划",
+     "tags": ["cn"]},
+    {"id": "tencent-tokenhub","name": "腾讯 TokenHub","env": "TENCENT_TOKENHUB_API_KEY","models": [
+        "hy3-preview",
+    ],
+     "key_hint": "粘贴腾讯 API Key", "note": "腾讯 TokenHub",
+     "tags": ["cn"]},
+    {"id": "fun-codex",   "name": "Codex-apikey.fun","env": "FUN_CODEX_API_KEY",  "models": [
+        "gpt-5.5","gpt-5.4","gpt-5.4-mini","gpt-5.3-codex","gpt-5.3-codex-spark",
+    ],
+     "key_hint": "粘贴 apikey.fun Key", "note": "Codex 中转站",
+     "tags": []},
+    {"id": "fun-claude",  "name": "Claude-apikey.fun","env": "FUN_CLAUDE_API_KEY", "models": [
+        "claude-opus-4-8","claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5",
+    ],
+     "key_hint": "粘贴 apikey.fun Key", "note": "Claude 中转站",
+     "tags": []},
+    {"id": "cliproxyapi", "name": "CLIProxyAPI",    "env": "CLIPROXYAPI_API_KEY", "models": [
+        "gpt-5.5","claude-opus-4-7","gemini-3-pro-preview",
+    ],
+     "key_hint": "粘贴 CLIProxy Key", "note": "CLI 代理 API",
+     "tags": []},
+    {"id": "opencode-zen","name": "OpenCode Zen",   "env": "OPENCODE_ZEN_API_KEY","models": [
+        "gpt-5.5","claude-opus-4-7","gemini-3-pro-preview",
+    ],
+     "key_hint": "粘贴 OpenCode Key", "note": "OpenCode Zen",
+     "tags": []},
+    {"id": "opencode-go", "name": "OpenCode Go",    "env": "OPENCODE_GO_API_KEY", "models": [
+        "gpt-5.5","claude-opus-4-7","gemini-3-pro-preview",
+    ],
+     "key_hint": "粘贴 OpenCode Key", "note": "OpenCode Go",
+     "tags": []},
+    {"id": "claude-oauth","name": "Claude OAuth",   "env": "CLAUDE_OAUTH_TOKEN",  "models": [
+        "claude-fable-5","claude-opus-4-8","claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5",
+    ],
+     "key_hint": "OAuth 认证", "note": "Claude OAuth 认证",
+     "tags": []},
+    {"id": "google-gemini-cli","name": "Google Gemini OAuth","env": "GOOGLE_GEMINI_CLI_TOKEN","models": [
+        "gemini-3.1-pro-preview","gemini-3-pro-preview","gemini-3-flash-preview",
+    ],
+     "key_hint": "OAuth 认证", "note": "Google Gemini OAuth",
+     "tags": []},
+    {"id": "xai-oauth",  "name": "xAI Grok OAuth", "env": "XAI_OAUTH_TOKEN",     "models": [
+        "grok-4.5","grok-4.3","grok-4.20-0309-reasoning","grok-4.20-0309-non-reasoning",
+    ],
+     "key_hint": "OAuth 认证", "note": "xAI Grok OAuth",
+     "tags": []},
+    {"id": "openai-codex","name": "OpenAI Codex",   "env": "OPENAI_CODEX_API_KEY","models": [
+        "gpt-5.5","gpt-5.4","gpt-5.3-codex",
+    ],
+     "key_hint": "粘贴 OpenAI Key", "note": "OpenAI Codex 直连",
+     "tags": []},
     {"id": "custom",      "name": "自定义 / 中转站", "env": "CUSTOM_API_KEY",
      "base_url_env": "CUSTOM_BASE_URL",
      "custom_model": True,
@@ -480,7 +630,48 @@ CHANNELS = [
 ]
 
 # ═══════════════════════════════════════════════════════════════
-#  CONFIG READ/WRITE
+#  CONFIG READ/WRITE @@
+# ═══════════════════════════════════════════════════════════════
+#  HERMES WEB UI INTEGRATION
+# ═══════════════════════════════════════════════════════════════
+
+WEB_UI_PORT = 8648
+
+def webui_status():
+    """Check if hermes-web-ui is running."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ['hermes-web-ui', 'status'],
+            capture_output=True, text=True, timeout=5
+        )
+        return 'running' in result.stdout.lower()
+    except Exception:
+        return False
+
+def webui_start():
+    """Start hermes-web-ui."""
+    import subprocess
+    try:
+        subprocess.Popen(
+            ['hermes-web-ui', 'start', str(WEB_UI_PORT)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return True
+    except Exception:
+        return False
+
+def webui_stop():
+    """Stop hermes-web-ui."""
+    import subprocess
+    try:
+        subprocess.run(['hermes-web-ui', 'stop'], capture_output=True, timeout=5)
+        return True
+    except Exception:
+        return False
+
+# ═══════════════════════════════════════════════════════════════
 # ═══════════════════════════════════════════════════════════════
 
 def parse_env():
@@ -558,6 +749,7 @@ def _atomic_write_text(path, content, encoding="utf-8"):
     """原子写文件：先写 tmp，再 rename。防止半写状态损坏文件。"""
     import os as _os
     path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(content, encoding=encoding)
     try:
@@ -1073,53 +1265,62 @@ HTML_PAGE = r"""<!DOCTYPE html>
   /* Google Fonts removed for China compatibility */
 
   :root {
-    --bg: #170d02;
-    --card: #1a1208;
-    --secondary: #1e1508;
-    --muted: #1c1409;
-    --fg: #f5f5f5;
-    --fg-muted: #9a968e;
-    --border: #f5f5f526;
-    --accent: #f5f5f5;
-    --emerald: oklch(0.765 0.177 163.223);
-    --emerald-dim: oklch(0.696 0.17 162.48);
-    --blue: oklch(0.707 0.165 254.624);
-    --purple: oklch(0.714 0.203 305.504);
-    --warning: #ffbd38;
-    --success: #4ade80;
-    --destructive: #fb2c36;
-    /* yu.ai-aligned aliases */
-    --mid: var(--fg);
-    --dim: var(--fg-muted);
-    /* Font stack matched to yu.ai */
+    /* yu.ai v2 Design System */
+    --bg-base: 23 13 2;
+    --mid-base: 245 240 232;
+    --dim-base: 170 166 158;
+    --accent-base: 237 255 69;
+    --warn-base: 255 189 56;
+    --danger-base: 255 138 107;
+    
+    --bg: rgb(var(--bg-base));
+    --mid: rgb(var(--mid-base));
+    --dim: rgb(var(--dim-base));
+    --accent: rgb(var(--accent-base));
+    --warn: rgb(var(--warn-base));
+    --danger: rgb(var(--danger-base));
+    
+    --border: rgb(var(--mid-base) / .12);
+    --border-strong: rgb(var(--mid-base) / .24);
+    --hover: rgb(var(--mid-base) / .05);
+    --hover-strong: rgb(var(--mid-base) / .08);
+    
+    --fg: var(--mid);
+    --fg-muted: var(--dim);
+    --card: var(--bg);
+    --secondary: var(--bg);
+    --muted: var(--border);
+    --accent: var(--accent);
+    --emerald: var(--accent);
+    --emerald-dim: var(--accent);
+    --warning: var(--warn);
+    --success: var(--accent);
+    --destructive: var(--danger);
+    
     --font-sans: system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-    --font-serif: Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --font-serif: 'LXGW WenKai', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
     --font-mono: 'Courier New', 'Menlo', monospace;
   }
   [data-theme="light"] {
-    --bg: #f5f0e8;
-    --card: #f5f0e8;
-    --secondary: #f5f0e8;
-    --muted: #c8c4bb;
-    --fg: #3d3a35;
-    --fg-muted: #7a7670;
-    --border: rgba(61,58,53,0.14);
-    --accent: #d4e600;
-    --emerald: #d4e600;
-    --emerald-dim: #028a60;
+    --bg-base: 245 245 245;
+    --mid-base: 23 13 2;
+    --dim-base: 80 70 60;
+    --accent-base: 0 0 200;
+    --border: rgb(var(--mid-base) / .18);
+    --border-strong: rgb(var(--mid-base) / .3);
+    --hover: rgb(var(--mid-base) / .06);
+    --hover-strong: rgb(var(--mid-base) / .1);
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
-      --bg: #f5f0e8;
-      --card: #f5f0e8;
-      --secondary: #f5f0e8;
-      --muted: #c8c4bb;
-      --fg: #3d3a35;
-      --fg-muted: #7a7670;
-      --border: rgba(61,58,53,0.14);
-      --accent: #d4e600;
-      --emerald: #d4e600;
-      --emerald-dim: #028a60;
+      --bg-base: 245 245 245;
+      --mid-base: 23 13 2;
+      --dim-base: 80 70 60;
+      --accent-base: 0 0 200;
+      --border: rgb(var(--mid-base) / .18);
+      --border-strong: rgb(var(--mid-base) / .3);
+      --hover: rgb(var(--mid-base) / .04);
+      --hover-strong: rgb(var(--mid-base) / .07);
     }
   }
 
@@ -1219,7 +1420,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .header .subtitle {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--fg-muted);
     letter-spacing: 0.08em;
     margin-top: 4px;
@@ -1228,7 +1429,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   /* Section labels like 9119 */
   .section-label {
     font-family: var(--font-sans);
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 0.15em;
     text-transform: uppercase;
     color: var(--fg-muted);
@@ -1261,7 +1462,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     padding: 8px 0;
     text-align: center;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 0.05em;
     cursor: pointer;
     border: none;
@@ -1294,7 +1495,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     border-radius: 6px;
     color: var(--fg-muted);
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 0.05em;
     cursor: pointer;
     text-align: center;
@@ -1312,7 +1513,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   label {
     display: block;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--fg-muted);
@@ -1367,7 +1568,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .toggle-desc {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 12px;
     color: var(--fg-muted);
     margin-top: 2px;
   }
@@ -1429,12 +1630,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .channel-desc {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 12px;
     color: var(--fg-muted);
   }
   .channel-status {
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 12px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 2px 8px;
@@ -1457,7 +1658,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     background: var(--bg);
     border-radius: 4px;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 12px;
     color: var(--emerald);
     letter-spacing: 0.05em;
   }
@@ -1470,17 +1671,40 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .btn {
     flex: 1;
-    padding: 12px 16px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    padding: 10px 16px;
+    border: 1px solid var(--border-strong, var(--border));
+    border-radius: 6px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    letter-spacing: 0.02em;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     text-align: center;
-    font-weight: 700;
+    font-weight: 600;
+    background: var(--hover);
+    color: var(--mid);
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--hover-strong, var(--hover));
+  }
+  .btn:active {
+    transform: scale(0.97);
+    background: var(--border);
+  }
+  .btn.destructive {
+    color: var(--danger, #ff6b6b);
+    border-color: var(--danger, #ff6b6b);
+  }
+  .btn.destructive:hover {
+    background: var(--danger, #ff6b6b);
+    color: var(--bg);
   }
   .btn-save {
     background: var(--secondary);
@@ -1508,7 +1732,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     padding: 10px 16px;
     border-radius: 6px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.05em;
     transform: translateX(120%);
@@ -1525,7 +1749,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     text-align: center;
     padding: 8px 0;
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 12px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--fg-muted);
@@ -1565,7 +1789,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   }
   .onboarding-card p {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--fg-muted);
     line-height: 1.6;
     margin-bottom: 8px;
@@ -1583,7 +1807,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     display: flex; align-items: flex-start; gap: 10px;
     padding: 8px 0;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--fg-muted);
     letter-spacing: 0.03em;
   }
@@ -1594,7 +1818,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     background: var(--secondary);
     border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
-    font-size: 10px; color: var(--emerald);
+    font-size: 12px; color: var(--emerald);
     flex-shrink: 0;
     margin-top: -1px;
   }
@@ -1606,7 +1830,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
   .onboarding-card .btn { margin-top: 8px; }
 
 
-  /* ─────── yu.ai aligned shell ─────── */
+  
+  /* ─────── Button Styles ─────── */
+
+
+/* ─────── yu.ai aligned shell ─────── */
   .y-page { position: relative; z-index: 200; max-width: 1100px; margin: 0 auto; padding: 0; overflow-x: hidden; }
   .y-row { display: grid; grid-template-columns: 1fr; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
   .y-cell { padding: 16px; border-right: 1px solid var(--border); min-width: 0; display: flex; align-items: center; }
@@ -1618,7 +1846,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
   .y-label { font-size: 0.9375rem; letter-spacing: 0.1875rem; text-transform: uppercase; }
   .y-label-sm { font-size: 0.75rem; letter-spacing: 0.1875rem; text-transform: uppercase; }
-  .y-label-xs { font-size: 0.625rem; letter-spacing: 0.125rem; text-transform: uppercase; }
+  .y-label-xs { font-size: 0.6875rem; letter-spacing: 0.125rem; text-transform: uppercase; }
   .y-title { font-family: var(--font-serif); font-size: 2.625rem; font-weight: 700; line-height: 1; letter-spacing: 0.0525rem; }
   .y-display { font-family: var(--font-serif); font-size: 3.5rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; mix-blend-mode: plus-lighter; }
   .y-sub { font-size: 1.125rem; line-height: 1.6; opacity: 0.6; }
@@ -1633,7 +1861,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   .y-nav-link:hover .y-blink, .y-nav-link:focus-visible .y-blink { display: inline-block; }
   .y-nav-link:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
   .y-nav-link::before { content: ""; position: absolute; inset: -12px; background: var(--fg); pointer-events: none; opacity: 0; transition: opacity 0.25s; z-index: -1; }
-  .y-nav-link:hover::before { opacity: 0.05; }
+  .y-nav-link:hover::before { opacity: 0.1; }
 
   .y-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 60px 20px 44px; width: 100%; }
   .y-term { width: 100%; max-width: 560px; border: 4px double var(--border); }
@@ -1641,8 +1869,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
   .y-td { width: 10px; height: 10px; border-radius: 50%; }
   .y-td:nth-child(1) { background: var(--fg); }
   .y-td:nth-child(2) { background: var(--fg); opacity: 0.6; }
-  .y-td:nth-child(3) { background: var(--fg); opacity: 0.3; }
-  .y-term-label { margin-left: auto; font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.1875rem; opacity: 0.5; }
+  .y-td:nth-child(3) { background: var(--fg); opacity: 0.5; }
+  .y-term-label { margin-left: auto; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.1875rem; opacity: 0.5; }
   .y-term-b { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.85; padding: 18px 16px; white-space: pre-wrap; min-height: 100px; word-break: break-word; text-align: left; }
   .y-term-b .p { color: var(--accent); }
   .y-term-b .t { opacity: 0.6; }
@@ -1661,11 +1889,15 @@ HTML_PAGE = r"""<!DOCTYPE html>
     .y-footer { grid-template-columns: 1fr; border-left: none; }
     .y-footer .c { border-right: none; }
   }
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     .y-display { font-size: 2.2rem; }
     .y-sub { font-size: 0.95rem; }
     .y-hero { padding: 40px 16px 28px; }
     .y-term-b { font-size: 0.72rem; padding: 14px 12px; }
+  }
+  @media (max-width: 640px) {
+    .y-display { font-size: 1.8rem; }
+    .y-hero { padding: 32px 12px 20px; }
   }
 
 
@@ -1683,10 +1915,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
     margin: 24px 0 0;
   }
   .tab {
-    background: transparent !important;
-    border: none !important;
-    border-right: 1px solid var(--border) !important;
-    border-radius: 0 !important;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border);
+    border-radius: 0;
     padding: 14px 22px;
     font-family: var(--font-mono);
     font-size: 0.78rem;
@@ -1696,11 +1928,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
     cursor: pointer;
     transition: color 0.2s, background 0.2s;
   }
-  .tabs > .tab:last-child { border-right: none !important; }
+  .tabs > .tab:last-child { border-right: none; }
   .tab:hover { color: var(--fg); }
   .tab.active {
-    color: var(--accent) !important;
-    background: rgba(237,255,69,0.04) !important;
+    color: var(--accent);
+    background: rgba(237,255,69,0.04);
   }
 
   .tab-panel { padding: 24px 0; }
@@ -1727,11 +1959,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
     border: 1px solid var(--border);
   }
   .provider-btn {
-    background: transparent !important;
-    border: none !important;
-    border-right: 1px solid var(--border) !important;
-    border-bottom: 1px solid var(--border) !important;
-    border-radius: 0 !important;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
     padding: 16px 14px;
     text-align: left;
     cursor: pointer;
@@ -1740,23 +1972,23 @@ HTML_PAGE = r"""<!DOCTYPE html>
     transition: background 0.2s, color 0.2s;
   }
   .provider-btn:hover {
-    background: rgba(245,240,232,0.04) !important;
+    background: rgba(245,240,232,0.04);
   }
   .provider-btn.active {
-    background: rgba(237,255,69,0.06) !important;
-    color: var(--accent) !important;
+    background: rgba(237,255,69,0.06);
+    color: var(--accent);
   }
 
   /* Channel cards — flat */
   .channel-card {
-    background: transparent !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0 !important;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 0;
     transition: border-color 0.2s, background 0.2s;
   }
   .channel-card:hover {
-    border-color: var(--accent) !important;
-    background: rgba(245,240,232,0.02) !important;
+    border-color: var(--accent);
+    background: rgba(245,240,232,0.02);
   }
   .channel-name {
     font-family: var(--font-serif);
@@ -1772,44 +2004,44 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
   /* Buttons */
   .btn, .btn-save, .btn-launch {
-    border-radius: 0 !important;
+    border-radius: 0;
     font-family: var(--font-mono);
     letter-spacing: 0.12em;
     text-transform: uppercase;
   }
   .btn-launch, .btn-save {
-    border: 1px solid var(--accent) !important;
-    color: var(--accent) !important;
-    background: transparent !important;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    background: transparent;
     padding: 12px 24px;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .btn-launch:hover, .btn-save:hover {
-    background: var(--accent) !important;
-    color: var(--bg) !important;
+    background: var(--accent);
+    color: var(--bg);
   }
   .btn-launch:disabled, .btn-save:disabled {
-    border-color: var(--border) !important;
-    color: var(--fg-muted) !important;
+    border-color: var(--border);
+    color: var(--fg-muted);
     cursor: not-allowed;
     opacity: 0.5;
   }
 
   /* Inputs / selects */
   .field input, .field select, .field textarea, .api-key-row input {
-    border-radius: 0 !important;
-    font-family: var(--font-mono) !important;
-    background: transparent !important;
+    border-radius: 0;
+    font-family: var(--font-mono);
+    background: transparent;
   }
 
   /* Switch (toggle) — keep functional shape but recolor */
-  .switch input:checked + .slider { background-color: var(--accent) !important; }
+  .switch input:checked + .slider { background-color: var(--accent); }
 
   /* Toggle rows — flatter */
   .toggle-row {
-    background: transparent !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0 !important;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 0;
   }
   .toggle-label {
     font-family: var(--font-serif);
@@ -1824,9 +2056,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
   /* Onboarding card — yu.ai-styled */
   .onboarding-card {
-    border: 1px solid var(--border) !important;
-    border-radius: 0 !important;
-    background: var(--card) !important;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--card);
   }
   .onboarding-card h2 {
     font-family: var(--font-serif);
@@ -1834,21 +2066,21 @@ HTML_PAGE = r"""<!DOCTYPE html>
     mix-blend-mode: plus-lighter;
   }
   .onboarding-step {
-    border-radius: 0 !important;
+    border-radius: 0;
   }
   .step-num {
-    border-radius: 50% !important;
+    border-radius: 50%;
     font-family: var(--font-mono);
   }
 
   /* Toast */
-  .toast { border-radius: 0 !important; font-family: var(--font-mono); letter-spacing: 0.05em; }
+  .toast { border-radius: 0; font-family: var(--font-mono); letter-spacing: 0.05em; }
 
   /* Card class generic */
   .card {
-    background: transparent !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0 !important;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 0;
   }
 
   /* Fields */
@@ -1873,7 +2105,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   [style*="background: var(--card)"],
   [style*="background:var(--muted)"],
   [style*="background: var(--muted)"] {
-    background: transparent !important;
+    background: transparent;
   }
 
   /* CSS-rule level: any block that uses --card / --secondary / --muted
@@ -1881,37 +2113,50 @@ HTML_PAGE = r"""<!DOCTYPE html>
      property value, so we override the most common offenders by
      class name. */
   .api-key-row, .channel-fields, .field {
-    background: transparent !important;
+    background: transparent;
   }
 
   /* Inputs / selects transparent */
   .container input,
   .container select,
   .container textarea {
-    background: transparent !important;
-    border-color: var(--border) !important;
-    border-radius: 0 !important;
-    font-family: var(--font-mono) !important;
+    background: transparent;
+    border-color: var(--border);
+    border-radius: 0;
+    font-family: var(--font-mono);
   }
   .container input:focus,
   .container select:focus,
   .container textarea:focus {
-    border-color: var(--accent) !important;
+    border-color: var(--accent);
     outline: none;
   }
 
   /* Toast — flat with accent border */
   .toast {
-    background: var(--bg) !important;
-    border: 1px solid var(--accent) !important;
-    border-radius: 0 !important;
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    border-radius: 0;
     font-family: var(--font-mono);
     letter-spacing: 0.05em;
   }
 
+
+.skip-link{position:absolute;top:-40px;left:0;background:var(--accent);color:var(--bg);padding:8px 16px;z-index:1000;transition:top .3s;font-family:var(--font-sans);font-size:13px}
+.skip-link:focus{top:0}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" crossorigin />
+<style>
+  /* LXGW WenKai fallback for offline */
+  @font-face {
+    font-family: 'LXGW WenKai';
+    src: local('LXGW WenKai'), local('LXGWWenKai-Regular');
+    font-display: swap;
+  }
 </style>
 </head>
 <body>
+<a href="#main" class="skip-link">跳到主要内容</a>
 <div class="bg-i" aria-hidden="true"><img alt="" src="https://yuai-r.cn/egret-ink.jpg" width="1920" height="1080" loading="lazy" decoding="async" onerror="this.parentNode.style.display='none'"></div>
 <div class="bg-n" aria-hidden="true"></div>
 <div class="bg-g" aria-hidden="true"></div>
@@ -1934,28 +2179,21 @@ HTML_PAGE = r"""<!DOCTYPE html>
       </div>
     </div>
     <p style="opacity:0.6">API Key 仅存储在本机 data/.env 中</p>
-    <button class="btn btn-launch" style="width:100%;margin-top:12px" onclick="dismissOnboarding()">
+    <button class="btn primary btn-launch" style="width:100%;margin-top:12px" onclick="dismissOnboarding()">
       开始配置
     </button>
   </div>
 </div>
 
-<div class="y-page">
+<main class="y-page" role="main" id="main">
 
 <nav class="y-row nav-row" aria-label="Primary">
-  <div class="y-cell s1"><a href="https://yuai-r.cn/" class="y-title" style="text-decoration:none;color:inherit">yu.ai</a></div>
+  <div class="y-cell s2"><a href="https://yuai-r.cn/" class="y-title" style="text-decoration:none;color:inherit">yu.ai</a></div>
   <div class="y-cell s2" style="padding:0">
-    <a class="y-nav-link" href="https://yuai-r.cn/"><span class="y-label">hermes config <span class="y-blink"></span></span></a>
+    <a class="y-nav-link" href="https://yuai-r.cn/"><span class="y-label">hermes config</span></a>
   </div>
-  <div class="y-cell s1" style="padding:0">
-    <a class="y-nav-link" href="https://yuai-r.cn/#products"><span class="y-label">products <span class="y-blink"></span></span></a>
-  </div>
-  <div class="y-cell" style="justify-content:space-between">
-    <span class="y-label y-op-5">github</span>
-    <a href="https://github.com/yuluyangguang1/hermes-portable" target="_blank" rel="noopener" aria-label="GitHub" style="opacity:.5;line-height:0;transition:opacity .2s;color:inherit" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12a10 10 0 0 0 6.839 9.49c.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.934.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.577.688.48A10 10 0 0 0 22 12c0-5.523-4.477-10-10-10z"/></svg></a>
-  </div>
-  <div class="y-cell" style="justify-content:space-between">
-    <span class="y-label y-op-5">theme</span>
+  <div class="y-cell" style="justify-content:flex-end;gap:8px">
+    <button id="webui-btn" class="btn" onclick="toggleWebUI()" style="font-size:11px;padding:4px 8px;">Web UI</button>
     <button id="y-theme-btn" aria-label="切换主题" class="y-theme-toggle" type="button"><svg class="y-theme-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><svg class="y-theme-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
   </div>
 </nav>
@@ -2079,7 +2317,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
           </button>
         </div>
         <div id="updateAction" style="margin-top:8px;display:none">
-          <button type="button" class="btn btn-launch" style="width:100%" onclick="runUpdate()">
+          <button type="button" class="btn primary btn-launch" style="width:100%" onclick="runUpdate()">
             更新到最新版
           </button>
         </div>
@@ -2092,7 +2330,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
           <button type="button" class="btn" style="flex:1;min-width:120px" onclick="exportConfig()">导出配置</button>
           <button type="button" class="btn" style="flex:1;min-width:120px" onclick="startImport()">导入配置</button>
           <button type="button" class="btn" style="flex:1;min-width:120px" onclick="viewEnv()">查看 .env</button>
-          <button type="button" class="btn" style="flex:1;min-width:120px;color:var(--destructive)" onclick="resetConfig()">重置</button>
+          <button type="button" class="btn destructive" style="flex:1;min-width:120px" onclick="resetConfig()">重置</button>
         </div>
         <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="doImport(event)">
       </div>
@@ -2110,7 +2348,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     <div class="actions">
       <button type="button" class="btn btn-save" onclick="saveConfig()">保存</button>
       <button type="button" class="btn" id="restartBtn" onclick="restartHermes()" style="display:none">重启 Hermes</button>
-      <button type="button" class="btn btn-launch" id="launchBtn" onclick="launchHermes()">启动</button>
+      <button type="button" class="btn primary btn-launch" id="launchBtn" onclick="launchHermes()">启动</button>
     </div>
   </form>
 
@@ -2230,7 +2468,7 @@ function renderChannels() {
     // credentials from `hermes gateway setup` or from a prior session.
     const wechatExtra = ch.id === 'weixin' ? `
       <div class="field" style="margin-top:8px;">
-        <button type="button" class="btn btn-launch" style="width:100%"
+        <button type="button" class="btn primary btn-launch" style="width:100%"
                 onclick="event.stopPropagation(); startWeChatLogin()">
           📱 扫码登录微信
         </button>
@@ -2614,7 +2852,7 @@ function _wechatModal() {
       <div id="wechatStatusLine" style="margin-top:14px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted,#9a968e);min-height:1.4em;letter-spacing:0.04em;"></div>
       <div style="display:flex;gap:8px;margin-top:18px;">
         <button type="button" class="btn" style="flex:1" onclick="cancelWeChatLogin()">关闭</button>
-        <button type="button" class="btn btn-launch" style="flex:1" id="wechatRetryBtn" onclick="startWeChatLogin()" disabled>重试</button>
+        <button type="button" class="btn primary btn-launch" style="flex:1" id="wechatRetryBtn" onclick="startWeChatLogin()" disabled>重试</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
@@ -2788,17 +3026,45 @@ function cancelWeChatLogin(closeModal) {
 })();
 
 init();
+
+  // Hermes Web UI integration
+  async function toggleWebUI() {
+    const btn = document.getElementById('webui-btn');
+    try {
+      const res = await fetch('/api/webui/status');
+      const data = await res.json();
+      if (data.running) {
+        window.open('http://127.0.0.1:8648', '_blank');
+      } else {
+        btn.textContent = '启动中...';
+        btn.disabled = true;
+        const startRes = await fetch('/api/webui/start');
+        const startData = await startRes.json();
+        if (startData.ok) {
+          setTimeout(() => {
+            window.open('http://127.0.0.1:8648', '_blank');
+            btn.textContent = '打开';
+            btn.disabled = false;
+          }, 2000);
+        } else {
+          btn.textContent = '启动失败';
+          btn.disabled = false;
+        }
+      }
+    } catch (err) {
+      btn.textContent = '错误';
+      btn.disabled = false;
+    }
+  }
 </script>
+
+</main>
 
 <footer class="y-footer">
   <div class="c"><span class="y-label y-op-7">yu.ai</span></div>
-  <div class="c"><a class="y-label" href="https://yuai-r.cn/" style="opacity:.7;color:inherit;text-decoration:none">home ↗</a></div>
-  <div class="c"><a class="y-label" href="https://github.com/yuluyangguang1/hermes-portable" target="_blank" rel="noopener" style="opacity:.7;color:inherit;text-decoration:none">github ↗</a></div>
   <div class="c"><span class="y-label y-op-5">hermes portable</span></div>
   <div class="c"><span class="y-label y-op-5" style="color:var(--accent)">hermes config</span></div>
 </footer>
-
-</div>
 
 <script>
 (function(){
@@ -2822,6 +3088,9 @@ init();
     syncIcons(nowLight);
   };
 })();
+
+  // Hermes Web UI integration
+  
 </script>
 </body>
 </html>"""
@@ -2984,6 +3253,18 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             # GET /api/wechat/status?session=xxx — long-poll, may take 35s.
             # Reads self.path directly to keep query string.
             self._serve_wechat_status()
+        elif path_only == '/api/webui/status':
+            self._json_response({'running': webui_status()})
+        elif path_only == '/api/webui/start':
+            if webui_start():
+                self._json_response({'ok': True, 'port': WEB_UI_PORT})
+            else:
+                self._json_response({'ok': False, 'error': 'Failed to start'}, 500)
+        elif path_only == '/api/webui/stop':
+            if webui_stop():
+                self._json_response({'ok': True})
+            else:
+                self._json_response({'ok': False, 'error': 'Failed to stop'}, 500)
         else:
             self.send_error(404)
 
@@ -3102,8 +3383,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
-    def _json_response(self, data):
-        self.send_response(200)
+    def _json_response(self, data, status=200):
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
