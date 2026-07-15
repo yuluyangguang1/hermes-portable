@@ -29,14 +29,14 @@ if "%HERE:~-1%"=="\" set "HERE=%HERE:~0,-1%"
 
 rem -- Multi-layout venv detection ------------------------
 rem  Universal / per-platform layouts all supported:
-rem    HermesPortable\venv-windows-x64\Scripts\hermes.exe   (Universal)
-rem    HermesPortable\venv\Scripts\hermes.exe               (platform-only)
-if exist "%HERE%\venv-windows-x64\Scripts\hermes.exe" (
-    set "VENV_DIR=%HERE%\venv-windows-x64"
-    set "PYTHON_DIR=%HERE%\python-windows-x64"
-) else if exist "%HERE%\venv\Scripts\hermes.exe" (
-    set "VENV_DIR=%HERE%\venv"
-    set "PYTHON_DIR=%HERE%\python"
+rem    HermesPortable\runtime\windows-x64\venv\Scripts\hermes.exe   (Universal)
+rem    HermesPortable\runtime\venv\Scripts\hermes.exe               (platform-only)
+if exist "%HERE%\runtime\windows-x64\venv\Scripts\hermes.exe" (
+    set "VENV_DIR=%HERE%\runtime\windows-x64\venv"
+    set "PYTHON_DIR=%HERE%\runtime\windows-x64\python"
+) else if exist "%HERE%\runtime\venv\Scripts\hermes.exe" (
+    set "VENV_DIR=%HERE%\runtime\venv"
+    set "PYTHON_DIR=%HERE%\runtime\python"
 ) else (
     echo.
     echo   [ERROR] Windows venv not found.
@@ -160,8 +160,8 @@ if "%LAUNCH_MODE%"=="desktop" (
 
     rem Start hermes-web-ui (port 8648) if Node.js >= 23
     set "NODE_DIR="
-    if exist "%HERE%\node-windows-x64" set "NODE_DIR=%HERE%\node-windows-x64"
-    if exist "%HERE%\node" set "NODE_DIR=%HERE%\node"
+    if exist "%HERE%\runtime\windows-x64\node" set "NODE_DIR=%HERE%\runtime\windows-x64\node"
+    if exist "%HERE%\runtime\node" set "NODE_DIR=%HERE%\runtime\node"
     if defined NODE_DIR (
         if exist "%NODE_DIR%\bin\node.exe" (
             for /f "tokens=1 delims=." %%a in ('"%NODE_DIR%\bin\node.exe" --version 2^>nul') do set "NODE_MAJOR=%%a"

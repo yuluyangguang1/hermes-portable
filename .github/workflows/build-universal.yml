@@ -47,18 +47,18 @@ jobs:
           name: shared-base
           path: |
             dist/HermesPortable/
-            !dist/HermesPortable/venv-*/
-            !dist/HermesPortable/python-*/
-            !dist/HermesPortable/node-*/
+            !dist/HermesPortable/runtime/*/venv/
+            !dist/HermesPortable/runtime/*/python/
+            !dist/HermesPortable/runtime/*/node/
           retention-days: 7
       - name: Upload macOS arm64 venv/python/node
         uses: actions/upload-artifact@v4
         with:
           name: macos-arm64-runtime
           path: |
-            dist/HermesPortable/venv-macos-arm64/
-            dist/HermesPortable/python-macos-arm64/
-            dist/HermesPortable/node-macos-arm64/
+            dist/HermesPortable/runtime/macos-arm64/venv/
+            dist/HermesPortable/runtime/macos-arm64/python/
+            dist/HermesPortable/runtime/macos-arm64/node/
           if-no-files-found: warn
           retention-days: 7
 
@@ -78,9 +78,9 @@ jobs:
         with:
           name: macos-x64-runtime
           path: |
-            dist/HermesPortable/venv-macos-x64/
-            dist/HermesPortable/python-macos-x64/
-            dist/HermesPortable/node-macos-x64/
+            dist/HermesPortable/runtime/macos-x64/venv/
+            dist/HermesPortable/runtime/macos-x64/python/
+            dist/HermesPortable/runtime/macos-x64/node/
           if-no-files-found: warn
           retention-days: 7
 
@@ -103,9 +103,9 @@ jobs:
         with:
           name: windows-x64-runtime
           path: |
-            dist/HermesPortable/venv-windows-x64/
-            dist/HermesPortable/python-windows-x64/
-            dist/HermesPortable/node-windows-x64/
+            dist/HermesPortable/runtime/windows-x64/venv/
+            dist/HermesPortable/runtime/windows-x64/python/
+            dist/HermesPortable/runtime/windows-x64/node/
           if-no-files-found: warn
           retention-days: 7
 
@@ -154,12 +154,12 @@ jobs:
                    HermesPortable/tools/mac-rebuild.sh HermesPortable/uv; do
             [ -f "$f" ] && chmod +x "$f"
           done
-          for bindir in HermesPortable/venv-*/bin \
-                        HermesPortable/python-*/*/bin \
-                        HermesPortable/node-*/bin; do
+          for bindir in HermesPortable/runtime/*/venv/bin \
+                        HermesPortable/runtime/*/python/*/bin \
+                        HermesPortable/runtime/*/node/bin; do
             [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} +
           done
-          # zip -y preserves symlinks inside node-*/bin (npm → ../lib/…)
+          # zip -y preserves symlinks inside runtime/*/node/bin (npm → ../lib/…)
           # and records Unix mode from the filesystem, so macOS Archive
           # Utility unpacks everything with exec bits intact.
           zip -yrq HermesPortable-Universal.zip HermesPortable/

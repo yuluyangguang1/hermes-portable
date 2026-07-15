@@ -804,15 +804,15 @@ def main():
         ROOT = Path(__file__).parent.parent.parent / "dist" / "HermesPortable"
     ROOT.mkdir(parents=True, exist_ok=True)
 
-    # Platform-suffixed dir names for universal layout
+    # Platform-first layout: runtime/<platform>/{venv,python,node}
     if args.layout == "universal":
-        venv_name = f"venv-{label}"
-        python_name = f"python-{label}"
-        node_name = f"node-{label}"
+        venv_name = f"runtime/{label}/venv"
+        python_name = f"runtime/{label}/python"
+        node_name = f"runtime/{label}/node"
     else:
-        venv_name = "venv"
-        python_name = "python"
-        node_name = "node"
+        venv_name = "runtime/venv"
+        python_name = "runtime/python"
+        node_name = "runtime/node"
 
     ctx = {
         "ROOT": ROOT,
