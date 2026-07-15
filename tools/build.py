@@ -365,6 +365,13 @@ def step_data(ctx):
             "  user_profile_enabled: true\n",
             encoding="utf-8",
         )
+    # Create _home/.hermes symlink (relative, not absolute)
+    home_dir = ROOT / "_home"
+    home_dir.mkdir(parents=True, exist_ok=True)
+    hermes_link = home_dir / ".hermes"
+    if hermes_link.exists() or hermes_link.is_symlink():
+        hermes_link.unlink()
+    hermes_link.symlink_to("../../data")
     ok("data/ ready")
 
 
@@ -560,6 +567,22 @@ def step_cleanup(ctx):
             # packages don't import their own tests at runtime.
             for d in site.rglob("__tests__"):
                 shutil.rmtree(d, ignore_errors=True); removed += 1
+    # Replace symlinks with copies for exFAT/Windows compatibility
+    import shutil as _shutil
+    symlink_count = 0
+    for link in ROOT.rglob("*"):
+        if link.is_symlink():
+            target = link.resolve()
+            if target.exists():
+                link.unlink()
+                if target.is_dir():
+                    _shutil.copytree(target, link)
+                else:
+                    _shutil.copy2(target, link)
+                symlink_count += 1
+    if symlink_count > 0:
+        ok(f"Replaced {symlink_count} symlinks with copies")
+
     ok(f"Cleaned {removed} artifacts")
 
 
