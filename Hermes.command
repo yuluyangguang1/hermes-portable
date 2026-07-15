@@ -378,7 +378,26 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
     > "$HERE/data/config_server.log" 2>&1 &
   echo "  Config panel: http://127.0.0.1:17520"
 
-  # 启动桌面版
+  # ── Start Hermes Web UI (optional) ──────────────────────────────
+# Check if Node.js is available and version >= 23
+NODE_OK=false
+if [ -n "$NODE_DIR" ] && [ -x "$NODE_DIR/bin/node" ]; then
+  NODE_VER=$("$NODE_DIR/bin/node" -v 2>/dev/null | sed 's/v//' | cut -d. -f1)
+  if [ -n "$NODE_VER" ] && [ "$NODE_VER" -ge 23 ] 2>/dev/null; then
+    NODE_OK=true
+  fi
+fi
+if [ "$NODE_OK" = "true" ]; then
+  if command -v hermes-web-ui >/dev/null 2>&1 || [ -x "$NODE_DIR/bin/hermes-web-ui" ]; then
+    echo "  Starting Hermes Web UI on port 8648..."
+    hermes-web-ui start 8648 >/dev/null 2>&1 || true
+    echo "  Hermes Web UI: http://127.0.0.1:8648"
+  fi
+else
+  echo "  Hermes Web UI: skipped (Node.js >= 23 required)"
+fi
+
+# 启动桌面版
   case "$DESKTOP_APP" in
     *.app) open "$DESKTOP_APP" ;;
     *)     exec "$DESKTOP_APP" "$@" ;;
