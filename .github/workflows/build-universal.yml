@@ -19,8 +19,8 @@ concurrency:
   cancel-in-progress: false
 
 # Each platform job builds with --layout universal, which produces
-#   venv-<platform>/ and python-<platform>/ (and node-<platform>/)
-# instead of plain venv/. The merge job then overlays all five onto a
+#   runtime/<platform>/{venv,python,node}
+# instead of plain runtime/venv/. The merge job then overlays all onto a
 # single shared-base (which contains launchers, data/, hermes-agent/).
 #
 # Runtimes shipped in Universal:
@@ -114,8 +114,6 @@ jobs:
     needs:
       - build-macos-arm64
       - build-macos-x64
-      - build-linux-x64
-      - build-linux-arm64
       - build-windows-x64
     runs-on: ubuntu-latest
     steps:
@@ -129,7 +127,7 @@ jobs:
           mkdir -p HermesPortable
           # shared-base contains launchers, data/, hermes-agent/, uv, README, ...
           cp -a artifacts/shared-base/. HermesPortable/
-          for rt in macos-arm64-runtime macos-x64-runtime linux-x64-runtime linux-arm64-runtime windows-x64-runtime; do
+          for rt in macos-arm64-runtime macos-x64-runtime windows-x64-runtime; do
             if [ -d "artifacts/$rt" ]; then
               cp -a "artifacts/$rt/." HermesPortable/
               echo "  merged $rt"
