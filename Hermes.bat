@@ -169,8 +169,15 @@ if "%LAUNCH_MODE%"=="desktop" (
 )
 :cli_mode
 rem Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
+rem Try install\lib first (old layout), then any cpython-*\lib (new layout)
+set "PYTHONHOME="
 for /f "delims=" %%D in ('dir /b /s /ad "%PYTHON_DIR%\install\lib" 2^>nul') do (
     for %%P in ("%%D\..") do set "PYTHONHOME=%%~fP"
+)
+if not defined PYTHONHOME (
+    for /f "delims=" %%D in ('dir /b /ad "%PYTHON_DIR%" 2^>nul') do (
+        if exist "%PYTHON_DIR%\%%D\lib\python3.12" set "PYTHONHOME=%PYTHON_DIR%\%%D"
+    )
 )
 if defined NODE_DIR (
     set "PATH=%VENV_DIR%\Scripts;%NODE_DIR%;%PYTHON_DIR%;%PATH%"

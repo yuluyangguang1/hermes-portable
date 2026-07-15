@@ -148,8 +148,8 @@ jobs:
           # double-click Hermes.command with "您没有权限执行". Fix it
           # here on the merge runner, right before zipping.
           for f in HermesPortable/Hermes.command HermesPortable/Hermes.sh \
-                   HermesPortable/lib/update.sh HermesPortable/tools/linux-rebuild.sh \
-                   HermesPortable/tools/mac-rebuild.sh HermesPortable/uv; do
+                   HermesPortable/lib/update.sh HermesPortable/tools/mac-rebuild.sh \
+                   HermesPortable/uv; do
             [ -f "$f" ] && chmod +x "$f"
           done
           for bindir in HermesPortable/venv-*/bin \
