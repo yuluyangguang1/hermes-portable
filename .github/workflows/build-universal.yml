@@ -27,8 +27,6 @@ concurrency:
 #   macos-arm64  (macos-latest)
 #   macos-x64    (macos-15-intel — macos-13 retired 2025-12-08; macos-15-intel
 #                is the last Intel macOS image, available until Aug 2027)
-#   linux-x64    (ubuntu-latest)
-#   linux-arm64  (ubuntu-24.04-arm — GA for public repos in early 2025)
 #   windows-x64  (windows-latest — Node.js has no Windows arm64 prebuilt)
 
 jobs:
@@ -86,53 +84,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  build-linux-x64:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
-      - name: Install system deps
-        run: sudo apt-get update && sudo apt-get install -y git curl
-      - name: Build
-        run: python3 tools/build.py --layout universal
-      - name: Upload Linux x64 venv/python/node
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-x64-runtime
-          path: |
-            dist/HermesPortable/venv-linux-x64/
-            dist/HermesPortable/python-linux-x64/
-            dist/HermesPortable/node-linux-x64/
-          if-no-files-found: warn
-          retention-days: 7
 
-  build-linux-arm64:
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
-      - name: Install system deps
-        run: sudo apt-get update && sudo apt-get install -y git curl
-      - name: Build
-        run: python3 tools/build.py --layout universal
-      - name: Upload Linux arm64 venv/python/node
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-arm64-runtime
-          path: |
-            dist/HermesPortable/venv-linux-arm64/
-            dist/HermesPortable/python-linux-arm64/
-            dist/HermesPortable/node-linux-arm64/
-          if-no-files-found: warn
-          retention-days: 7
 
   build-windows-x64:
     runs-on: windows-latest
@@ -162,8 +114,6 @@ jobs:
     needs:
       - build-macos-arm64
       - build-macos-x64
-      - build-linux-x64
-      - build-linux-arm64
       - build-windows-x64
     runs-on: ubuntu-latest
     steps:
@@ -177,7 +127,7 @@ jobs:
           mkdir -p HermesPortable
           # shared-base contains launchers, data/, hermes-agent/, uv, README, ...
           cp -a artifacts/shared-base/. HermesPortable/
-          for rt in macos-arm64-runtime macos-x64-runtime linux-x64-runtime linux-arm64-runtime windows-x64-runtime; do
+          for rt in macos-arm64-runtime macos-x64-runtime windows-x64-runtime; do
             if [ -d "artifacts/$rt" ]; then
               cp -a "artifacts/$rt/." HermesPortable/
               echo "  merged $rt"
