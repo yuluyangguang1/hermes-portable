@@ -1,0 +1,219 @@
+name: Build & Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+# Serialize release-producing runs per ref. The main failure mode this
+# prevents: if you push v0.13.10, notice a problem, delete the tag and
+# re-push the same tag, GitHub triggers two runs of this workflow
+# against the same release. softprops/action-gh-release *appends* to an
+# existing release body on update, so the second run duplicates
+# sections (we hit this in v0.13.2/0.13.3). With this group, the
+# second run waits for the first to finish before starting.
+#
+# cancel-in-progress: false — we want both to complete. Canceling the
+# in-progress one would leave a half-built release.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Per-arch matrix. build.py has no --arch / no cross-build: uv picks
+    # wheels by host arch, so each zip must come from its own runner.
+    #   macos-latest      → Apple Silicon (arm64)
+    #   macos-15-intel    → Intel (x86_64); macos-13 was retired 2025-12-08,
+    #                        macos-15-intel is the last Intel macOS image
+    #                        GitHub will ship (available until Aug 2027)
+    #   ubuntu-latest     → x86_64
+    #   ubuntu-24.04-arm  → arm64 (GA for public repos in early 2025)
+    #   windows-latest    → x86_64 (Node.js has no Windows arm64 prebuilt)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest,     label: macOS,   arch: arm64, artifact: macOS-arm64 }
+          - { os: macos-15-intel,   label: macOS,   arch: x64,   artifact: macOS-x64 }
+          - { os: ubuntu-latest,    label: Linux,   arch: x64,   artifact: Linux-x64 }
+          - { os: ubuntu-24.04-arm, label: Linux,   arch: arm64, artifact: Linux-arm64 }
+          - { os: windows-latest,   label: Windows, arch: x64,   artifact: Windows-x64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Hardening: don't leave the default GITHUB_TOKEN sitting in
+          # .git/config after checkout. Nothing in the subsequent steps
+          # needs to push back to the repo; keeping it around just widens
+          # the blast radius if any third-party action were to read
+          # git config.
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install system deps (Linux)
+        if: startsWith(matrix.os, 'ubuntu-')
+        run: sudo apt-get update && sudo apt-get install -y git curl
+
+      - name: Debug environment
+        shell: bash
+        run: |
+          python --version
+          git --version
+          curl --version | head -1
+          python -c "import platform; print('platform:', platform.system(), platform.machine())"
+
+      - name: Build
+        # Single entry-point on all platforms.
+        shell: bash
+        run: python tools/build.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/HermesPortable/
+          # Per-arch intermediate artifacts only exist to feed the
+          # release job; once the zips are uploaded to the release
+          # page there's no reason to keep 5+ GB of artifacts around
+          # for GitHub's default 90 days. 7 days is plenty of buffer
+          # to re-download if a release upload step fails.
+          retention-days: 7
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Show artifacts
+        run: |
+          ls -la artifacts/
+          for d in artifacts/*/; do du -sh "$d"; done
+
+      - name: Create archives
+        run: |
+          set -e
+          cd artifacts
+          for p in macOS-arm64 macOS-x64 Linux-x64 Linux-arm64 Windows-x64; do
+            if [ -d "$p" ]; then
+              # upload-artifact@v4 does not guarantee exec bits survive
+              # the macOS-runner → Linux-runner round trip. If a user's
+              # downloaded Hermes.command lands at mode 0644, macOS
+              # Finder refuses to double-click it with "您没有权限
+              # 执行"/"permission denied". Restore exec bits here, on
+              # the zip-assembly runner, before archiving — that is the
+              # only step guaranteed to run on Linux and whose output
+              # actually ships to users.
+              #
+              # zip -y preserves symlinks; zip records stored Unix mode
+              # from the filesystem, so once we chmod these, macOS
+              # Archive Utility unpacks them with mode 0755 intact.
+              for f in "$p"/Hermes.command "$p"/Hermes.sh \
+                       "$p"/lib/update.sh "$p"/tools/linux-rebuild.sh \
+                       "$p"/tools/mac-rebuild.sh "$p"/uv; do
+                [ -f "$f" ] && chmod +x "$f"
+              done
+              # Also: venv bin-scripts and the portable python binaries
+              # lose exec bits the same way. Walk both common locations.
+              for bindir in "$p"/venv/bin "$p"/venv-*/bin \
+                            "$p"/python/*/bin "$p"/python-*/*/bin \
+                            "$p"/node/bin "$p"/node-*/bin; do
+                [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} +
+              done
+              zip -yrq "../HermesPortable-$p.zip" "$p"
+              echo "  packed HermesPortable-$p.zip"
+            else
+              echo "  ! $p artifact missing"
+            fi
+          done
+
+      # Build a consistent, informative release body. softprops'
+      # generate_release_notes=true appends GitHub's auto-summary
+      # (commits + PRs) *below* this body. Keeping the stable parts
+      # (download table, platform requirements, first-run guide) in
+      # the body means every release has the same useful shape even
+      # if no humans are around to write notes.
+      - name: Compose release notes
+        run: |
+          set -e
+          TAG="${GITHUB_REF#refs/tags/}"
+          {
+            echo "# Hermes Portable $TAG"
+            echo
+            echo "> Plug-in-a-USB [Hermes Agent](https://github.com/NousResearch/hermes-agent) · zero-install, zero-trace, cross-platform"
+            echo "> 插上U盘即用 · 零安装 · 零痕迹 · 三平台原生"
+            echo
+            echo "## 下载 Downloads"
+            echo
+            echo "挑对应你机器架构的包——不确定就看 \`uname -m\` (macOS/Linux) 或 Windows 设置里的「关于 → 系统类型」。"
+            echo
+            echo "| 平台 Platform | 架构 Arch | 文件 File | 启动方式 Launch |"
+            echo "|---|---|---|---|"
+            echo "| **macOS** (Apple Silicon) | arm64 | [HermesPortable-macOS-arm64.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-macOS-arm64.zip) | 双击 \`Hermes.command\` |"
+            echo "| **macOS** (Intel) | x86_64 | [HermesPortable-macOS-x64.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-macOS-x64.zip) | 双击 \`Hermes.command\` |"
+            echo "| **Linux** (glibc 2.28+) | x86_64 | [HermesPortable-Linux-x64.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Linux-x64.zip) | \`./Hermes.sh\` |"
+            echo "| **Linux** (glibc 2.28+) | arm64 | [HermesPortable-Linux-arm64.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Linux-arm64.zip) | \`./Hermes.sh\` |"
+            echo "| **Windows** 10/11 (native, no WSL) | x86_64 | [HermesPortable-Windows-x64.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Windows-x64.zip) | 双击 \`Hermes.bat\` |"
+            echo "| 🌍 **Universal** (全架构合一 / all arches) | — | [HermesPortable-Universal.zip](https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/HermesPortable-Universal.zip) | U 盘多机共用 / USB for any box |"
+            echo
+            echo "## 首次使用 Quick start"
+            echo
+            echo "1. 解压到 U 盘或任意目录（Windows 避免深路径，260 字符限制）"
+            echo "2. 双击对应平台的启动器"
+            echo "3. 首次启动自动打开 <http://127.0.0.1:17520> ，填 API Key → 保存 → 启动"
+            echo
+            echo "## 零痕迹保证 Zero-trace guarantee"
+            echo
+            echo "启动器在 U 盘里建 \`_home/\` 沙箱，劫持 \`HOME\` / \`USERPROFILE\`，所有走 \`~/.hermes\` 的读写都落到 U 盘的 \`data/\` 里。宿主机的真 \`~/.hermes\` / \`%USERPROFILE%\\.hermes\` 从不接触——拔 U 盘，什么都带走，什么都没留下。"
+            echo
+            echo "## macOS: 首次双击提示「您没有权限」/「无法打开」"
+            echo
+            echo "macOS 会给从浏览器下载的 zip 盖 Gatekeeper 隔离标记，解压后双击 \`Hermes.command\` 会被拒。打开\"终端\" (Terminal)，用下面两条命令解除一次即可（第一条移除隔离标记，第二条恢复可执行权限）："
+            echo
+            echo "\`\`\`bash"
+            echo "# 把下一行里的路径替换成你自己的 HermesPortable 文件夹"
+            echo "cd ~/Downloads/HermesPortable"
+            echo "xattr -cr . && chmod +x Hermes.command Hermes.sh"
+            echo "\`\`\`"
+            echo
+            echo "之后再双击 \`Hermes.command\` 就正常了。（这是 macOS 对未公证应用的默认行为，不是 Hermes 的 bug。）"
+            echo
+            echo "## SHA-256"
+            echo
+            echo "\`\`\`"
+            sha256sum HermesPortable-*.zip 2>/dev/null || shasum -a 256 HermesPortable-*.zip
+            echo "\`\`\`"
+            echo
+            echo "> Universal 包由 \`.github/workflows/build-universal.yml\` 单独构建并上传到本 release。"
+            echo
+            echo "---"
+            echo
+          } > release-notes.md
+          echo "===== release-notes.md ====="
+          cat release-notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            HermesPortable-macOS-arm64.zip
+            HermesPortable-macOS-x64.zip
+            HermesPortable-Linux-x64.zip
+            HermesPortable-Linux-arm64.zip
+            HermesPortable-Windows-x64.zip
+          body_path: release-notes.md
+          # generate_release_notes places GitHub's auto-summary
+          # (commits + PRs since last tag) *after* body_path content.
+          generate_release_notes: true
+          fail_on_unmatched_files: false

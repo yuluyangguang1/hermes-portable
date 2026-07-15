@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-#  Hermes Portable — macOS launcher
+#  Hermes Portable — Unix launcher (macOS .command & Linux .sh)
 # ═══════════════════════════════════════════════════════════════
 # Note: we intentionally do NOT use `set -e`. The cleanup trap needs
 # to run even if hermes exits non-zero, and `wait $CHILD` returning
@@ -36,9 +36,11 @@ case "$OS" in
     esac
     ;;
   Linux)
-    echo "  Linux is not supported in this build." >&2
-    echo "  Please use macOS or Windows." >&2
-    exit 1
+    case "$ARCH" in
+      x86_64|amd64)   PLATFORM="linux-x64" ;;
+      aarch64|arm64)  PLATFORM="linux-arm64" ;;
+      *)              PLATFORM="linux-$ARCH" ;;
+    esac
     ;;
   *)
     echo "  Unsupported OS: $OS" >&2
@@ -47,13 +49,13 @@ case "$OS" in
 esac
 
 # ── Multi-layout venv detection ───────────────────────────────
-# Universal zips: runtime/<platform>/venv; single-platform: runtime/venv
-if [ -d "$HERE/runtime/$PLATFORM/venv" ]; then
-  VENV_DIR="$HERE/runtime/$PLATFORM/venv"
-  PYTHON_DIR="$HERE/runtime/$PLATFORM/python"
-elif [ -d "$HERE/runtime/venv" ]; then
-  VENV_DIR="$HERE/runtime/venv"
-  PYTHON_DIR="$HERE/runtime/python"
+# Universal zips carry e.g. venv-macos-arm64/; single-platform zips carry venv/.
+if [ -d "$HERE/venv-$PLATFORM" ]; then
+  VENV_DIR="$HERE/venv-$PLATFORM"
+  PYTHON_DIR="$HERE/python-$PLATFORM"
+elif [ -d "$HERE/venv" ]; then
+  VENV_DIR="$HERE/venv"
+  PYTHON_DIR="$HERE/python"
 else
   echo "" >&2
   echo "  [ERROR] venv not found for platform: $PLATFORM" >&2
@@ -64,11 +66,11 @@ else
   exit 1
 fi
 
-# Node runtime (optional; universal zip has runtime/<platform>/node)
-if [ -d "$HERE/runtime/$PLATFORM/node" ]; then
-  NODE_DIR="$HERE/runtime/$PLATFORM/node"
-elif [ -d "$HERE/runtime/node" ]; then
-  NODE_DIR="$HERE/runtime/node"
+# Node runtime (optional; universal zip has node-<platform>)
+if [ -d "$HERE/node-$PLATFORM" ]; then
+  NODE_DIR="$HERE/node-$PLATFORM"
+elif [ -d "$HERE/node" ]; then
+  NODE_DIR="$HERE/node"
 else
   NODE_DIR=""
 fi
@@ -134,9 +136,9 @@ if [ -n "$MISMATCH" ]; then
   # Prefer the in-place rebuild if the helper is available (platform-only
   # zips ship tools/mac-rebuild.sh + tools/build.py). Universal zips strip build.py
   # to save space, so they fall back to the download path.
-  if [ -f "$HERE/runtime/tools/mac-rebuild.sh" ] && [ -f "$HERE/runtime/tools/build.py" ]; then
+  if [ -f "$HERE/tools/mac-rebuild.sh" ] && [ -f "$HERE/tools/build.py" ]; then
     echo "  Recommended fix (rebuilds the runtime on this Mac, ~2-3 min):" >&2
-    echo "    bash \"$HERE/runtime/tools/mac-rebuild.sh\"" >&2
+    echo "    bash \"$HERE/tools/mac-rebuild.sh\"" >&2
     echo "" >&2
     echo "  Requires Xcode Command Line Tools (python3 + git + curl)." >&2
     echo "  If you don't have them:  xcode-select --install" >&2
@@ -215,7 +217,7 @@ fi
 # python. Harmless (no-op) when shebangs are already `/bin/sh`-
 # wrapped relocatable stubs, which is the common case on macOS.
 # Kept in sync with Hermes.sh — previously only Hermes.sh ran this.
-if [ -f "$HERE/runtime/lib/fix_shims.py" ]; then
+if [ -f "$HERE/lib/fix_shims.py" ]; then
   PORTABLE_PY=""
   # Prefer the real python-build-standalone binary (never a trampoline).
   for cand in "$PYTHON_DIR"/*/bin/python3.12 \
@@ -224,7 +226,7 @@ if [ -f "$HERE/runtime/lib/fix_shims.py" ]; then
     if [ -x "$cand" ]; then PORTABLE_PY="$cand"; break; fi
   done
   if [ -n "$PORTABLE_PY" ]; then
-    "$PORTABLE_PY" "$HERE/runtime/lib/fix_shims.py" 2>/dev/null || true
+    "$PORTABLE_PY" "$HERE/lib/fix_shims.py" 2>/dev/null || true
   fi
 fi
 
@@ -316,7 +318,8 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
     DESKTOP_APP="$HERE/runtime/desktop/dist/mac-arm64/Hermes.app"
   elif [ -d "$HERE/runtime/desktop/dist/mac/Hermes.app" ]; then
     DESKTOP_APP="$HERE/runtime/desktop/dist/mac/Hermes.app"
-
+  elif [ -x "$HERE/runtime/desktop/dist/linux-unpacked/Hermes" ]; then
+    DESKTOP_APP="$HERE/runtime/desktop/dist/linux-unpacked/Hermes"
   fi
 
   if [ -z "$DESKTOP_APP" ]; then
@@ -369,29 +372,9 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
   export HERMES_PORTABLE_ROOT="$HERE"
   export HERMES_PORTABLE_MODE="1"
 
-  
-# ── Start Hermes Web UI (optional) ──────────────────────────────
-# Check if Node.js is available and version >= 22
-NODE_OK=false
-if [ -n "$NODE_DIR" ] && [ -x "$NODE_DIR/bin/node" ]; then
-  NODE_VER=$("$NODE_DIR/bin/node" -v 2>/dev/null | sed 's/v//' | cut -d. -f1)
-  if [ -n "$NODE_VER" ] && [ "$NODE_VER" -ge 23 ] 2>/dev/null; then
-    NODE_OK=true
-  fi
-fi
-if [ "$NODE_OK" = "true" ]; then
-  if command -v hermes-web-ui >/dev/null 2>&1 || [ -x "$NODE_DIR/bin/hermes-web-ui" ]; then
-    echo "  Starting Hermes Web UI on port 8648..."
-    hermes-web-ui start 8648 >/dev/null 2>&1 || true
-    echo "  Hermes Web UI: http://127.0.0.1:8648"
-  fi
-else
-  echo "  Hermes Web UI: skipped (Node.js >= 23 required)"
-fi
-
-# 后台启动配置中心（端口 17520）
+  # 后台启动配置中心（端口 17520）
   export HERMES_BROWSER_OPENED=1
-  nohup "$VENV_DIR/bin/python" "$HERE/runtime/lib/config_server.py" \
+  nohup "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" \
     > "$HERE/data/config_server.log" 2>&1 &
   echo "  Config panel: http://127.0.0.1:17520"
 
@@ -425,21 +408,17 @@ if [ "${1-}" = "--config" ] || [ "$HAS_KEY" = "false" ]; then
   # Tell config_server we already opened the browser, so it doesn't
   # open a second tab (see config_server.main).
   export HERMES_BROWSER_OPENED=1
-   # Run in background and keep alive
-   "$VENV_DIR/bin/python" "$HERE/runtime/lib/config_server.py" &
-   CONFIG_PID=$!
-   echo "  Config panel PID: $CONFIG_PID"
-   echo "  Press Ctrl+C to stop"
-   wait $CONFIG_PID
-   exit $?
-  fi
+  # Run in foreground; trap handlers still fire on exit.
+  "$VENV_DIR/bin/python" "$HERE/lib/config_server.py"
+  exit $?
+fi
 
 # ── Background config server with watchdog (auto-restart on crash) ──
 CONFIG_PID=""
 export HERMES_BROWSER_OPENED=1
 
 start_config_server() {
-  "$VENV_DIR/bin/python" "$HERE/runtime/lib/config_server.py" >/dev/null 2>&1 &
+  "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" >/dev/null 2>&1 &
   CONFIG_PID=$!
 }
 

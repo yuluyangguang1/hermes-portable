@@ -29,29 +29,29 @@ if "%HERE:~-1%"=="\" set "HERE=%HERE:~0,-1%"
 
 rem -- Multi-layout venv detection ------------------------
 rem  Universal / per-platform layouts all supported:
-rem    HermesPortable\runtime\windows-x64\venv\Scripts\hermes.exe   (Universal)
-rem    HermesPortable\runtime\venv\Scripts\hermes.exe               (platform-only)
-if exist "%HERE%\runtime\windows-x64\venv\Scripts\hermes.exe" (
-    set "VENV_DIR=%HERE%\runtime\windows-x64\venv"
-    set "PYTHON_DIR=%HERE%\runtime\windows-x64\python"
-) else if exist "%HERE%\runtime\venv\Scripts\hermes.exe" (
-    set "VENV_DIR=%HERE%\runtime\venv"
-    set "PYTHON_DIR=%HERE%\runtime\python"
+rem    HermesPortable\venv-windows-x64\Scripts\hermes.exe   (Universal)
+rem    HermesPortable\venv\Scripts\hermes.exe               (platform-only)
+if exist "%HERE%\venv-windows-x64\Scripts\hermes.exe" (
+    set "VENV_DIR=%HERE%\venv-windows-x64"
+    set "PYTHON_DIR=%HERE%\python-windows-x64"
+) else if exist "%HERE%\venv\Scripts\hermes.exe" (
+    set "VENV_DIR=%HERE%\venv"
+    set "PYTHON_DIR=%HERE%\python"
 ) else (
     echo.
     echo   [ERROR] Windows venv not found.
     echo.
     echo   Looks like this is the source repo, not a release zip.
     echo   Expected one of these to exist next to Hermes.bat:
-    echo     %HERE%\runtime\windows-x64\venv\Scripts\hermes.exe
-    echo     %HERE%\runtime\venv\Scripts\hermes.exe
+    echo     %HERE%\venv-windows-x64\Scripts\hermes.exe
+    echo     %HERE%\venv\Scripts\hermes.exe
     echo.
-    echo   Fix: download HermesPortable-Universal.zip from
+    echo   Fix: download HermesPortable-Windows.zip from
     echo     https://github.com/yuluyangguang1/hermes-portable/releases
     echo   and double-click the Hermes.bat inside the extracted folder.
     echo.
     echo   Or rebuild from source in a separate cmd window:
-    echo     python system\tools\build.py
+    echo     python tools\build.py
     echo   then use dist\HermesPortable\Hermes.bat instead.
     echo.
     pause
@@ -158,27 +158,9 @@ if "%LAUNCH_MODE%"=="desktop" (
     set "HERMES_PORTABLE_ROOT=%HERE%"
     set "HERMES_PORTABLE_MODE=1"
 
-    rem Start hermes-web-ui (port 8648) if Node.js >= 23
-    set "NODE_DIR="
-    if exist "%HERE%\runtime\windows-x64\node" set "NODE_DIR=%HERE%\runtime\windows-x64\node"
-    if exist "%HERE%\runtime\node" set "NODE_DIR=%HERE%\runtime\node"
-    if defined NODE_DIR (
-        if exist "%NODE_DIR%\bin\node.exe" (
-            for /f "tokens=1 delims=." %%a in ('"%NODE_DIR%\bin\node.exe" --version 2^>nul') do set "NODE_MAJOR=%%a"
-            set "NODE_MAJOR=!NODE_MAJOR:v=!"
-            if !NODE_MAJOR! GEQ 23 (
-                echo   Starting Hermes Web UI on port 8648...
-                start "" /b "%NODE_DIR%\bin\node.exe" "%NODE_DIR%\bin\hermes-web-ui" start 8648
-                echo   Hermes Web UI: http://127.0.0.1:8648
-            ) else (
-                echo   Hermes Web UI: skipped (Node.js ^>= 23 required^)
-            )
-        )
-    )
-
     rem Start config server in background (port 17520)
     set "HERMES_BROWSER_OPENED=1"
-    start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\runtime\lib\config_server.py"
+    start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
     echo   Config panel: http://127.0.0.1:17520
 
     rem Launch desktop app
@@ -211,7 +193,7 @@ rem  We drive fix_shims.py with the portable python directly (the real
 rem  python-build-standalone binary under %PYTHON_DIR%) rather than
 rem  venv\Scripts\python.exe, because the latter is itself a uv
 rem  trampoline and might be broken too.
-if exist "%HERE%\runtime\lib\fix_shims.py" (
+if exist "%HERE%\lib\fix_shims.py" (
     rem Locate the portable python.exe under %PYTHON_DIR%. It lives
     rem inside a cpython-3.12-... subdirectory we don't know the exact
     rem name of, so glob for it.
@@ -220,11 +202,11 @@ if exist "%HERE%\runtime\lib\fix_shims.py" (
         if not defined PORTABLE_PY set "PORTABLE_PY=%%F"
     )
     if defined PORTABLE_PY (
-        "!PORTABLE_PY!" "%HERE%\runtime\lib\fix_shims.py" 2>nul
+        "!PORTABLE_PY!" "%HERE%\lib\fix_shims.py" 2>nul
     ) else if exist "%VENV_DIR%\Scripts\python.exe" (
         rem Fallback: venv's python (also a trampoline, but usually
         rem works because uv venv --relocatable stores a relative path).
-        "%VENV_DIR%\Scripts\python.exe" "%HERE%\runtime\lib\fix_shims.py" 2>nul
+        "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\fix_shims.py" 2>nul
     )
 )
 
@@ -294,14 +276,14 @@ echo   Opening config panel at http://127.0.0.1:17520 ...
 echo.
 start "" "http://127.0.0.1:17520"
 set "HERMES_BROWSER_OPENED=1"
-"%VENV_DIR%\Scripts\python.exe" "%HERE%\runtime\lib\config_server.py"
+"%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
 set "EXITCODE=%errorlevel%"
 goto :cleanup
 
 :run_hermes
 rem Background config server (always available for model changes)
 set "HERMES_BROWSER_OPENED=1"
-start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\runtime\lib\config_server.py"
+start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
 echo   Config panel: http://127.0.0.1:17520 (change model anytime)
 
 rem Record our console PID in the lock file so future launches can
