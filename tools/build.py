@@ -312,18 +312,6 @@ def step_venv(ctx):
              "--python", str(py_venv)])
     ok("Dependencies installed")
 
-    # Install hermes-web-ui globally in venv
-    npm = ROOT / ctx["node_name"] / ("bin" if system != "Windows" else "") / ("npm.cmd" if system == "Windows" else "npm")
-    if npm.exists():
-        info("Installing hermes-web-ui...")
-        try:
-            env = {**ctx.get("env", {}), "PATH": str(ROOT / ctx["node_name"] / "bin") + ":" + ctx.get("env", {}).get("PATH", "")}
-            run([str(npm), "install", "-g", "hermes-web-ui"], env=env)
-            ok("hermes-web-ui installed")
-        except Exception as e:
-            warn(f"hermes-web-ui install failed: {e}")
-
-
 def step_data(ctx):
     ROOT = ctx["ROOT"]
     data = ROOT / "data"
