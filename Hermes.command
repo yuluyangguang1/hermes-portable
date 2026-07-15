@@ -409,12 +409,12 @@ fi
 
 # ── Fix pyvenv.cfg paths ──────────────────────────────────────
 # pyvenv.cfg may contain absolute paths from the build runner.
-# Rewrite them to point at the local portable python.
+# Rewrite home= to point at the local portable python bin dir.
 for cfg in "$VENV_DIR"/pyvenv.cfg; do
   if [ -f "$cfg" ]; then
-    # Find the actual python directory (not symlink)
+    # Find the actual python binary directory
     REAL_PYTHON=""
-    for _cand in "$PYTHON_DIR"/*/install/bin "$PYTHON_DIR"/*/bin "$PYTHON_DIR"/bin; do
+    for _cand in "$PYTHON_DIR"/*/bin "$PYTHON_DIR"/*/*/bin "$PYTHON_DIR"/bin; do
       if [ -x "$_cand/python3.12" ] || [ -x "$_cand/python3" ]; then
         REAL_PYTHON="$_cand"
         break

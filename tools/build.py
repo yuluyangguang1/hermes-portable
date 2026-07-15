@@ -467,12 +467,15 @@ def step_nodejs(ctx):
     ok(f"Node.js v{NODE_VERSION} ready")
 
     # Install hermes-web-ui globally
-    npm = node_dir / ("bin" if system != "Windows" else "") / ("npm.cmd" if system == "Windows" else "npm")
+    if system == "Windows":
+        npm = node_dir / "npm.cmd"
+    else:
+        npm = node_dir / "bin" / "npm"
     if npm.exists():
         info("Installing hermes-web-ui...")
         try:
             env = {**ctx.get("env", {}), "PATH": str(node_dir / "bin") + ":" + ctx.get("env", {}).get("PATH", "")}
-            run([str(npm), "install", "-g", "hermes-web-ui"], env=env)
+            run([str(npm), "install", "-g", "hermes-web-ui", "--omit=optional"], env=env)
             ok("hermes-web-ui installed")
         except Exception as e:
             warn(f"hermes-web-ui install failed: {e}")
