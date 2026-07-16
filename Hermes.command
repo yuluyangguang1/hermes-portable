@@ -214,6 +214,25 @@ fi
 # Same class of bug as Windows: if the portable zip was built on
 # one machine and shebangs ended up absolute (or if mac-rebuild.sh
 # just regenerated the venv at a new absolute path), they break
+# ── Fix pyvenv.cfg paths ──────────────────────────────────────
+# pyvenv.cfg may contain absolute paths from the build runner.
+# Rewrite home= to point at the local portable python bin dir.
+for cfg in "$VENV_DIR"/pyvenv.cfg; do
+  if [ -f "$cfg" ]; then
+    REAL_PYTHON=""
+    for _cand in "$PYTHON_DIR"/*/bin "$PYTHON_DIR"/*/*/bin "$PYTHON_DIR"/bin; do
+      if [ -x "$_cand/python3.12" ] || [ -x "$_cand/python3" ]; then
+        REAL_PYTHON="$_cand"
+        break
+      fi
+    done
+    if [ -n "$REAL_PYTHON" ]; then
+      sed -i.bak "s|^home = .*|home = $REAL_PYTHON|" "$cfg" 2>/dev/null
+      rm -f "${cfg}.bak" 2>/dev/null
+    fi
+  fi
+done
+
 # when the folder moves. fix_shims.py rewrites them to the local
 # python. Harmless (no-op) when shebangs are already `/bin/sh`-
 # wrapped relocatable stubs, which is the common case on macOS.
@@ -397,26 +416,6 @@ if [ "$NODE_OK" = "true" ]; then
 else
   echo "  Hermes Web UI: skipped (Node.js >= 23 required)"
 fi
-
-# ── Fix pyvenv.cfg paths ──────────────────────────────────────
-# pyvenv.cfg may contain absolute paths from the build runner.
-# Rewrite home= to point at the local portable python bin dir.
-for cfg in "$VENV_DIR"/pyvenv.cfg; do
-  if [ -f "$cfg" ]; then
-    # Find the actual python binary directory
-    REAL_PYTHON=""
-    for _cand in "$PYTHON_DIR"/*/bin "$PYTHON_DIR"/*/*/bin "$PYTHON_DIR"/bin; do
-      if [ -x "$_cand/python3.12" ] || [ -x "$_cand/python3" ]; then
-        REAL_PYTHON="$_cand"
-        break
-      fi
-    done
-    if [ -n "$REAL_PYTHON" ]; then
-      sed -i.bak "s|^home = .*|home = $REAL_PYTHON|" "$cfg" 2>/dev/null
-      rm -f "${cfg}.bak" 2>/dev/null
-    fi
-  fi
-done
 
 # 启动桌面版
   case "$DESKTOP_APP" in

@@ -474,7 +474,8 @@ def step_nodejs(ctx):
     if npm.exists():
         info("Installing hermes-web-ui...")
         try:
-            env = {**ctx.get("env", {}), "PATH": str(node_dir / "bin") + ":" + ctx.get("env", {}).get("PATH", "")}
+            path_sep = ";" if system == "Windows" else ":"
+            env = {**ctx.get("env", {}), "PATH": str(node_dir / "bin") + path_sep + ctx.get("env", {}).get("PATH", "")}
             run([str(npm), "install", "-g", "hermes-web-ui", "--omit=optional"], env=env)
             ok("hermes-web-ui installed")
         except Exception as e:
