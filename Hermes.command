@@ -183,7 +183,7 @@ export PYTHONIOENCODING=utf-8
 export PYTHONUTF8=1
 # Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
 # Find the dir containing lib/python3.12 inside PYTHON_DIR
-# Handles: install/ layout (old), cpython-3.12-xxx/ layout (new), direct layout
+# Handles: install/ layout (old uv), cpython-3.12-xxx/ layout (new uv)
 PYTHON_HOME=""
 for _candidate in "$PYTHON_DIR"/*/install "$PYTHON_DIR"/install "$PYTHON_DIR"/* "$PYTHON_DIR"; do
   if [ -d "$_candidate/lib/python3.12" ]; then
@@ -210,25 +210,10 @@ if command -v xattr >/dev/null 2>&1; then
   fi
 fi
 
-# ── Fix pyvenv.cfg paths ──────────────────────────────────────
-# pyvenv.cfg may contain absolute paths from the build runner.
-# Rewrite home= to point at the local portable python bin dir.
-for cfg in "$VENV_DIR"/pyvenv.cfg; do
-  if [ -f "$cfg" ]; then
-    REAL_PYTHON=""
-    for _cand in "$PYTHON_DIR"/*/bin "$PYTHON_DIR"/*/*/bin "$PYTHON_DIR"/bin; do
-      if [ -x "$_cand/python3.12" ] || [ -x "$_cand/python3" ]; then
-        REAL_PYTHON="$_cand"
-        break
-      fi
-    done
-    if [ -n "$REAL_PYTHON" ]; then
-      sed -i.bak "s|^home = .*|home = $REAL_PYTHON|" "$cfg" 2>/dev/null
-      rm -f "${cfg}.bak" 2>/dev/null
-    fi
-  fi
-done
-
+# ── Self-heal launcher shebangs ───────────────────────────────
+# Same class of bug as Windows: if the portable zip was built on
+# one machine and shebangs ended up absolute (or if mac-rebuild.sh
+# just regenerated the venv at a new absolute path), they break
 # when the folder moves. fix_shims.py rewrites them to the local
 # python. Harmless (no-op) when shebangs are already `/bin/sh`-
 # wrapped relocatable stubs, which is the common case on macOS.
@@ -322,6 +307,7 @@ echo ""
 echo "        Hermes Portable"
 echo ""
 
+
 # ── Start Hermes Web UI (optional) ──────────────────────────────
 # Check if Node.js is available and version >= 23
 NODE_OK=false
@@ -413,7 +399,7 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
     > "$HERE/data/config_server.log" 2>&1 &
   echo "  Config panel: http://127.0.0.1:17520"
 
-# 启动桌面版
+  # 启动桌面版
   case "$DESKTOP_APP" in
     *.app) open "$DESKTOP_APP" ;;
     *)     exec "$DESKTOP_APP" "$@" ;;
