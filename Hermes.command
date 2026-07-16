@@ -210,10 +210,6 @@ if command -v xattr >/dev/null 2>&1; then
   fi
 fi
 
-# ── Self-heal launcher shebangs ───────────────────────────────
-# Same class of bug as Windows: if the portable zip was built on
-# one machine and shebangs ended up absolute (or if mac-rebuild.sh
-# just regenerated the venv at a new absolute path), they break
 # ── Fix pyvenv.cfg paths ──────────────────────────────────────
 # pyvenv.cfg may contain absolute paths from the build runner.
 # Rewrite home= to point at the local portable python bin dir.
