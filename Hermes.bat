@@ -158,6 +158,21 @@ if "%LAUNCH_MODE%"=="desktop" (
     set "HERMES_PORTABLE_ROOT=%HERE%"
     set "HERMES_PORTABLE_MODE=1"
 
+    rem Start hermes-web-ui (port 8648) if Node.js >= 23
+    if defined NODE_DIR (
+        if exist "%NODE_DIR%\bin\node.exe" (
+            for /f "tokens=1 delims=." %%a in ('"%NODE_DIR%\bin\node.exe" --version 2^>nul') do set "NODE_MAJOR=%%a"
+            set "NODE_MAJOR=!NODE_MAJOR:v=!"
+            if !NODE_MAJOR! GEQ 23 (
+                if exist "%NODE_DIR%\bin\hermes-web-ui" (
+                    echo   Starting Hermes Web UI on port 8648...
+                    start "" /b "%NODE_DIR%\bin\hermes-web-ui" start 8648
+                    echo   Hermes Web UI: http://127.0.0.1:8648
+                )
+            )
+        )
+    )
+
     rem Start config server in background (port 17520)
     set "HERMES_BROWSER_OPENED=1"
     start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
@@ -288,6 +303,21 @@ set "EXITCODE=%errorlevel%"
 goto :cleanup
 
 :run_hermes
+rem Start hermes-web-ui (port 8648) if Node.js >= 23
+if defined NODE_DIR (
+    if exist "%NODE_DIR%\bin\node.exe" (
+        for /f "tokens=1 delims=." %%a in ('"%NODE_DIR%\bin\node.exe" --version 2^>nul') do set "NODE_MAJOR=%%a"
+        set "NODE_MAJOR=!NODE_MAJOR:v=!"
+        if !NODE_MAJOR! GEQ 23 (
+            if exist "%NODE_DIR%\bin\hermes-web-ui" (
+                echo   Starting Hermes Web UI on port 8648...
+                start "" /b "%NODE_DIR%\bin\hermes-web-ui" start 8648
+                echo   Hermes Web UI: http://127.0.0.1:8648
+            )
+        )
+    )
+)
+
 rem Background config server (always available for model changes)
 set "HERMES_BROWSER_OPENED=1"
 start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
