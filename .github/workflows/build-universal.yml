@@ -147,7 +147,7 @@ jobs:
           # → Linux-runner round trip, so macOS Finder refuses to
           # double-click Hermes.command with "您没有权限执行". Fix it
           # here on the merge runner, right before zipping.
-          for f in HermesPortable/Hermes.command HermesPortable/Hermes.sh \
+          for f in HermesPortable/Hermes.command \
                    HermesPortable/lib/update.sh HermesPortable/tools/mac-rebuild.sh \
                    HermesPortable/uv; do
             [ -f "$f" ] && chmod +x "$f"
