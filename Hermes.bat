@@ -132,57 +132,6 @@ set "HERMES_HOME=%HERE%\data"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONUTF8=1"
 
-rem -- Desktop mode launch ---------------------------------
-if "%LAUNCH_MODE%"=="desktop" (
-    echo.
-    echo   Starting desktop version...
-    echo.
-
-    rem Check if desktop app exists (extracted or installer)
-    set "DESKTOP_APP="
-    if exist "%HERE%\runtime\desktop\dist\win-unpacked\Hermes.exe" (
-        set "DESKTOP_APP=%HERE%\runtime\desktop\dist\win-unpacked\Hermes.exe"
-    )
-
-    if not defined DESKTOP_APP (
-        echo   Desktop app not installed. Falling back to CLI mode.
-        echo.
-        echo   To install the desktop app:
-        echo     https://hermes.nousresearch.com
-        echo.
-        goto :cli_mode
-    )
-
-    rem Set desktop environment variables
-    set "HERMES_DESKTOP_USER_DATA_DIR=%HERE%\data\desktop-userdata"
-    set "HERMES_PORTABLE_ROOT=%HERE%"
-    set "HERMES_PORTABLE_MODE=1"
-
-    rem Start hermes-web-ui (port 8648) if Node.js >= 23
-    if defined NODE_DIR (
-        if exist "%NODE_DIR%\bin\node.exe" (
-            for /f "tokens=1 delims=." %%a in ('"%NODE_DIR%\bin\node.exe" --version 2^>nul') do set "NODE_MAJOR=%%a"
-            set "NODE_MAJOR=!NODE_MAJOR:v=!"
-            if !NODE_MAJOR! GEQ 23 (
-                if exist "%NODE_DIR%\bin\hermes-web-ui" (
-                    echo   Starting Hermes Web UI on port 8648...
-                    start "" /b "%NODE_DIR%\bin\hermes-web-ui" start 8648
-                    echo   Hermes Web UI: http://127.0.0.1:8648
-                )
-            )
-        )
-    )
-
-    rem Start config server in background (port 17520)
-    set "HERMES_BROWSER_OPENED=1"
-    start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
-    echo   Config panel: http://127.0.0.1:17520
-
-    rem Launch desktop app
-    start "" "!DESKTOP_APP!"
-    exit /b 0
-)
-:cli_mode
 rem Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
 rem Try install\lib first (old layout), then any cpython-*\lib (new layout)
 set "PYTHONHOME="
@@ -232,6 +181,57 @@ if exist "%HERE%\lib\fix_shims.py" (
     )
 )
 
+rem -- Desktop mode launch ---------------------------------
+if "%LAUNCH_MODE%"=="desktop" (
+    echo.
+    echo   Starting desktop version...
+    echo.
+
+    rem Check if desktop app exists (extracted or installer)
+    set "DESKTOP_APP="
+    if exist "%HERE%\runtime\desktop\dist\win-unpacked\Hermes.exe" (
+        set "DESKTOP_APP=%HERE%\runtime\desktop\dist\win-unpacked\Hermes.exe"
+    )
+
+    if not defined DESKTOP_APP (
+        echo   Desktop app not installed. Falling back to CLI mode.
+        echo.
+        echo   To install the desktop app:
+        echo     https://hermes.nousresearch.com
+        echo.
+        goto :cli_mode
+    )
+
+    rem Set desktop environment variables
+    set "HERMES_DESKTOP_USER_DATA_DIR=%HERE%\data\desktop-userdata"
+    set "HERMES_PORTABLE_ROOT=%HERE%"
+    set "HERMES_PORTABLE_MODE=1"
+
+    rem Start hermes-web-ui (port 8648) if Node.js >= 23
+    if defined NODE_DIR (
+        if exist "%NODE_DIR%\bin\node.exe" (
+            for /f "tokens=1 delims=." %%a in ('"%NODE_DIR%\bin\node.exe" --version 2^>nul') do set "NODE_MAJOR=%%a"
+            set "NODE_MAJOR=!NODE_MAJOR:v=!"
+            if !NODE_MAJOR! GEQ 23 (
+                if exist "%NODE_DIR%\bin\hermes-web-ui.cmd" (
+                    echo   Starting Hermes Web UI on port 8648...
+                    start "" /b "%NODE_DIR%\bin\hermes-web-ui" start 8648
+                    echo   Hermes Web UI: http://127.0.0.1:8648
+                )
+            )
+        )
+    )
+
+    rem Start config server in background (port 17520)
+    set "HERMES_BROWSER_OPENED=1"
+    start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
+    echo   Config panel: http://127.0.0.1:17520
+
+    rem Launch desktop app
+    start "" "!DESKTOP_APP!"
+    exit /b 0
+)
+:cli_mode
 rem -- Single-instance lock (best-effort) -----------------
 rem We store the lock-holder's console PID (from title-based lookup) in
 rem the lock file. On re-entry we verify the PID is still alive. If the
@@ -309,7 +309,7 @@ if defined NODE_DIR (
         for /f "tokens=1 delims=." %%a in ('"%NODE_DIR%\bin\node.exe" --version 2^>nul') do set "NODE_MAJOR=%%a"
         set "NODE_MAJOR=!NODE_MAJOR:v=!"
         if !NODE_MAJOR! GEQ 23 (
-            if exist "%NODE_DIR%\bin\hermes-web-ui" (
+            if exist "%NODE_DIR%\bin\hermes-web-ui.cmd" (
                 echo   Starting Hermes Web UI on port 8648...
                 start "" /b "%NODE_DIR%\bin\hermes-web-ui" start 8648
                 echo   Hermes Web UI: http://127.0.0.1:8648
