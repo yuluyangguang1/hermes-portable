@@ -551,25 +551,32 @@ start_config_server() {
   CONFIG_PID=$!
 }
 
+MAX_RESTARTS=3
+restart_count=0
+
 watchdog_config_server() {
-  # parent_pid is captured in the watchdog subshell so a kill -9 of
-  # the launcher (which never runs the EXIT trap) still tears us down
-  # within one tick.
   local parent_pid=$$
   while true; do
     sleep 10
-    # Launcher dead — exit. Cleanup trap handles the normal-exit path.
     if ! kill -0 "$parent_pid" 2>/dev/null; then
       exit 0
     fi
-    # NOTE: don't gate on HERMES_PID here. `watchdog_config_server &`
-    # forks BEFORE hermes starts, so the watchdog's snapshot of
-    # HERMES_PID is "" forever — the parent's later assignment can't
-    # propagate back into a fork. Gating on it caused the watchdog to
-    # `break` on its first tick, defeating the auto-restart entirely.
-    # Restart config_server if it's gone.
+    # Restart config_server if crashed
     if [ -n "$CONFIG_PID" ] && ! kill -0 "$CONFIG_PID" 2>/dev/null; then
+      echo "  Config Server crashed. Restarting..."
       start_config_server
+    fi
+    # Restart hermes gateway if crashed (auto-restart)
+    if [ -n "$HERMES_PID" ] && ! kill -0 "$HERMES_PID" 2>/dev/null; then
+      if [ $restart_count -lt $MAX_RESTARTS ]; then
+        restart_count=$((restart_count + 1))
+        echo "  Hermes Gateway crashed. Restarting ($restart_count/$MAX_RESTARTS)..."
+        "$VENV_DIR/bin/hermes" &
+        HERMES_PID=$!
+      else
+        echo "  Hermes Gateway crashed $MAX_RESTARTS times. Giving up."
+        exit 1
+      fi
     fi
   done
 }

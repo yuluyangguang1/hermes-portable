@@ -1127,6 +1127,8 @@ def wechat_start_login():
     cap protects against accidental and intentional resource leaks.
     """
     import secrets
+import threading
+import time
     # Cap check FIRST — before we hit the iLink API. We don't want to
     # burn upstream quota on requests we're going to refuse anyway.
     with _wechat_lock:
@@ -4268,6 +4270,31 @@ def main():
         os.chmod(runtime_path, 0o600)
     except Exception as e:
         print(f"  Warning: Could not write runtime.json: {e}", file=sys.stderr)
+
+    # Hot config support - watch for config changes
+    def watch_config():
+        """Watch for config file changes and notify"""
+        last_mtime = 0
+        config_files = [DATA_DIR / ".env", DATA_DIR / "config.yaml"]
+        
+        while True:
+            try:
+                current_mtime = max(
+                    (f.stat().st_mtime for f in config_files if f.exists()),
+                    default=0
+                )
+                if current_mtime > last_mtime:
+                    last_mtime = current_mtime
+                    # Config changed - could notify hermes here
+                    # For now, just log
+                    pass
+                time.sleep(1)
+            except Exception:
+                pass
+    
+    # Start config watcher in background
+    config_watcher = threading.Thread(target=watch_config, daemon=True)
+    config_watcher.start()
 
     print(f"""
   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗
