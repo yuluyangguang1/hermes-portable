@@ -557,6 +557,17 @@ PROVIDERS = [
      "base_url_env": "CUSTOM_BASE_URL",
      "custom_model": True,
      "models": ["gpt-5.5","gpt-5.5-pro","claude-opus-4-7","claude-sonnet-4-6","gemini-3.1-pro-preview","deepseek-v4-pro","grok-4.3","kimi-k2.6"]},
+    {"id": "ark_agentplan", "name": "火山 Agentplan",  "env": "ARK_AGENTPLAN_API_KEY", "models": ["ark-code-latest"]},
+    {"id": "byteplus",      "name": "BytePlus",         "env": "BYTEPLUS_API_KEY",      "models": ["ark-code-latest"]},
+    {"id": "doubao_seed",   "name": "DouBao Seed",      "env": "DOUBAO_SEED_API_KEY",   "models": ["doubao-seed-2-1-pro-260628"]},
+    {"id": "bailing",       "name": "百灵",             "env": "BAILING_API_KEY",       "models": ["Ling-2.5-1T"]},
+    {"id": "kat_coder",     "name": "KAT-Coder",        "env": "KAT_CODER_API_KEY",     "models": ["KAT-Coder-Pro V1","KAT-Coder-Air V1"]},
+    {"id": "modelscope",    "name": "ModelScope",       "env": "MODELSCOPE_API_KEY",    "models": ["ZhipuAI/GLM-5.1"]},
+    {"id": "bailian",       "name": "阿里百炼",         "env": "BAILIAN_API_KEY",       "models": ["qwen3-coder-plus","qwen3-max"]},
+    {"id": "bailian_coding","name": "百炼代码版",        "env": "BAILIAN_CODING_API_KEY","models": ["qwen3-coder-plus","qwen3-max"]},
+    {"id": "cherryin",      "name": "CherryIN",         "env": "CHERRYIN_API_KEY",      "models": ["anthropic/claude-opus-4.8","anthropic/claude-sonnet-5"]},
+    {"id": "therouter",     "name": "TheRouter",        "env": "THEROUTER_API_KEY",     "models": ["openai/gpt-5.5","openai/gpt-5.4-mini","openai/gpt-5.4-nano"]},
+
 ]
 
 CHANNELS = [
