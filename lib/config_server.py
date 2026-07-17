@@ -325,7 +325,7 @@ PROVIDERS = [
         "qwen-max-latest","qwen-plus-latest","qwen-turbo-latest","qwen-long",
     ]},
     {"id": "kimi",        "name": "Kimi / Moonshot","env": "KIMI_API_KEY",       "models": [
-        "kimi-k2.7-code","kimi-k2.6","kimi-k2.5","kimi-k2-thinking-turbo","kimi-k2-thinking",
+        "kimi-k3","kimi-k2.7-code","kimi-k2.6","kimi-k2.5","kimi-k2-thinking-turbo","kimi-k2-thinking",
         "moonshot-v1-128k","moonshot-v1-32k",
     ]},
     {"id": "minimax",     "name": "MiniMax",        "env": "MINIMAX_API_KEY",    "models": [
