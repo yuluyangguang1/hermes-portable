@@ -67,6 +67,22 @@ if exist "%HERE%\node-windows-x64" (
     set "NODE_DIR="
 )
 
+rem -- Preflight self-check --------------------------------
+set "PREFLIGHT_OK=true"
+if not exist "%VENV_DIR%\Scripts\hermes.exe" (
+    echo   [ERROR] venv not found: %VENV_DIR%\Scripts\hermes.exe
+    set "PREFLIGHT_OK=false"
+)
+if not exist "%HERE%\lib\config_server.py" (
+    echo   [ERROR] config_server.py not found
+    set "PREFLIGHT_OK=false"
+)
+if "!PREFLIGHT_OK!"=="false" (
+    echo   Preflight check failed. Exiting.
+    pause
+    exit /b 1
+)
+
 rem -- HOME hijack sandbox --------------------------------
 rem  %HERE%\_home acts as a private HOME. %HERE%\_home\.hermes is a
 rem  directory junction (mklink /J) pointing to %HERE%\data, so any
@@ -225,6 +241,28 @@ if "%LAUNCH_MODE%"=="desktop" (
     rem Start config server in background (port 17520)
     set "HERMES_BROWSER_OPENED=1"
     start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
+    
+    rem Wait for Config Server to start
+    echo   Starting Config Server...
+    timeout /t 3 /nobreak >nul
+    
+    rem Read Token from runtime.json
+    set "TOKEN="
+    if exist "%HERE%\data\runtime.json" (
+        for /f "tokens=2 delims=:," %%a in ('findstr "configServerToken" "%HERE%\data\runtime.json" 2^>nul') do (
+            set "TOKEN=%%~a"
+            set "TOKEN=!TOKEN: =!"
+            set "TOKEN=!TOKEN:"=!"
+        )
+    )
+    
+    rem Open browser with Token
+    if defined TOKEN (
+        start "" "http://127.0.0.1:17520/#token=!TOKEN!"
+    ) else (
+        start "" "http://127.0.0.1:17520/"
+    )
+    
     echo   Config panel: http://127.0.0.1:17520
 
     rem Launch desktop app
@@ -321,7 +359,25 @@ if defined NODE_DIR (
 rem Background config server (always available for model changes)
 set "HERMES_BROWSER_OPENED=1"
 start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
-echo   Config panel: http://127.0.0.1:17520 (change model anytime)
+
+rem Wait for Config Server to start
+timeout /t 3 /nobreak >nul
+
+rem Read Token from runtime.json
+set "TOKEN="
+if exist "%HERE%\data\runtime.json" (
+    for /f "tokens=2 delims=:," %%a in ('findstr "configServerToken" "%HERE%\data\runtime.json" 2^>nul') do (
+        set "TOKEN=%%~a"
+        set "TOKEN=!TOKEN: =!"
+        set "TOKEN=!TOKEN:"=!"
+    )
+)
+
+if defined TOKEN (
+    echo   Config panel: http://127.0.0.1:17520/#token=!TOKEN! (change model anytime)
+) else (
+    echo   Config panel: http://127.0.0.1:17520 (change model anytime)
+)
 
 rem Record our console PID in the lock file so future launches can
 rem detect stale locks. We find our own PID via a unique window title.

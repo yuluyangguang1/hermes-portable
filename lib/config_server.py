@@ -3237,6 +3237,16 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._serve_favicon()
         elif path_only.startswith("/icons/") and path_only.endswith(".svg"):
             self._serve_icon(path_only[7:])  # strip "/icons/"
+        elif path_only == "/api/bootstrap":
+            # Token endpoint (localhost only)
+            origin = self.headers.get("Origin", "")
+            if origin and not _is_local_origin(origin):
+                self.send_error(403, "Forbidden")
+                return
+            self._json_response({
+                "token": SERVER_TOKEN,
+                "port": actual_port
+            })
         elif path_only == "/api/config":
             self._json_response(read_config())
         elif path_only == "/api/version":
@@ -4229,12 +4239,32 @@ def main():
         sys.exit(1)
     url = f"http://127.0.0.1:{actual_port}"
 
+    # Generate Token for authentication
+    SERVER_TOKEN = secrets.token_hex(32)
+
+    # Write runtime.json for process communication
+    import json
+    from datetime import datetime
+    runtime = {
+        "configServerPort": actual_port,
+        "configServerToken": SERVER_TOKEN,
+        "configServerUpdatedAt": datetime.now().isoformat(),
+        "pid": os.getpid()
+    }
+    runtime_path = DATA_DIR / "runtime.json"
+    try:
+        runtime_path.write_text(json.dumps(runtime, indent=2))
+        os.chmod(runtime_path, 0o600)
+    except Exception as e:
+        print(f"  Warning: Could not write runtime.json: {e}", file=sys.stderr)
+
     print(f"""
   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗
   ╠═╣╠═╣╠╦╝╠═╝║╣ ║   ║ ║ ║
   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  Portable
 
   Config: {url}
+  Token:  {SERVER_TOKEN[:8]}...
 """)
 
     # Only open the browser if the launcher didn't already. All four

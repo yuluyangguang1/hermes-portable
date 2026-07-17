@@ -48,6 +48,72 @@ case "$OS" in
     ;;
 esac
 
+# ── Preflight self-check ──────────────────────────────────────
+preflight_check() {
+  local ok=true
+
+  # Check venv
+  if [ ! -x "$VENV_DIR/bin/hermes" ]; then
+    echo "  [ERROR] venv not found: $VENV_DIR/bin/hermes" >&2
+    ok=false
+  fi
+
+  # Check Python
+  local py_found=false
+  for cand in "$PYTHON_DIR"/*/bin/python3.12 "$PYTHON_DIR"/*/bin/python3; do
+    if [ -x "$cand" ]; then py_found=true; break; fi
+  done
+  if [ "$py_found" = "false" ]; then
+    echo "  [ERROR] Python not found in $PYTHON_DIR" >&2
+    ok=false
+  fi
+
+  # Check config_server.py
+  if [ ! -f "$HERE/lib/config_server.py" ]; then
+    echo "  [ERROR] config_server.py not found" >&2
+    ok=false
+  fi
+
+  # Check data directory writable
+  if ! touch "$HERE/data/.write_test" 2>/dev/null; then
+    echo "  [ERROR] data/ directory not writable" >&2
+    ok=false
+  fi
+  rm -f "$HERE/data/.write_test"
+
+  # Check disk space (warn if < 500MB)
+  local avail=$(df -k "$HERE" 2>/dev/null | tail -1 | awk '{print $4}')
+  if [ -n "$avail" ] && [ "$avail" -lt 512000 ] 2>/dev/null; then
+    echo "  [WARNING] Low disk space: $(($avail / 1024))MB" >&2
+  fi
+
+  $ok
+}
+
+# ── kill_tree ──────────────────────────────────────────────────
+kill_tree() {
+  local pid="$1"
+  [ -z "$pid" ] && return
+  [ "$pid" -le 1 ] 2>/dev/null && return
+  local children
+  children=$(pgrep -P "$pid" 2>/dev/null || true)
+  kill "$pid" 2>/dev/null || true
+  for child in $children; do
+    kill_tree "$child"
+  done
+}
+
+# ── Cleanup stale ports ──────────────────────────────────────
+cleanup_stale_ports() {
+  for port in 17520 8648; do
+    local pid=$(lsof -ti :$port 2>/dev/null)
+    if [ -n "$pid" ]; then
+      echo "  Cleaning stale process on port $port (PID $pid)"
+      kill_tree $pid
+    fi
+  done
+}
+
 # ── Multi-layout venv detection ───────────────────────────────
 # Universal zips carry e.g. venv-macos-arm64/; single-platform zips carry venv/.
 if [ -d "$HERE/venv-$PLATFORM" ]; then
@@ -74,6 +140,15 @@ elif [ -d "$HERE/node" ]; then
 else
   NODE_DIR=""
 fi
+
+# Run preflight check
+if ! preflight_check; then
+  echo "  Preflight check failed. Exiting."
+  exit 1
+fi
+
+# Clean stale ports
+cleanup_stale_ports
 
 # ── Architecture sanity check ─────────────────────────────────
 # Failure mode we're catching: a platform-only zip (`venv/`, built
@@ -243,15 +318,15 @@ OWN_LOCK=0
 cleanup() {
   # Kill watchdog first to prevent it from restarting config_server
   if [ -n "${WATCHDOG_PID:-}" ] && kill -0 "$WATCHDOG_PID" 2>/dev/null; then
-    kill "$WATCHDOG_PID" 2>/dev/null || true
+    kill_tree "$WATCHDOG_PID"
   fi
   # Kill config server if still alive
   if [ -n "$CONFIG_PID" ] && kill -0 "$CONFIG_PID" 2>/dev/null; then
-    kill "$CONFIG_PID" 2>/dev/null || true
+    kill_tree "$CONFIG_PID"
   fi
   # Kill hermes child if still alive (covers Ctrl-C from this script)
   if [ -n "$HERMES_PID" ] && kill -0 "$HERMES_PID" 2>/dev/null; then
-    kill "$HERMES_PID" 2>/dev/null || true
+    kill_tree "$HERMES_PID"
   fi
   if [ "$OWN_LOCK" = "1" ]; then
     rm -f "$HERE/data/.hermes.lock" 2>/dev/null || true
@@ -397,6 +472,39 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
   export HERMES_BROWSER_OPENED=1
   nohup "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" \
     > "$HERE/data/config_server.log" 2>&1 &
+  CONFIG_PID=$!
+
+  # Wait for Config Server to start
+  echo "  Starting Config Server..."
+  for i in $(seq 1 20); do
+    sleep 0.5
+    if curl -s -o /dev/null "http://127.0.0.1:17520/" 2>/dev/null; then
+      echo "  Config Server ready"
+      break
+    fi
+  done
+
+  # Read Token from runtime.json
+  TOKEN=""
+  if [ -f "$HERE/data/runtime.json" ]; then
+    TOKEN=$(python3 -c "
+import json
+from pathlib import Path
+try:
+    runtime = json.loads(Path('$HERE/data/runtime.json').read_text())
+    print(runtime.get('configServerToken', ''))
+except:
+    pass
+" 2>/dev/null)
+  fi
+
+  # Open browser with Token
+  if [ -n "$TOKEN" ]; then
+    open_url "http://127.0.0.1:17520/#token=$TOKEN"
+  else
+    open_url "http://127.0.0.1:17520/"
+  fi
+
   echo "  Config panel: http://127.0.0.1:17520"
 
   # 启动桌面版
