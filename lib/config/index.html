@@ -215,7 +215,7 @@
     background: transparent;
     color: var(--fg-muted);
     border-radius: 6px;
-    transition: all 0.15s;
+    transition: transform 150ms ease-out, opacity 150ms ease-out;
   }
   .tab:hover { color: var(--fg); background: var(--secondary); }
   .tab.active {
@@ -245,7 +245,7 @@
     letter-spacing: 0.05em;
     cursor: pointer;
     text-align: center;
-    transition: all 0.15s;
+    transition: transform 150ms ease-out, opacity 150ms ease-out;
   }
   .provider-btn { text-transform: none; letter-spacing: 0; }
   .provider-btn:hover { border-color: var(--fg); color: var(--fg); }
@@ -424,7 +424,7 @@
     font-size: 13px;
     letter-spacing: 0.02em;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 200ms ease-out, opacity 200ms ease-out;
     text-align: center;
     font-weight: 600;
     background: var(--hover);
@@ -760,7 +760,7 @@
     color: var(--accent);
     background: transparent;
     padding: 12px 24px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 200ms ease-out, opacity 200ms ease-out;
   }
   .btn-launch:hover, .btn-save:hover {
     background: var(--accent);
@@ -890,6 +890,20 @@
 
 .skip-link{position:absolute;top:-40px;left:0;background:var(--accent);color:var(--bg);padding:8px 16px;z-index:1000;transition:top .3s;font-family:var(--font-sans);font-size:13px}
 .skip-link:focus{top:0}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" crossorigin />
 <style>
@@ -899,6 +913,20 @@
     src: local('LXGW WenKai'), local('LXGWWenKai-Regular');
     font-display: swap;
   }
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 </style>
 </head>
 <body>
