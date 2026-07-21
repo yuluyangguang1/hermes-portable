@@ -1307,7 +1307,7 @@ function renderProviders() {
   const g = document.getElementById('providerGrid');
   g.innerHTML = PROVIDERS.map(p => {
     const iconName = iconMap[p.id] || p.id;
-    const icon = `<img src="/icons/${iconName}.svg" width="16" height="16" alt="" style="border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.style.display='none'">`;
+    const icon = `<img src="/icons/${iconName}.svg" width="16" height="16" alt="" loading="lazy" decoding="async" style="border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.style.display='none'">`;
     return `<button type="button" class="provider-btn ${p.id===activeProvider?'active':''}"
             onclick="selectProvider('${p.id}')">${icon}${p.name}</button>`;
   }).join('');
@@ -1766,7 +1766,7 @@ function _renderWechatQr(dataUrl, rawContent) {
   const box = document.getElementById('wechatQrBox');
   if (!box) return;
   if (dataUrl) {
-    box.innerHTML = `<img src="${dataUrl}" alt="WeChat QR" style="width:240px;height:240px;display:block;">`;
+    box.innerHTML = `<img src="${dataUrl}" alt="WeChat QR" loading="lazy" decoding="async" style="width:240px;height:240px;display:block;">`;
   } else if (rawContent) {
     // Fallback when both PNG renderers failed — let the user copy
     // the raw URL into any QR generator app.
