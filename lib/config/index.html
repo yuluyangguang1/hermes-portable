@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#edff45" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#edff45" media="(prefers-color-scheme: light)">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <style>
   /* Google Fonts removed for China compatibility */
 
@@ -1261,7 +1262,7 @@ const CHANNELS = [
   {
     "id": "telegram",
     "name": "Telegram",
-    "icon": "✈",
+    "icon": "ti ti-plane",
     "desc": "Telegram Bot 消息",
     "fields": [
       {
@@ -1281,7 +1282,7 @@ const CHANNELS = [
   {
     "id": "discord",
     "name": "Discord",
-    "icon": "◆",
+    "icon": "ti ti-brand-discord",
     "desc": "Discord Bot 消息",
     "fields": [
       {
@@ -1301,7 +1302,7 @@ const CHANNELS = [
   {
     "id": "slack",
     "name": "Slack",
-    "icon": "◈",
+    "icon": "ti ti-brand-slack",
     "desc": "Slack Bot 消息",
     "fields": [
       {
@@ -1321,7 +1322,7 @@ const CHANNELS = [
   {
     "id": "whatsapp",
     "name": "WhatsApp",
-    "icon": "☎",
+    "icon": "ti ti-phone",
     "desc": "WhatsApp 消息",
     "fields": [
       {
@@ -1341,7 +1342,7 @@ const CHANNELS = [
   {
     "id": "weixin",
     "name": "WeChat",
-    "icon": "微",
+    "icon": "ti ti-brand-wechat",
     "desc": "微信消息",
     "fields": [
       {
@@ -1361,7 +1362,7 @@ const CHANNELS = [
   {
     "id": "email",
     "name": "Email",
-    "icon": "✉",
+    "icon": "ti ti-mail",
     "desc": "邮件消息",
     "fields": [
       {
@@ -1405,7 +1406,7 @@ const CHANNELS = [
   {
     "id": "signal",
     "name": "Signal",
-    "icon": "🔒",
+    "icon": "ti ti-lock",
     "desc": "Signal 消息",
     "fields": [
       {
@@ -1425,7 +1426,7 @@ const CHANNELS = [
   {
     "id": "matrix",
     "name": "Matrix",
-    "icon": "⊞",
+    "icon": "ti ti-layout-grid",
     "desc": "Matrix 消息",
     "fields": [
       {
@@ -1559,7 +1560,7 @@ function renderChannels() {
       <div class="field" style="margin-top:8px;">
         <button type="button" class="btn primary btn-launch" style="width:100%"
                 onclick="event.stopPropagation(); startWeChatLogin()">
-          📱 扫码登录微信
+          <i class="ti ti-qrcode"></i> 扫码登录微信
         </button>
         <div style="margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--fg-muted);">
           扫码后自动写入 WEIXIN_TOKEN / WEIXIN_ACCOUNT_ID。手动配置见下方字段。
@@ -1568,7 +1569,7 @@ function renderChannels() {
     return `<div class="channel-card ${enabled ? 'enabled' : ''}" id="ch-card-${ch.id}">
       <div class="channel-header" onclick="toggleChannelFields('${ch.id}')">
         <div class="channel-info">
-          <span class="channel-icon">${ch.icon}</span>
+          <i class="channel-icon ${ch.icon}"></i>
           <div>
             <div class="channel-name">${ch.name}</div>
             <div class="channel-desc">${ch.desc}</div>
