@@ -1255,7 +1255,186 @@ const PROVIDERS = [
 ];
 
 
-const CHANNELS  = [];
+const CHANNELS = [
+  {
+    "id": "telegram",
+    "name": "Telegram",
+    "icon": "✈",
+    "desc": "Telegram Bot 消息",
+    "fields": [
+      {
+        "key": "TELEGRAM_BOT_TOKEN",
+        "label": "Bot Token",
+        "placeholder": "123456:ABC-DEF...",
+        "type": "password"
+      },
+      {
+        "key": "TELEGRAM_CHAT_ID",
+        "label": "Chat ID (可选)",
+        "placeholder": "Chat ID for messages",
+        "type": "text"
+      }
+    ]
+  },
+  {
+    "id": "discord",
+    "name": "Discord",
+    "icon": "◆",
+    "desc": "Discord Bot 消息",
+    "fields": [
+      {
+        "key": "DISCORD_BOT_TOKEN",
+        "label": "Bot Token",
+        "placeholder": "MTIz...",
+        "type": "password"
+      }
+    ]
+  },
+  {
+    "id": "slack",
+    "name": "Slack",
+    "icon": "◈",
+    "desc": "Slack Bot 消息",
+    "fields": [
+      {
+        "key": "SLACK_BOT_TOKEN",
+        "label": "Bot Token (xoxb-...)",
+        "placeholder": "xoxb-...",
+        "type": "password"
+      },
+      {
+        "key": "SLACK_SIGNING_SECRET",
+        "label": "签名密钥",
+        "placeholder": "abc123...",
+        "type": "password"
+      }
+    ]
+  },
+  {
+    "id": "whatsapp",
+    "name": "WhatsApp",
+    "icon": "▣",
+    "desc": "WhatsApp 消息 (via Baileys)",
+    "fields": [
+      {
+        "key": "WHATSAPP_ENABLED",
+        "label": "启用",
+        "placeholder": "true",
+        "type": "text"
+      }
+    ]
+  },
+  {
+    "id": "weixin",
+    "name": "WeChat",
+    "icon": "▣",
+    "desc": "微信 ilink 平台",
+    "fields": [
+      {
+        "key": "WEIXIN_TOKEN",
+        "label": "Bot Token",
+        "placeholder": "ilink Bot Token",
+        "type": "password"
+      },
+      {
+        "key": "WEIXIN_ACCOUNT_ID",
+        "label": "Account ID",
+        "placeholder": "WeChat Account ID",
+        "type": "text"
+      }
+    ]
+  },
+  {
+    "id": "email",
+    "name": "Email",
+    "icon": "✉",
+    "desc": "邮件收发 (IMAP/SMTP)",
+    "fields": [
+      {
+        "key": "EMAIL_IMAP_HOST",
+        "label": "IMAP 服务器",
+        "placeholder": "imap.gmail.com",
+        "type": "text"
+      },
+      {
+        "key": "EMAIL_IMAP_PORT",
+        "label": "IMAP 端口",
+        "placeholder": "993",
+        "type": "text"
+      },
+      {
+        "key": "EMAIL_SMTP_HOST",
+        "label": "SMTP 服务器",
+        "placeholder": "smtp.gmail.com",
+        "type": "text"
+      },
+      {
+        "key": "EMAIL_SMTP_PORT",
+        "label": "SMTP 端口",
+        "placeholder": "587",
+        "type": "text"
+      },
+      {
+        "key": "EMAIL_ADDRESS",
+        "label": "邮箱地址",
+        "placeholder": "you@gmail.com",
+        "type": "text"
+      },
+      {
+        "key": "EMAIL_PASSWORD",
+        "label": "密码 / App 密码",
+        "placeholder": "xxxx xxxx xxxx",
+        "type": "password"
+      }
+    ]
+  },
+  {
+    "id": "signal",
+    "name": "Signal",
+    "icon": "◆",
+    "desc": "Signal 消息 (需要 signal-cli)",
+    "fields": [
+      {
+        "key": "SIGNAL_PHONE_NUMBER",
+        "label": "手机号",
+        "placeholder": "+86...",
+        "type": "text"
+      },
+      {
+        "key": "SIGNAL_CLI_PATH",
+        "label": "signal-cli 路径",
+        "placeholder": "/usr/local/bin/signal-cli",
+        "type": "text"
+      }
+    ]
+  },
+  {
+    "id": "matrix",
+    "name": "Matrix",
+    "icon": "◈",
+    "desc": "Matrix 协议消息",
+    "fields": [
+      {
+        "key": "MATRIX_HOMESERVER",
+        "label": "Homeserver 地址",
+        "placeholder": "https://matrix.org",
+        "type": "text"
+      },
+      {
+        "key": "MATRIX_USER",
+        "label": "用户名",
+        "placeholder": "@user:matrix.org",
+        "type": "text"
+      },
+      {
+        "key": "MATRIX_TOKEN",
+        "label": "访问令牌",
+        "placeholder": "syt_...",
+        "type": "password"
+      }
+    ]
+  }
+];
 let activeProvider = '';
 let currentEnv = {};
 let enabledChannels = [];
