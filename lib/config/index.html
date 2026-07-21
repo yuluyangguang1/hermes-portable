@@ -672,8 +672,9 @@
   @media (max-width: 1023px) {
     .y-row, .y-row.nav-row { grid-template-columns: 1fr; border-left: none; }
     .y-cell { border-right: none; }
-    .y-footer { grid-template-columns: 1fr; border-left: none; }
-    .y-footer .c { border-right: none; }
+    .y-footer { grid-template-columns: 1fr; }
+    .y-footer .c { border-right: none; border-bottom: 1px solid var(--border); }
+    .y-footer .c:last-child { border-bottom: none; }
   }
   @media (max-width: 768px) {
     .y-display { font-size: 2.2rem; }
