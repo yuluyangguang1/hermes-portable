@@ -200,7 +200,7 @@
     font-family: var(--font-mono);
     font-size: 14px;
     color: var(--fg-muted);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     margin-top: 4px;
   }
 
@@ -246,7 +246,7 @@
     border: none;
     background: transparent;
     color: var(--fg-muted);
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     transition: transform 150ms ease-out, opacity 150ms ease-out;
   }
   .tab:hover { color: var(--fg); background: var(--secondary); }
@@ -270,7 +270,7 @@
     padding: 8px 4px;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     color: var(--fg-muted);
     font-family: var(--font-mono);
     font-size: 14px;
@@ -292,7 +292,7 @@
     display: block;
     font-family: var(--font-mono);
     font-size: 14px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--fg-muted);
     margin-bottom: 4px;
@@ -302,7 +302,7 @@
     padding: 8px 12px;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     color: var(--fg);
     font-family: var(--font-mono);
     font-size: 14px;
@@ -416,10 +416,10 @@
   .channel-status {
     font-family: var(--font-mono);
     font-size: 14px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
   }
   .channel-status.on { background: oklch(0.765 0.177 163.223 / 0.1); color: var(--emerald); }
   .channel-status.off { background: var(--muted); color: var(--fg-muted); }
@@ -436,7 +436,7 @@
     margin-top: 6px;
     padding: 6px 10px;
     background: var(--bg);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-family: var(--font-mono);
     font-size: 14px;
     color: var(--emerald);
@@ -453,7 +453,7 @@
     flex: 1;
     padding: 10px 16px;
     border: 1px solid var(--border-strong, var(--border));
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     font-family: var(--font-sans);
     font-size: 13px;
     letter-spacing: 0.02em;
@@ -510,7 +510,7 @@
     position: fixed;
     top: 16px; right: 16px;
     padding: 10px 16px;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     font-family: var(--font-mono);
     font-size: 14px;
     font-weight: 700;
@@ -538,7 +538,7 @@
   /* Scrollbar */
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #f5f5f526; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb { background: #f5f5f526; border-radius: var(--radius-sm); }
   ::-webkit-scrollbar-thumb:hover { background: #f5f5f540; }
 
   /* Selection */
@@ -628,11 +628,11 @@
   .y-cell.s6 { grid-column: 1 / -1; }
   @media (min-width: 1024px) { .y-row.nav-row { grid-template-columns: 1fr 2fr 1fr 1fr 1fr; } }
 
-  .y-label { font-size: 0.9375rem; letter-spacing: 0.1875rem; text-transform: uppercase; }
-  .y-label-sm { font-size: 0.75rem; letter-spacing: 0.1875rem; text-transform: uppercase; }
+  .y-label { font-size: 0.9375rem; letter-spacing: 0.1em; text-transform: uppercase; }
+  .y-label-sm { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; }
   .y-label-xs { font-size: 0.6875rem; letter-spacing: 0.125rem; text-transform: uppercase; }
-  .y-title { font-family: var(--font-serif); font-size: 2.625rem; font-weight: 700; line-height: 1; letter-spacing: 0.0525rem; }
-  .y-display { font-family: var(--font-serif); font-size: 3.5rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; mix-blend-mode: plus-lighter; }
+  .y-title { font-family: var(--font-serif); font-size: 2.625rem; font-weight: 700; line-height: 1.25; letter-spacing: 0.0525rem; }
+  .y-display { font-family: var(--font-serif); font-size: 3.5rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; mix-blend-mode: plus-lighter; }
   .y-sub { font-size: 1.125rem; line-height: 1.6; opacity: 0.6; }
   .y-op-5 { opacity: 0.5; } .y-op-7 { opacity: 0.7; }
 
@@ -654,8 +654,8 @@
   .y-td:nth-child(1) { background: var(--fg); }
   .y-td:nth-child(2) { background: var(--fg); opacity: 0.6; }
   .y-td:nth-child(3) { background: var(--fg); opacity: 0.5; }
-  .y-term-label { margin-left: auto; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.1875rem; opacity: 0.5; }
-  .y-term-b { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.85; padding: 18px 16px; white-space: pre-wrap; min-height: 100px; word-break: break-word; text-align: left; }
+  .y-term-label { margin-left: auto; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.1em; opacity: 0.5; }
+  .y-term-b { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.75; padding: 18px 16px; white-space: pre-wrap; min-height: 100px; word-break: break-word; text-align: left; }
   .y-term-b .p { color: var(--accent); }
   .y-term-b .t { opacity: 0.6; }
 
@@ -664,7 +664,7 @@
   @media (min-width: 1024px) { .y-footer { grid-template-columns: 1fr 1fr 1fr; } }
   .y-footer .c:last-child { border-right: none; }
 
-  .y-theme-toggle { background: none; border: none; cursor: pointer; color: var(--fg); opacity: 0.5; padding: 8px; line-height: 0; transition: opacity 0.2s; display: flex; align-items: center; border-radius: 4px; }
+  .y-theme-toggle { background: none; border: none; cursor: pointer; color: var(--fg); opacity: 0.5; padding: 8px; line-height: 0; transition: opacity 0.2s; display: flex; align-items: center; border-radius: var(--radius-sm); }
   .y-theme-toggle:hover, .y-theme-toggle:focus-visible { opacity: 1; outline: 1px solid var(--border); }
   .y-theme-toggle svg { display: block; }
 
@@ -707,7 +707,7 @@
     padding: 14px 22px;
     font-family: var(--font-mono);
     font-size: 0.78rem;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--fg-muted);
     cursor: pointer;
@@ -731,7 +731,7 @@
   .section-label {
     font-family: var(--font-mono);
     font-size: 0.7rem;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--fg-muted);
   }
