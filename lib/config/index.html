@@ -1289,6 +1289,12 @@ const CHANNELS = [
         "label": "Bot Token",
         "placeholder": "MTIz...",
         "type": "password"
+      },
+      {
+        "key": "DISCORD_APP_ID",
+        "label": "Application ID",
+        "placeholder": "Application ID",
+        "type": "text"
       }
     ]
   },
@@ -1305,9 +1311,9 @@ const CHANNELS = [
         "type": "password"
       },
       {
-        "key": "SLACK_SIGNING_SECRET",
-        "label": "签名密钥",
-        "placeholder": "abc123...",
+        "key": "SLACK_APP_TOKEN",
+        "label": "App Token (xapp-...)",
+        "placeholder": "xapp-...",
         "type": "password"
       }
     ]
@@ -1315,13 +1321,19 @@ const CHANNELS = [
   {
     "id": "whatsapp",
     "name": "WhatsApp",
-    "icon": "▣",
-    "desc": "WhatsApp 消息 (via Baileys)",
+    "icon": "☎",
+    "desc": "WhatsApp 消息",
     "fields": [
       {
-        "key": "WHATSAPP_ENABLED",
-        "label": "启用",
-        "placeholder": "true",
+        "key": "WHATSAPP_ACCESS_TOKEN",
+        "label": "Access Token",
+        "placeholder": "Access Token",
+        "type": "password"
+      },
+      {
+        "key": "WHATSAPP_PHONE_NUMBER_ID",
+        "label": "Phone Number ID",
+        "placeholder": "Phone Number ID",
         "type": "text"
       }
     ]
@@ -1329,20 +1341,20 @@ const CHANNELS = [
   {
     "id": "weixin",
     "name": "WeChat",
-    "icon": "▣",
-    "desc": "微信 ilink 平台",
+    "icon": "微",
+    "desc": "微信消息",
     "fields": [
       {
         "key": "WEIXIN_TOKEN",
-        "label": "Bot Token",
-        "placeholder": "ilink Bot Token",
+        "label": "Token",
+        "placeholder": "Token",
         "type": "password"
       },
       {
-        "key": "WEIXIN_ACCOUNT_ID",
-        "label": "Account ID",
-        "placeholder": "WeChat Account ID",
-        "type": "text"
+        "key": "WEIXIN_ENCODING_AES_KEY",
+        "label": "EncodingAESKey",
+        "placeholder": "EncodingAESKey",
+        "type": "password"
       }
     ]
   },
@@ -1350,42 +1362,42 @@ const CHANNELS = [
     "id": "email",
     "name": "Email",
     "icon": "✉",
-    "desc": "邮件收发 (IMAP/SMTP)",
+    "desc": "邮件消息",
     "fields": [
       {
         "key": "EMAIL_IMAP_HOST",
-        "label": "IMAP 服务器",
+        "label": "IMAP Host",
         "placeholder": "imap.gmail.com",
         "type": "text"
       },
       {
         "key": "EMAIL_IMAP_PORT",
-        "label": "IMAP 端口",
+        "label": "IMAP Port",
         "placeholder": "993",
         "type": "text"
       },
       {
         "key": "EMAIL_SMTP_HOST",
-        "label": "SMTP 服务器",
+        "label": "SMTP Host",
         "placeholder": "smtp.gmail.com",
         "type": "text"
       },
       {
         "key": "EMAIL_SMTP_PORT",
-        "label": "SMTP 端口",
+        "label": "SMTP Port",
         "placeholder": "587",
         "type": "text"
       },
       {
-        "key": "EMAIL_ADDRESS",
-        "label": "邮箱地址",
-        "placeholder": "you@gmail.com",
+        "key": "EMAIL_USERNAME",
+        "label": "用户名",
+        "placeholder": "your@email.com",
         "type": "text"
       },
       {
         "key": "EMAIL_PASSWORD",
-        "label": "密码 / App 密码",
-        "placeholder": "xxxx xxxx xxxx",
+        "label": "密码",
+        "placeholder": "密码",
         "type": "password"
       }
     ]
@@ -1393,19 +1405,19 @@ const CHANNELS = [
   {
     "id": "signal",
     "name": "Signal",
-    "icon": "◆",
-    "desc": "Signal 消息 (需要 signal-cli)",
+    "icon": "🔒",
+    "desc": "Signal 消息",
     "fields": [
       {
         "key": "SIGNAL_PHONE_NUMBER",
-        "label": "手机号",
-        "placeholder": "+86...",
+        "label": "Phone Number",
+        "placeholder": "+1234567890",
         "type": "text"
       },
       {
-        "key": "SIGNAL_CLI_PATH",
-        "label": "signal-cli 路径",
-        "placeholder": "/usr/local/bin/signal-cli",
+        "key": "SIGNAL_API_URL",
+        "label": "API URL",
+        "placeholder": "http://localhost:8080",
         "type": "text"
       }
     ]
@@ -1413,25 +1425,25 @@ const CHANNELS = [
   {
     "id": "matrix",
     "name": "Matrix",
-    "icon": "◈",
-    "desc": "Matrix 协议消息",
+    "icon": "⊞",
+    "desc": "Matrix 消息",
     "fields": [
       {
         "key": "MATRIX_HOMESERVER",
-        "label": "Homeserver 地址",
+        "label": "Homeserver",
         "placeholder": "https://matrix.org",
         "type": "text"
       },
       {
-        "key": "MATRIX_USER",
-        "label": "用户名",
+        "key": "MATRIX_USER_ID",
+        "label": "User ID",
         "placeholder": "@user:matrix.org",
         "type": "text"
       },
       {
-        "key": "MATRIX_TOKEN",
-        "label": "访问令牌",
-        "placeholder": "syt_...",
+        "key": "MATRIX_PASSWORD",
+        "label": "Password",
+        "placeholder": "密码",
         "type": "password"
       }
     ]
