@@ -1,260 +1,200 @@
 # Hermes Portable
 
-> Plug-in-a-USB [Hermes Agent](https://github.com/NousResearch/hermes-agent) · zero-install, zero-trace, cross-platform
-> 插上U盘即用的 AI Agent · 零安装、零痕迹、全平台
+便携版 Hermes Agent — 零安装、单目录、U盘即走
 
-[![Release](https://img.shields.io/github/v/release/yuluyangguang1/hermes-portable?label=release)](https://github.com/yuluyangguang1/hermes-portable/releases)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#支持平台)
+## ✨ 特性
 
-**Build once, run anywhere** — everything bundled (Python, Node.js, venv, agent source, Web UI). Stick it on a USB, double-click, go. The host machine's `~/.hermes/`, `$PATH`, registry, nothing gets touched.
+- 🚀 **零安装** — 解压即用，无需安装
+- 📁 **单目录** — 所有文件在一个目录
+- 💾 **U盘即走** — 拷贝到 U盘，插上就能用
+- 🔒 **数据隔离** — 所有数据存储在 data/ 目录
+- 🌐 **跨平台** — 支持 macOS 和 Windows
+- 🎨 **配置中心** — Web 界面配置，简单易用
 
----
+## 📦 下载
 
-## 端口说明
+从 [GitHub Releases](https://github.com/yuluyangguang1/hermes-portable/releases) 下载最新版本。
 
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| 配置中心 | 17520 | Web 管理界面（选模型/填 Key/测试连接） |
-| Hermes Web UI | 8648 | 完整 Web 界面（对话/历史/统计/任务） |
-| Hermes Agent | 动态 | AI Agent 服务（自动分配端口） |
+### macOS
+```bash
+# 下载 Universal 版本
+HermesPortable-Universal.zip
 
-> 配置中心是轻量级入口，复杂操作请使用 Hermes Web UI。
+# 解压后双击 Hermes.command 启动
+```
 
-## 特性
+### Windows
+```bash
+# 下载 Windows 版本
+HermesPortable-Windows-x64.zip
 
-- **零安装** — Python / Node 运行时自带，不依赖系统任何东西
-- **零痕迹** — 所有读写劫持到 U 盘 `data/` 目录，宿主机零接触
-- **三平台原生** — macOS（arm64/x64）、Linux（x64/arm64）、Windows（x64）
-- **Universal 包** — 单个 zip 带齐三平台 venv，启动器自动识别
-- **自我成长** — 持久记忆 + 自动生成技能，运行越久越强（官方核心特性）
-- **多平台接入** — Telegram/Discord/Slack/WhatsApp/Signal/Email/CLI，一处启动多处可达
-- **定时自动化** — 自然语言 cron 调度，无人值守执行报告/备份/简报
-- **子代理委派** — 隔离子对话 + 独立终端 + Python RPC，零上下文成本流水线
-- **沙箱隔离** — 本地/Docker/SSH/Singularity/Modal 五种后端
-- **可视化配置中心** — 选模型/填 Key/测试连接/换模型/查看日志/导入导出
-- **自动更新** — 支持 git 用户和 release zip 用户两种更新模式
+# 解压后双击 Hermes.bat 启动
+```
 
-## 支持平台
+## 🚀 快速开始
 
-| 平台 | 启动器 | 要求 |
-|------|--------|------|
-| **macOS** | 双击 `Hermes.command` | 推荐 macOS 13.5+（Ventura）；旧版本 10.15+ 通常可用但 Apple 不再官方支持 |
-| **Linux** | `./Hermes.sh` | glibc 2.28+（Node.js 24 要求） |
-| **Windows** | 双击 `Hermes.bat` | Windows 10 / 11（原生，无需 WSL） |
-
-> Windows 原生支持已稳定（[官方文档](https://hermes-agent.nousresearch.com/docs/user-guide/windows-native) 自 v0.14.0 起去除 Beta 标记）。如果你需要 dashboard 内嵌终端等依赖 POSIX PTY 的能力，可以改用 `Hermes-WSL.bat`（需要 WSL2 + Ubuntu）。
-
----
-
-## 快速开始
-
-### 方式一：下载预构建包（推荐）
-
-从 [Releases](https://github.com/yuluyangguang1/hermes-portable/releases/latest) 选一个：
-
-| 包 | 适用 | 大小 |
-|----|------|------|
-| `HermesPortable-Universal.zip` | 一包三平台，U 盘多机用 | ~600 MB |
-| `HermesPortable-macOS.zip` | 仅 macOS | ~250 MB |
-| `HermesPortable-Linux.zip` | 仅 Linux | ~420 MB |
-| `HermesPortable-Windows.zip` | 仅 Windows | ~80 MB |
-
-下载 → 解压 → 双击启动器。首次运行会在浏览器打开配置面板（`http://127.0.0.1:17520`），填 API Key 即可。
-
-### 方式二：本地构建
+### 1. 下载并解压
 
 ```bash
-git clone https://github.com/yuluyangguang1/hermes-portable.git
-cd hermes-portable
+# macOS
+unzip HermesPortable-Universal.zip
+cd HermesPortable
 
-# 平台单包
-python3 tools/build.py # → dist/HermesPortable/
-python3 tools/build.py /Volumes/MyUSB # → 直接落到 U 盘
-
-# Universal 多平台（见下一节）
-python3 tools/build.py --layout universal
+# Windows
+# 解压 HermesPortable-Windows-x64.zip
 ```
 
-Windows 上一样是 `python tools/build.py`，**不再有** `build_windows.py`（已合并进 `build.py`）。
-
-**要求：** Python 3.8+、`git`、`curl`。
-
-> 完全不懂命令行？项目根目录的 [`构建教程.html`](构建教程.html) 是零基础图文版。
-
-### 方式三：Universal 多平台包
-
-在每台目标机器上各构建一次，合并成一个"三合一"的 Universal 包（启动器自动识别当前系统）。
-
-```bash
-# 每台机器各跑一次，输出到同一个共享目录
-# macOS:
-python3 tools/build.py --layout universal --output /path/to/shared
-# Linux:
-python3 tools/build.py --layout universal --output /path/to/shared
-# Windows:
-python tools/build.py --layout universal --output X:\path\to\shared
-```
-
-`--layout universal` 会把 venv/python/node 放进 `venv-<platform>/`、`python-<platform>/`、`node-<platform>/` 子目录，三平台产物互不冲突，可以直接合并。
-
-> GitHub Actions 的 `Build Universal` workflow 就是自动化这一步，每次打 tag 自动出 Universal 包。
-
----
-
-## 使用
-
-1. 解压到 U 盘或任意目录（**避免深路径**：Windows 有 260 字符限制）
-2. 双击启动器：
- - macOS → `Hermes.command`
- - Windows → `Hermes.bat`
- - Linux → `./Hermes.sh`
-3. 首次启动自动打开 `http://127.0.0.1:17520`，填 API Key → 保存 → 启动
-
-后续启动时配置中心也会在后台运行，浏览器打开 `http://127.0.0.1:17520` 可随时换模型、查看日志、检查更新。
-
-就这样。**不动宿主机任何文件**。
-
-## 配置中心功能
-
-启动后访问 `http://127.0.0.1:17520`：
-
-| 区域 | 功能 |
-|------|------|
-| 顶部状态栏 | Hermes 进程运行状态（绿点 + PID）、Web UI 快捷入口 |
-| 模型 标签页 | 选提供商、填 API Key、测试连接、选模型 |
-| 渠道 标签页 | 配置 Telegram/Discord/Slack/WhatsApp/微信/邮件等 |
-| 设置 标签页 | 上下文压缩、显示费用、工具进度、持久记忆 |
-| 配置管理 | 导出/导入/查看 .env/重置 |
-| 运行日志 | 查看最近 200 行 Hermes 日志 |
-| 检查更新 | git 模式 + release 模式双更新通道 |
-| 启动/重启 | 一键启动 Hermes，运行中支持重启 |
-
-## 零痕迹保证
-
-启动器会在 U 盘内创建一个沙箱 HOME：
-
-```
-HermesPortable/
-├── _home/ ← 沙箱 HOME（启动时自动建）
-│ └── .hermes/ ← symlink / junction → data/
-├── data/ ← 实际用户数据都在这里
-├── venv-<platform>/
-├── python-<platform>/
-└── node-<platform>/
-```
-
-进程启动前：
-- Unix: `export HOME=$HERE/_home`
-- Windows: `set HOME=%HERE%\_home` + `set USERPROFILE=%HERE%\_home`
-
-于是所有走 `~/.hermes` 的读写（pip config、Node 的 npm/npx 等）**全部落到 U 盘内的 `data/` 里**，宿主机真 `~/.hermes/`、`%USERPROFILE%\.hermes` 从头到尾**零接触**。
-
-拔掉 U 盘 → 什么都带走，什么都没留下。
-
-## 目录结构
-
-```
-HermesPortable/
-├── Hermes.command / .sh / .bat / -WSL.bat # 各平台启动器
-├── _home/ # HOME 沙箱（启动时自动生成）
-├── data/ # 用户数据（唯一需要备份的）
-│ ├── .env # API Keys
-│ ├── config.yaml # 模型/渠道配置
-│ ├── sessions/ skills/ memories/ …
-├── lib/ # 运行时内部脚本
-│ ├── config_server.py # 配置面板
-│ ├── chat_viewer.py # 聊天记录查看器
-│ ├── update.py / update.sh # 自更新
-│ └── fix_shims.py # shebang 修复
-├── tools/ # 开发者工具（可选）
-│ ├── build.py # 构建脚本
-│ ├── build-desktop.py # 桌面版构建脚本
-│ └── mac-rebuild.sh / linux-rebuild.sh # 架构重建
-├── venv-<platform>/ # Python 虚拟环境
-├── python-<platform>/ # 独立 Python 3.12 运行时
-├── node-<platform>/ # Node.js 运行时
-├── runtime/ # 运行时资源
-│ └── desktop/ # 官方桌面版（可选）
-├── hermes-agent/ # 上游源码（可 git pull 更新）
-└── README.txt / guide.html / … # 文档
-```
-
-## 为什么用 Hermes Portable？
-
-| 对比 | 官方安装 | Hermes Portable |
-|------|---------|-----------------|
-| 安装 | `curl \| bash` + 配置 | 双击启动器 |
-| 系统影响 | 写 `~/.hermes/`、注册全局命令 | 完全零写入，零注册 |
-| 换电脑 | 重装 + 迁移数据 | 拔 U 盘，插到下一台 |
-| Python/Node | 依赖系统或用 nvm/pyenv | 全部自带 |
-| 离线场景 | 需要联网安装 | 首次构建后可离线用 |
-| 多设备同步 | 手动同步 | 数据跟着 U 盘走 |
-
-## 启动方式
-
-**默认启动桌面版**（双击即可）：
+### 2. 启动
 
 ```bash
 # macOS
 ./Hermes.command
 
-# Linux
-./Hermes.sh
-
 # Windows
 Hermes.bat
 ```
 
-**启动 CLI 模式**（命令行）：
+### 3. 配置
 
-```bash
-# macOS/Linux
-./Hermes.command --cli
+启动后会自动打开配置中心：
+- 访问 http://127.0.0.1:17520
+- 选择 LLM 提供商
+- 输入 API Key
+- 选择模型
+- 点击保存
 
-# Windows
-Hermes.bat --cli
+### 4. 启动 Hermes
+
+配置完成后，点击"启动"按钮。
+
+## 📁 目录结构
+
 ```
+HermesPortable/
+├── Hermes.command          # macOS 启动器
+├── Hermes.bat              # Windows 启动器
+├── lib/
+│   ├── config_server.py    # 配置服务器
+│   ├── config/
+│   │   ├── index.html      # 配置中心前端
+│   │   └── index-standalone.html  # 自包含版
+│   └── fix_shims.py        # 修复脚本
+├── tools/
+│   └── build.py            # 构建脚本
+├── data/
+│   ├── .env                # API Keys
+│   ├── config.yaml         # 模型配置
+│   └── runtime.json        # 运行时信息
+├── venv-macos-arm64/       # macOS ARM64 虚拟环境
+├── venv-macos-x64/         # macOS x64 虚拟环境
+├── venv-windows-x64/       # Windows x64 虚拟环境
+├── python-macos-arm64/     # macOS ARM64 Python
+├── python-macos-x64/       # macOS x64 Python
+├── python-windows-x64/     # Windows x64 Python
+├── node-macos-arm64/       # macOS ARM64 Node.js
+├── node-macos-x64/         # macOS x64 Node.js
+├── node-windows-x64/       # Windows x64 Node.js
+├── hermes-agent/           # Hermes Agent 源码
+├── uv                      # uv 包管理器
+├── VERSION                 # 版本号
+└── README.md               # 本文件
+```
+
+## 🔧 配置中心
+
+配置中心提供 Web 界面管理 Hermes 配置：
+
+### 功能
+- ✅ LLM 提供商管理
+- ✅ API Key 管理
+- ✅ 模型选择
+- ✅ 渠道配置
+- ✅ 偏好设置
+- ✅ 版本更新
+- ✅ 配置导入/导出
+
+### 支持的 LLM 提供商
+- OpenRouter
+- Anthropic (Claude)
+- OpenAI (GPT)
+- DeepSeek
+- Google (Gemini)
+- xAI (Grok)
+- Mistral
+- 智谱 (GLM)
+- 通义千问 (Qwen)
+- Kimi
+- MiniMax
+- 小米 (MiMo)
+- 豆包 (Doubao)
+- 等 74+ 个提供商
+
+### 支持的渠道
+- Telegram
+- Discord
+- Slack
+- WhatsApp
+- WeChat
+- Email
+- Signal
+- Matrix
+
+## 🛠️ 开发
 
 ### 构建
 
 ```bash
-# 构建便携版（包含桌面版，默认）
+# 构建 Universal 版本
 python3 tools/build.py
 
-# 仅构建 CLI 版（不含桌面版）
-python3 tools/build.py --no-desktop
+# 构建特定平台
+python3 tools/build.py --platform macos-arm64
+python3 tools/build.py --platform macos-x64
+python3 tools/build.py --platform windows-x64
 ```
 
-### 端口占用
+### 测试
 
-| 服务 | 端口 | 用途 |
-|------|------|------|
-| Hermes Agent Gateway | 8642 | 内部 API |
-| Config Panel | 17520 | 首次配置 + 模型/渠道面板 |
+```bash
+# 测试配置服务器
+python3 lib/config_server.py
 
-## 备份与更新
+# 测试 Hermes Agent
+./venv-macos-arm64/bin/hermes --version
+```
 
-- **备份**：只复制 `data/`
-- **更新**：配置面板 → 底部「检查更新」→「更新到最新版」
-- **命令行更新**：`python lib/update.py update`
+## 📝 更新日志
 
-## 相关链接
+### v0.23.0 (2026-07-21)
+- 配置中心全面优化
+- 渠道配置更新
+- 前端设计优化
+- 无障碍支持
+- 动画优化
 
-| 项目 | 作用 |
-|------|------|
-| [hermes-portable](https://github.com/yuluyangguang1/hermes-portable) | 本项目 |
-| [hermes-agent](https://github.com/NousResearch/hermes-agent) | 上游（Nous Research 的自进化 AI Agent） |
-| [官方桌面版](https://hermes-agent.nousresearch.com/desktop) | 官方桌面应用 |
-| [官方文档](https://hermes-agent.nousresearch.com/docs) | Hermes Agent docs |
+### v0.22.0 (2026-07-20)
+- Token 生成 + runtime.json
+- Preflight 自检
+- kill_tree 子进程清理
+- 浏览器带 Token 打开
 
-## 致谢
+### v0.21.5 (2026-07-17)
+- PYTHONHOME 修复
+- hermes-web-ui 安装
+- 全面优化
 
-- [Nous Research](https://nousresearch.com) — Hermes Agent
-- [EKKOLearnAI](https://github.com/EKKOLearnAI) — hermes-web-ui
-- [astral-sh/uv](https://github.com/astral-sh/uv) — 包管理 + 独立 Python
-- [Node.js](https://nodejs.org) — Web UI 运行时
+## 🔗 相关链接
 
-## License
+- [Hermes Agent 官方](https://hermes-agent.nousresearch.com/)
+- [GitHub 仓库](https://github.com/yuluyangguang1/hermes-portable)
+- [问题反馈](https://github.com/yuluyangguang1/hermes-portable/issues)
 
-[MIT](LICENSE) · 与上游 hermes-agent 许可一致。
+## 📄 许可证
+
+MIT License
+
+## 🙏 致谢
+
+- [Hermes Agent](https://hermes-agent.nousresearch.com/) — Nous Research
+- [Tabler Icons](https://tabler-icons.io/) — 图标库
+- [LXGW WenKai](https://github.com/lxgw/LxgwWenKai) — 字体
