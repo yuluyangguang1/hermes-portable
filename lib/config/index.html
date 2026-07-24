@@ -1058,6 +1058,13 @@ select:focus-visible {
 
       <div class="section-label" style="margin-top:12px">模型</div>
       <div class="card">
+        <div id="quickSwitch" style="margin-bottom:12px;display:none;">
+          <label style="display:block;font-size:0.78em;color:var(--fg-muted);margin-bottom:6px;font-family:var(--font-mono);">快速切换模型</label>
+          <div style="display:flex;gap:8px;">
+            <select id="quickModel" style="flex:1;padding:9px 12px;background:var(--secondary);color:var(--fg);border:1px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:0.85em;"></select>
+            <button onclick="quickSwitchModel()" style="padding:9px 16px;background:var(--accent);color:var(--bg);border:none;border-radius:6px;font-family:var(--font-mono);font-size:0.85em;cursor:pointer;">切换</button>
+          </div>
+        </div>
         <div class="field">
           <label>默认模型</label>
           <select id="modelSelect"></select>
