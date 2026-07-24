@@ -60,7 +60,7 @@ preflight_check() {
 
   # Check Python
   local py_found=false
-  for cand in "$PYTHON_DIR"/*/bin/python3.12 "$PYTHON_DIR"/*/bin/python3; do
+  for cand in "$PYTHON_DIR"/*/bin/python3 "$PYTHON_DIR"/*/bin/python3.*; do
     if [ -x "$cand" ]; then py_found=true; break; fi
   done
   if [ "$py_found" = "false" ]; then
@@ -261,7 +261,7 @@ export PYTHONUTF8=1
 # Handles: install/ layout (old uv), cpython-3.12-xxx/ layout (new uv)
 PYTHON_HOME=""
 for _candidate in "$PYTHON_DIR"/*/install "$PYTHON_DIR"/install "$PYTHON_DIR"/* "$PYTHON_DIR"; do
-  if [ -d "$_candidate/lib/python3.12" ]; then
+  if [ -d "$_candidate/lib/python3.12" ] || [ -d "$_candidate/lib/python3.13" ] || [ -d "$_candidate/lib/python3.14" ]; then
     PYTHON_HOME="$_candidate"
     break
   fi
@@ -500,6 +500,12 @@ except:
 
   # Open browser with Token
   if [ -n "$TOKEN" ]; then
+open_url() {
+  if command -v open >/dev/null 2>&1; then open "$1"
+  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1"
+  fi
+}
+
     open_url "http://127.0.0.1:17520/#token=$TOKEN"
   else
     open_url "http://127.0.0.1:17520/"
@@ -523,11 +529,7 @@ if [ -f "$HERE/data/.env" ]; then
   fi
 fi
 
-open_url() {
-  if command -v open >/dev/null 2>&1; then open "$1"
-  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1"
-  fi
-}
+
 
 if [ "${1-}" = "--config" ] || [ "$HAS_KEY" = "false" ]; then
   echo ""
@@ -553,6 +555,7 @@ start_config_server() {
 
 MAX_RESTARTS=3
 restart_count=0
+MAX_RESTARTS=3
 
 watchdog_config_server() {
   local parent_pid=$$
