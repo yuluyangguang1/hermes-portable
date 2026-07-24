@@ -403,6 +403,12 @@ else
 fi
 
 # ── Desktop mode launch ────────────────────────────────────────
+open_url() {
+  if command -v open >/dev/null 2>&1; then open "$1"
+  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1"
+  fi
+}
+
 if [ "$LAUNCH_MODE" = "desktop" ]; then
   echo ""
   echo "  启动桌面版..."
@@ -498,11 +504,6 @@ except:
 " 2>/dev/null)
   fi
 
-open_url() {
-  if command -v open >/dev/null 2>&1; then open "$1"
-  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1"
-  fi
-}
 
   # Open browser with Token
   if [ -n "$TOKEN" ]; then
@@ -578,6 +579,8 @@ watchdog_config_server() {
     if [ -n "$config_pid" ] && ! kill -0 "$config_pid" 2>/dev/null; then
       echo "  Config Server crashed. Restarting..."
       start_config_server
+      # Update PID file after restart
+      echo "$CONFIG_PID" > "$HERE/data/.config_pid"
     fi
     # Restart hermes gateway if crashed (auto-restart)
     if [ -n "$hermes_pid" ] && ! kill -0 "$hermes_pid" 2>/dev/null; then
@@ -587,7 +590,8 @@ watchdog_config_server() {
         echo "$restart_count" > "$RESTART_COUNT_FILE"
         echo "  Hermes Gateway crashed. Restarting ($restart_count/$MAX_RESTARTS)..."
         "$VENV_DIR/bin/hermes" &
-        echo $! > "$HERE/data/.hermes_pid"
+        local new_hermes_pid=$!
+        echo "$new_hermes_pid" > "$HERE/data/.hermes_pid"
       else
         echo "  Hermes Gateway crashed $MAX_RESTARTS times. Giving up."
         exit 1
@@ -597,9 +601,8 @@ watchdog_config_server() {
 }
 
 start_config_server
-# Save PIDs to files for watchdog
+# Save config PID to file for watchdog
 echo $CONFIG_PID > "$HERE/data/.config_pid"
-echo $HERMES_PID > "$HERE/data/.hermes_pid"
 watchdog_config_server &
 WATCHDOG_PID=$!
 echo "  Config panel: http://127.0.0.1:17520 (change model anytime)"
