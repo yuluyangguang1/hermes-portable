@@ -1553,6 +1553,36 @@ function updateModelSelect() {
 
 function updateModelPreview() {
   document.getElementById('modelPreview').textContent = '当前: ' + activeProvider + '/' + document.getElementById('modelSelect').value;
+  // Update quick switch dropdown
+  populateQuickSwitch();
+}
+
+function populateQuickSwitch() {
+  const el = document.getElementById('quickSwitch');
+  const sel = document.getElementById('quickModel');
+  if (!el || !sel) return;
+  const p = PROVIDERS.find(x => x.id === activeProvider);
+  if (!p || !p.models || p.models.length <= 1) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const currentModel = document.getElementById('modelSelect').value;
+  sel.innerHTML = p.models.map(m => {
+    const em = m.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return '<option value="' + em + '"' + (m === currentModel ? ' selected' : '') + '>' + em + '</option>';
+  }).join('');
+}
+
+function quickSwitchModel() {
+  const sel = document.getElementById('quickModel');
+  if (!sel || !sel.value) return;
+  // Update the main model select
+  const mainSel = document.getElementById('modelSelect');
+  for (let opt of mainSel.options) {
+    if (opt.value === sel.value) { opt.selected = true; break; }
+  }
+  updateModelPreview();
+  // Auto save
+  saveConfig();
+  toast('已切换到 ' + sel.value, 'success');
 }
 
 function renderChannels() {
