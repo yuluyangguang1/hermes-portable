@@ -87,6 +87,25 @@ def download(url, dest):
         "-o", str(dest), url,
     ])
 
+
+def download_with_checksum(url, dest, expected_sha256):
+    """Download a file and verify its SHA-256 checksum.
+
+    Falls back to plain download if the checksum doesn't match,
+    printing a warning. This is defense-in-depth: a corrupted download
+    from a throttled mirror would otherwise cause confusing errors
+    later (e.g. tar extraction failure, missing binaries).
+    """
+    import hashlib
+    download(url, dest)
+    if expected_sha256:
+        actual = hashlib.sha256(dest.read_bytes()).hexdigest()
+        if actual != expected_sha256:
+            warn(f"Checksum mismatch for {dest.name}: expected {expected_sha256[:16]}…, got {actual[:16]}…")
+            # Don't fail — the file might still be usable. But warn loudly.
+        else:
+            ok(f"Checksum verified: {dest.name}")
+
 def detect_platform():
     """Return (system, arch, platform_label).
 
@@ -574,11 +593,26 @@ def step_cleanup(ctx):
             for d in site.rglob("__tests__"):
                 shutil.rmtree(d, ignore_errors=True); removed += 1
     # Replace symlinks with copies for exFAT/Windows compatibility
+    # EXCEPT _home/.hermes — that's a runtime symlink recreated by the
+    # launchers on every start. Replacing it with a copy of data/ would
+    # (a) duplicate the entire data/ directory, (b) make _home/.hermes
+    # a real directory instead of a symlink, and (c) cause the launcher
+    # to refuse to start (it expects a symlink, not a real dir).
     import shutil as _shutil
     symlink_count = 0
     for link in ROOT.rglob("*"):
         if link.is_symlink():
+            # Skip the runtime sandbox symlink — launchers create it at runtime
+            if link.name == ".hermes" and link.parent.name == "_home":
+                continue
             target = link.resolve()
+            # Only copy if the target is inside ROOT — prevents accidentally
+            # bundling sensitive files (e.g. /etc/passwd) that a symlink
+            # might point to.
+            try:
+                target.relative_to(ROOT)
+            except ValueError:
+                continue
             if target.exists():
                 link.unlink()
                 if target.is_dir():
@@ -861,6 +895,8 @@ def main():
             fail(f"Step '{desc}' failed with exit code {e.returncode}")
         except SystemExit:
             raise
+        except KeyboardInterrupt:
+            fail(f"Build interrupted by user (step: {desc})")
         except Exception as e:
             import traceback; traceback.print_exc()
             fail(f"Step '{desc}' failed: {e}")

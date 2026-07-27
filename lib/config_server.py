@@ -5,6 +5,7 @@ Hermes Portable — Web 配置面板 v3
 """
 import json
 import os
+import secrets
 import subprocess
 import sys
 import threading
@@ -37,6 +38,15 @@ MODEL_CATALOG_CACHE_TTL_SEC = 6 * 3600  # 6 hours
 MODEL_CATALOG_CACHE_FILE = DATA_DIR / ".model-catalog-cache.json"
 _model_catalog_lock = threading.Lock()
 _model_catalog_state = {"data": None, "fetched_at": 0.0}
+
+# Version check cache — avoids hitting GitHub API on every /api/version
+# poll from the frontend. 60-second TTL is a good balance between
+# freshness and rate-limit avoidance (GitHub allows 60 req/hour
+# unauthenticated; without caching, polling every 5s exhausts that
+# in 5 minutes).
+_version_cache_lock = threading.Lock()
+_version_cache = {"result": None, "fetched_at": 0.0}
+_VERSION_CACHE_TTL_SEC = 60
 
 
 def _load_catalog_from_disk():
@@ -648,6 +658,37 @@ CHANNELS = [
 
 WEB_UI_PORT = 8648
 
+def _is_hermes_pid(pid):
+    """Check if a PID is actually a hermes process.
+
+    Prevents killing an unrelated process that happens to reuse a
+    stale lock file's PID. Uses /proc on Linux, ps on macOS/BSD,
+    and tasklist on Windows.
+    """
+    if not pid or pid <= 1:
+        return False
+    try:
+        if sys.platform == "win32":
+            r = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"],
+                capture_output=True, text=True, timeout=5,
+            )
+            # CSV output: "Image Name","PID","Session Name","Session#","Mem Usage"
+            return "hermes" in r.stdout.lower()
+        else:
+            # Linux: check /proc/<pid>/cmdline
+            cmdline = Path(f"/proc/{pid}/cmdline")
+            if cmdline.exists():
+                return "hermes" in cmdline.read_bytes().decode("utf-8", errors="replace")
+            # macOS/BSD: fall back to ps
+            r = subprocess.run(
+                ["ps", "-p", str(pid), "-o", "command="],
+                capture_output=True, text=True, timeout=5,
+            )
+            return "hermes" in r.stdout.lower()
+    except Exception:
+        return False
+
 def webui_status():
     """Check if hermes-web-ui is running."""
     import subprocess
@@ -656,7 +697,11 @@ def webui_status():
             ['hermes-web-ui', 'status'],
             capture_output=True, text=True, timeout=5
         )
-        return 'running' in result.stdout.lower()
+        # Use exact match on stripped output to avoid false positives.
+        # The old code used 'running' in stdout.lower(), which would
+        # match "Not running" or "Error: process not running".
+        output = result.stdout.strip().lower()
+        return output == 'running'
     except Exception:
         return False
 
@@ -692,11 +737,15 @@ def parse_env():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
+                # Strip 'export ' prefix if present (common in shell-generated .env files)
+                k = k.strip()
+                if k.startswith("export "):
+                    k = k[7:].strip()
                 v = v.strip()
                 # Strip matching surrounding quotes: KEY="value" → value
                 if len(v) >= 2 and v[0] == v[-1] and v[0] in ('"', "'"):
                     v = v[1:-1]
-                keys[k.strip()] = v
+                keys[k] = v
     return keys
 
 def parse_yaml_safe(path):
@@ -739,6 +788,28 @@ def _yaml_dump_simple(d, indent=0):
         if isinstance(v, dict):
             lines.append(f"{prefix}{k}:")
             lines.extend(_yaml_dump_simple(v, indent + 1))
+        elif isinstance(v, list):
+            # YAML block sequence: each item on its own line with "- "
+            if not v:
+                lines.append(f"{prefix}{k}: []")
+            else:
+                lines.append(f"{prefix}{k}:")
+                for item in v:
+                    if isinstance(item, dict):
+                        # Nested dict in list — dump as inline mapping
+                        sub = _yaml_dump_simple(item, indent + 1)
+                        if sub:
+                            lines.append(f"{prefix}  - {sub[0].lstrip()}")
+                            lines.extend(sub[1:])
+                        else:
+                            lines.append(f"{prefix}  - {{}}")
+                    elif isinstance(item, list):
+                        # Nested list — dump as nested block sequence
+                        lines.append(f"{prefix}  -")
+                        for sub_item in item:
+                            lines.append(f"{prefix}    - {_yaml_scalar(sub_item)}")
+                    else:
+                        lines.append(f"{prefix}  - {_yaml_scalar(item)}")
         elif isinstance(v, bool):
             lines.append(f"{prefix}{k}: {'true' if v else 'false'}")
         elif isinstance(v, (int, float)):
@@ -753,6 +824,21 @@ def _yaml_dump_simple(d, indent=0):
             s = s.replace("\n", "\\n").replace("\r", "\\r")
             lines.append(f'{prefix}{k}: "{s}"')
     return lines
+
+
+def _yaml_scalar(v):
+    """Format a scalar value for YAML output."""
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    elif isinstance(v, (int, float)):
+        return str(v)
+    elif v is None:
+        return "null"
+    else:
+        s = str(v)
+        s = s.replace("\\", "\\\\").replace('"', '\\"')
+        s = s.replace("\n", "\\n").replace("\r", "\\r")
+        return f'"{s}"'
 
 
 
@@ -1025,6 +1111,10 @@ def _ilink_request(path, base_url=None, method="GET", body=None,
                         f"iLink API returned HTTP {resp.status}: "
                         f"{payload[:200].decode('utf-8', errors='replace')}")
                 try:
+                    content_type = resp.headers.get("Content-Type", "")
+                    if "json" not in content_type and "text" not in content_type:
+                        raise RuntimeError(
+                            f"iLink response had unexpected Content-Type: {content_type}")
                     return json.loads(payload.decode("utf-8"))
                 except json.JSONDecodeError as e:
                     raise RuntimeError(f"iLink response was not JSON: {e}")
@@ -1068,7 +1158,10 @@ def _ilink_poll_qr(qrcode_token, base_url=None):
             base_url=base_url, timeout=ILINK_QR_POLL_TIMEOUT_SEC,
         )
     except RuntimeError as e:
-        if "timed out" in str(e).lower():
+        # _ilink_request wraps TimeoutError/OSError as "iLink API timed out: ..."
+        # We check for the exact prefix to distinguish from other errors that
+        # happen to contain "timed out" in their message (e.g. SSL errors).
+        if str(e).startswith("iLink API timed out"):
             return {"status": "wait"}
         raise
 
@@ -1275,7 +1368,6 @@ def wechat_cancel_login(session=None):
 # ═══════════════════════════════════════════════════════════════
 
 # HTML is now in a separate file for easier maintenance
-import os
 _html_path = os.path.join(os.path.dirname(__file__), "config", "index.html")
 try:
     with open(_html_path, "r", encoding="utf-8") as _f:
@@ -1432,7 +1524,7 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         elif path_only == "/api/bootstrap":
             # Token endpoint (localhost only)
             origin = self.headers.get("Origin", "")
-            if origin and not _is_local_origin(origin):
+            if not origin or not _is_local_origin(origin):
                 self.send_error(403, "Forbidden")
                 return
             self._json_response({
@@ -1595,6 +1687,14 @@ class ConfigHandler(SimpleHTTPRequestHandler):
 
     def _get_version(self):
         import urllib.request
+        # Check cache first — avoids hitting GitHub API on every frontend poll.
+        # GitHub allows 60 req/hour unauthenticated; without caching, polling
+        # every 5s exhausts that in 5 minutes.
+        with _version_cache_lock:
+            cached = _version_cache["result"]
+            fetched_at = _version_cache["fetched_at"]
+            if cached is not None and (time.time() - fetched_at) < _VERSION_CACHE_TTL_SEC:
+                return cached
         # Local version
         if sys.platform == "win32":
             hermes_bin = VENV_DIR / "Scripts" / "hermes.exe"
@@ -1669,7 +1769,7 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             and portable_update["tag"].lstrip("v") != current_tag
         )
 
-        return {
+        result = {
             "local": local,
             "local_tag": current_tag,
             "remote": remote,
@@ -1681,16 +1781,20 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             ) if has_git else portable_is_newer,
             "portable_update": portable_update if portable_is_newer else None,
         }
+        # Store in cache
+        with _version_cache_lock:
+            _version_cache["result"] = result
+            _version_cache["fetched_at"] = time.time()
+        return result
 
     def _run_update(self):
         import urllib.request
         import zipfile
         import tempfile
-        import socket
-        # 局部超时管理：保存原值，函数结束后恢复
-        # 防止影响其他线程的 urllib 调用（如 _get_version 已有自己的 timeout）
-        _orig_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(60)
+        # NOTE: We do NOT use socket.setdefaulttimeout() here because it sets
+        # a GLOBAL default that affects all other threads (including the HTTP
+        # server threads and the config watcher). Instead, we pass explicit
+        # timeout= parameters to each urllib call below.
         try:
 
             update_script = PORTABLE_ROOT / "lib" / "update.py"
@@ -1741,8 +1845,16 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                     tmp_zip = Path(tempfile.gettempdir()) / "hermes-portable-update.zip"
                     tmp_extract = Path(tempfile.gettempdir()) / "hermes-portable-extract"
 
-                    # Download
-                    urllib.request.urlretrieve(download_url, str(tmp_zip))
+                    # Download (with explicit timeout — urlretrieve doesn't
+                    # accept a timeout parameter, and we removed the global
+                    # socket.setdefaulttimeout to avoid affecting other threads)
+                    req = urllib.request.Request(
+                        download_url,
+                        headers={"User-Agent": "HermesPortable/1.0"},
+                    )
+                    with urllib.request.urlopen(req, timeout=60) as resp:
+                        with open(str(tmp_zip), "wb") as f:
+                            f.write(resp.read())
 
                     # Extract — with zip-slip protection.
                     # zipfile.extractall doesn't reject members with
@@ -1856,8 +1968,9 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             except Exception:
                 pass
 
-        finally:
-            socket.setdefaulttimeout(_orig_timeout)
+        except Exception:
+            pass
+        # No finally block needed — we never set socket.setdefaulttimeout.
 
     def _get_status(self):
         """Detect if hermes process is running via process listing + Web UI.
@@ -1975,6 +2088,14 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         kill_succeeded = False
         try:
             pid = int(lock_file.read_text().strip())
+            # Verify the PID is actually a hermes process before killing.
+            # Without this check, a stale lock file with a reused PID could
+            # cause us to kill an unrelated process.
+            if not _is_hermes_pid(pid):
+                print(f"Restart: PID {pid} is not a hermes process, skipping kill",
+                      file=sys.stderr)
+                lock_file.unlink(missing_ok=True)
+                return
             if sys.platform == "win32":
                 r = subprocess.run(["taskkill", "/F", "/PID", str(pid)],
                                    capture_output=True, timeout=5)
@@ -2047,37 +2168,42 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         """Import config from uploaded JSON. 事务性写入：全部成功或全部回滚。"""
         from datetime import datetime
         import shutil
-        backup_dir = DATA_DIR / "backups"
-        backup_dir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        cfg_path = DATA_DIR / "config.yaml"
+        # Acquire the config lock to prevent racing with _save_config_locked.
+        # Without this, a concurrent /api/save could overwrite the imported
+        # data (or vice versa), and the backup/rollback could restore a file
+        # that a concurrent save just modified.
+        with _save_config_lock:
+            backup_dir = DATA_DIR / "backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            cfg_path = DATA_DIR / "config.yaml"
 
-        # Phase 1: 备份现有文件
-        env_backup = None
-        cfg_backup = None
-        try:
-            if ENV_FILE.exists():
-                env_backup = backup_dir / f".env.before-import.{ts}"
-                shutil.copy(ENV_FILE, env_backup)
-            if cfg_path.exists():
-                cfg_backup = backup_dir / f"config.yaml.before-import.{ts}"
-                shutil.copy(cfg_path, cfg_backup)
-        except Exception as e:
-            raise RuntimeError(f"Backup failed before import: {e}")
-
-        # Phase 2: 写入新文件，失败时从备份恢复
-        try:
-            self._write_imported(data)
-        except Exception as e:
-            # 回滚
+            # Phase 1: 备份现有文件
+            env_backup = None
+            cfg_backup = None
             try:
-                if env_backup and env_backup.exists():
-                    shutil.copy(env_backup, ENV_FILE)
-                if cfg_backup and cfg_backup.exists():
-                    shutil.copy(cfg_backup, cfg_path)
-            except Exception:
-                pass
-            raise RuntimeError(f"Import failed, rolled back: {e}")
+                if ENV_FILE.exists():
+                    env_backup = backup_dir / f".env.before-import.{ts}"
+                    shutil.copy(ENV_FILE, env_backup)
+                if cfg_path.exists():
+                    cfg_backup = backup_dir / f"config.yaml.before-import.{ts}"
+                    shutil.copy(cfg_path, cfg_backup)
+            except Exception as e:
+                raise RuntimeError(f"Backup failed before import: {e}")
+
+            # Phase 2: 写入新文件，失败时从备份恢复
+            try:
+                self._write_imported(data)
+            except Exception as e:
+                # 回滚
+                try:
+                    if env_backup and env_backup.exists():
+                        shutil.copy(env_backup, ENV_FILE)
+                    if cfg_backup and cfg_backup.exists():
+                        shutil.copy(cfg_backup, cfg_path)
+                except Exception:
+                    pass
+                raise RuntimeError(f"Import failed, rolled back: {e}")
 
     def _write_imported(self, data):
         """实际写入逻辑，可能抛出异常。
@@ -2426,6 +2552,11 @@ def main():
     for try_port in range(PORT, PORT + 10):
         try:
             server = ThreadingHTTPServer(("127.0.0.1", try_port), ConfigHandler)
+            # Allow non-daemon threads to be killed on shutdown. Without this,
+            # a handler stuck in a long-poll (e.g. wechat QR status with 35s
+            # timeout) would delay process exit by up to 35 seconds after
+            # Ctrl+C.
+            server.daemon_threads = True
             actual_port = try_port
             break
         except OSError as e:
@@ -2451,8 +2582,25 @@ def main():
     }
     runtime_path = DATA_DIR / "runtime.json"
     try:
-        runtime_path.write_text(json.dumps(runtime, indent=2))
+        # Create with restrictive permissions from the start (0o600)
+        # to avoid a window where the file has default umask permissions
+        # (often 0o644, world-readable). On Windows, os.chmod only sets
+        # the read-only flag, not Unix permission bits — we warn below.
+        fd = os.open(str(runtime_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(runtime, indent=2))
         os.chmod(runtime_path, 0o600)
+        # On Windows, verify the file isn't world-readable
+        if sys.platform == "win32":
+            try:
+                import stat as _stat
+                mode = _stat.S_IMODE(os.stat(runtime_path).st_mode)
+                if mode & 0o044:
+                    print(f"  Warning: runtime.json is world-readable on Windows "
+                          f"(mode={oct(mode)}). Consider running on a secure account.",
+                          file=sys.stderr)
+            except Exception:
+                pass
     except Exception as e:
         print(f"  Warning: Could not write runtime.json: {e}", file=sys.stderr)
 

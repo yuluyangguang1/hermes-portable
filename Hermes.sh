@@ -7,6 +7,8 @@
 # non-zero must not abort us before we capture the exit code.
 set -u
 
+HERE="$(cd "$(dirname "$0")" && pwd)"
+
 # ── Parse command line arguments ──────────────────────────────
 LAUNCH_MODE="desktop"  # 默认启动桌面版
 for arg in "$@"; do
@@ -21,8 +23,6 @@ for arg in "$@"; do
       ;;
   esac
 done
-
-HERE="$(cd "$(dirname "$0")" && pwd)"
 
 # ── Platform detection ────────────────────────────────────────
 OS="$(uname -s)"
@@ -48,106 +48,11 @@ case "$OS" in
     ;;
 esac
 
-# ── Preflight self-check ──────────────────────────────────────
-preflight_check() {
-  local ok=true
-
-  # Check venv
-  # Skip hermes binary check in --config and desktop modes where
-  # only config_server.py is needed (hermes binary not required).
-  if [ "$LAUNCH_MODE" != "desktop" ] && [ "${1-}" != "--config-only" ]; then
-    if [ ! -x "$VENV_DIR/bin/hermes" ]; then
-      echo "  [ERROR] venv not found: $VENV_DIR/bin/hermes" >&2
-      ok=false
-    fi
-  fi
-
-  # Check Python
-  local py_found=false
-  for cand in "$PYTHON_DIR"/*/bin/python3 "$PYTHON_DIR"/*/bin/python3.*; do
-    if [ -x "$cand" ]; then py_found=true; break; fi
-  done
-  if [ "$py_found" = "false" ]; then
-    echo "  [ERROR] Python not found in $PYTHON_DIR" >&2
-    ok=false
-  fi
-
-  # Check config_server.py
-  if [ ! -f "$HERE/lib/config_server.py" ]; then
-    echo "  [ERROR] config_server.py not found" >&2
-    ok=false
-  fi
-
-  # Check data directory writable
-  if ! touch "$HERE/data/.write_test" 2>/dev/null; then
-    echo "  [ERROR] data/ directory not writable" >&2
-    ok=false
-  fi
-  rm -f "$HERE/data/.write_test"
-
-  # Check disk space (warn if < 500MB)
-  local avail=$(df -k "$HERE" 2>/dev/null | tail -1 | awk '{print $4}')
-  if [ -n "$avail" ] && [ "$avail" -lt 512000 ] 2>/dev/null; then
-    echo "  [WARNING] Low disk space: $(($avail / 1024))MB" >&2
-  fi
-
-  $ok
-}
-
-# ── kill_tree ──────────────────────────────────────────────────
-# Kill a process and all its descendants. Uses process groups when
-# possible (kill -- -PGID) to catch reparented grandchildren that
-# pgrep -P would miss. Falls back to recursive pgrep on systems
-# where process groups aren't available (e.g. some macOS shells).
-kill_tree() {
-  local pid="$1"
-  [ -z "$pid" ] && return
-  [ "$pid" -le 1 ] 2>/dev/null && return
-  # Try process-group kill first: send SIGTERM to the entire group.
-  # This catches all descendants, including reparented ones.
-  if kill -0 "$pid" 2>/dev/null; then
-    # Get the process group ID. On most systems, PGID == PID for
-    # the group leader. Use `ps` to find it reliably.
-    local pgid
-    pgid=$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ' || true)
-    if [ -n "$pgid" ] && [ "$pgid" -gt 1 ] 2>/dev/null; then
-      # Send SIGTERM to the entire process group
-      kill -- -"$pgid" 2>/dev/null || true
-      # Give processes time to shut down gracefully, then SIGKILL
-      sleep 0.5
-      kill -9 -- -"$pgid" 2>/dev/null || true
-      return
-    fi
-  fi
-  # Fallback: recursive pgrep (doesn't catch reparented grandchildren)
-  local children
-  children=$(pgrep -P "$pid" 2>/dev/null || true)
-  kill "$pid" 2>/dev/null || true
-  for child in $children; do
-    kill_tree "$child"
-  done
-}
-
-# ── Cleanup stale ports ──────────────────────────────────────
-cleanup_stale_ports() {
-  for port in 17520 8648; do
-    local pid=""
-    # Try lsof first (standard on macOS, common on Linux)
-    if command -v lsof >/dev/null 2>&1; then
-      pid=$(lsof -ti :$port 2>/dev/null)
-    # Fallback to ss (common on modern Linux)
-    elif command -v ss >/dev/null 2>&1; then
-      pid=$(ss -tlnp "sport = :$port" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | head -1)
-    # Fallback to fuser (common on older Linux)
-    elif command -v fuser >/dev/null 2>&1; then
-      pid=$(fuser $port/tcp 2>/dev/null | tr -d ' ')
-    fi
-    if [ -n "$pid" ]; then
-      echo "  Cleaning stale process on port $port (PID $pid)"
-      kill_tree $pid
-    fi
-  done
-}
+# ── Banner colors ──────────────────────────────────────────
+GOLD="\033[38;5;220m"
+AMBER="\033[38;5;214m"
+BRONZE="\033[38;5;166m"
+NC="\033[0m"
 
 # ── Multi-layout venv detection ───────────────────────────────
 # Universal zips carry e.g. venv-macos-arm64/; single-platform zips carry venv/.
@@ -176,53 +81,47 @@ else
   NODE_DIR=""
 fi
 
-# Run preflight check
-if ! preflight_check; then
-  echo "  Preflight check failed. Exiting."
-  exit 1
-fi
-
-# Clean stale ports
-cleanup_stale_ports
-
 # ── Architecture sanity check ─────────────────────────────────
 # Failure mode we're catching: a platform-only zip (`venv/`, built
-# on e.g. Apple Silicon) gets copied to a different-arch host (e.g.
-# Intel Mac). `uname -m` detects the host correctly, but because
-# the zip only ships `venv/` (not `venv-macos-arm64/`), the launcher
-# happily uses the wrong venv. `exec`-ing those binaries then fails
-# with a cryptic "Bad CPU type in executable" / "Killed: 9", deep
-# inside the script, after the lock + symlink have already been set
-# up. Detect the mismatch up front via `file -b` and bail
-# with an explanation the user can actually act on.
+# on e.g. Apple Silicon or a linux-arm64 box) gets copied to a
+# different-arch host. `uname -m` detects the host correctly, but
+# because the zip only ships `venv/` (not `venv-$PLATFORM/`), the
+# launcher happily uses the wrong venv. `exec`-ing those binaries
+# then fails with a cryptic "Bad CPU type in executable" / "Killed:
+# 9" / "Exec format error", deep inside the script, after the lock
+# + symlink have already been set up. Detect the mismatch
+# up front via `file -b` and bail with an explanation the user can
+# actually act on.
 #
 # Universal zips are NOT affected: they already carry per-arch
-# `venv-macos-arm64/` and `venv-macos-x64/` and the detection above
-# picks the right one. Only the platform-only `venv/` fallback can
-# be wrong.
+# `venv-macos-arm64/`, `venv-linux-x64/`, etc., and the detection
+# above picks the right one. Only the platform-only `venv/`
+# fallback can be wrong.
 MISMATCH=""
 ARCH_PROBE="$VENV_DIR/bin/hermes"
 [ -x "$ARCH_PROBE" ] || ARCH_PROBE="$VENV_DIR/bin/python"
 if [ -x "$ARCH_PROBE" ] && command -v file >/dev/null 2>&1; then
   BIN_INFO="$(file -b "$ARCH_PROBE" 2>/dev/null || true)"
-  case "$ARCH" in
-    x86_64|amd64)
-      # Need x86_64 or a universal (fat) binary; pure arm64 is wrong.
+  case "$OS:$ARCH" in
+    Darwin:x86_64|Darwin:amd64)
       if ! echo "$BIN_INFO" | grep -qE "x86_64|universal"; then
-        if echo "$BIN_INFO" | grep -q "arm64"; then
-          MISMATCH="arm64 (Apple Silicon)"
-        fi
+        echo "$BIN_INFO" | grep -q "arm64" && MISMATCH="arm64 (Apple Silicon)"
       fi
       ;;
-    arm64|aarch64)
-      # arm64 Mac *can* run x86_64 via Rosetta 2, but only when it's
-      # installed — and a plain `venv/` carrying x86_64 still signals
-      # the zip was mis-selected (e.g. Intel build on an M-series Mac).
-      # Refuse and let the user grab the right zip.
+    Darwin:arm64|Darwin:aarch64)
       if ! echo "$BIN_INFO" | grep -qE "arm64|universal"; then
-        if echo "$BIN_INFO" | grep -q "x86_64"; then
-          MISMATCH="x86_64 (Intel)"
-        fi
+        echo "$BIN_INFO" | grep -q "x86_64" && MISMATCH="x86_64 (Intel)"
+      fi
+      ;;
+    Linux:x86_64|Linux:amd64)
+      # ELF 64-bit LSB ... x86-64 vs aarch64
+      if ! echo "$BIN_INFO" | grep -qE "x86-64|x86_64"; then
+        echo "$BIN_INFO" | grep -qE "aarch64|ARM aarch64" && MISMATCH="aarch64 (ARM64)"
+      fi
+      ;;
+    Linux:aarch64|Linux:arm64)
+      if ! echo "$BIN_INFO" | grep -qE "aarch64|ARM aarch64"; then
+        echo "$BIN_INFO" | grep -qE "x86-64|x86_64" && MISMATCH="x86_64 (Intel/AMD)"
       fi
       ;;
   esac
@@ -231,34 +130,44 @@ if [ -n "$MISMATCH" ]; then
   echo "" >&2
   echo "  [ERROR] CPU architecture mismatch." >&2
   echo "" >&2
-  echo "  This Mac : $OS $ARCH" >&2
-  echo "  venv arch: $MISMATCH" >&2
-  echo "    probe   : $ARCH_PROBE" >&2
-  echo "    file    : $BIN_INFO" >&2
+  echo "  This machine : $OS $ARCH" >&2
+  echo "  venv arch    : $MISMATCH" >&2
+  echo "    probe      : $ARCH_PROBE" >&2
+  echo "    file       : $BIN_INFO" >&2
   echo "" >&2
   echo "  The venv inside this folder was built for a different CPU and" >&2
   echo "  cannot run here. This usually means the HermesPortable folder" >&2
-  echo "  was copied from a Mac with a different chip (Apple Silicon <-> Intel)." >&2
-  echo "  macOS does not cross-run arm64 and x86_64 code without Rosetta 2," >&2
-  echo "  and even then some native extensions break — the clean fix is to" >&2
-  echo "  rebuild the runtime on THIS Mac. Your data/ and API keys survive." >&2
+  echo "  was copied from a machine with a different chip" >&2
+  echo "  (Apple Silicon <-> Intel, or ARM64 <-> x86_64)." >&2
+  echo "  The clean fix is to rebuild the runtime on THIS machine —" >&2
+  echo "  data/ and API keys are preserved." >&2
   echo "" >&2
-  # Prefer the in-place rebuild if the helper is available (platform-only
-  # zips ship tools/mac-rebuild.sh + tools/build.py). Universal zips strip build.py
-  # to save space, so they fall back to the download path.
-  if [ -f "$HERE/tools/mac-rebuild.sh" ] && [ -f "$HERE/tools/build.py" ]; then
-    echo "  Recommended fix (rebuilds the runtime on this Mac, ~2-3 min):" >&2
-    echo "    bash \"$HERE/tools/mac-rebuild.sh\"" >&2
+  # Pick the right helper for the host OS. Platform-only zips ship
+  # these helpers + build.py. Universal zips strip build.py to save
+  # space, so they fall back to the download path.
+  case "$OS" in
+    Darwin) REBUILD_HELPER="$HERE/tools/mac-rebuild.sh" ;;
+    Linux)  REBUILD_HELPER="$HERE/tools/linux-rebuild.sh" ;;
+    *)      REBUILD_HELPER="" ;;
+  esac
+  if [ -n "$REBUILD_HELPER" ] && [ -f "$REBUILD_HELPER" ] && [ -f "$HERE/tools/build.py" ]; then
+    echo "  Recommended fix (rebuilds the runtime in place, ~2-3 min):" >&2
+    echo "    bash \"$REBUILD_HELPER\"" >&2
     echo "" >&2
-    echo "  Requires Xcode Command Line Tools (python3 + git + curl)." >&2
-    echo "  If you don't have them:  xcode-select --install" >&2
+    if [ "$OS" = "Darwin" ]; then
+      echo "  Requires Xcode Command Line Tools (python3 + git + curl)." >&2
+      echo "  If you don't have them:  xcode-select --install" >&2
+    else
+      echo "  Requires python3 + git + curl. On Debian/Ubuntu:" >&2
+      echo "    sudo apt install python3 git curl" >&2
+    fi
     echo "" >&2
-    echo "  After it finishes, double-click Hermes.command again." >&2
+    echo "  After it finishes, run ./$(basename "$0") again." >&2
   else
     echo "  Fix, pick one:" >&2
-    echo "    1. Download HermesPortable-Universal.zip (ships both Mac arches):" >&2
+    echo "    1. Download HermesPortable-Universal.zip (ships all arches):" >&2
     echo "         https://github.com/yuluyangguang1/hermes-portable/releases" >&2
-    echo "    2. Or download the macOS zip built for $ARCH." >&2
+    echo "    2. Or download the $OS zip built for $ARCH." >&2
     echo "    3. Or grab the source repo and run:  python3 tools/build.py" >&2
   fi
   echo "" >&2
@@ -292,11 +201,10 @@ export HERMES_HOME="$HERE/data"
 export PYTHONIOENCODING=utf-8
 export PYTHONUTF8=1
 # Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
-# Find the dir containing lib/python3.12 inside PYTHON_DIR
-# Handles: install/ layout (old uv), cpython-3.12-xxx/ layout (new uv)
+# Find the 'install' dir containing lib/python3.12 inside PYTHON_DIR
 PYTHON_HOME=""
-for _candidate in "$PYTHON_DIR"/*/install "$PYTHON_DIR"/install "$PYTHON_DIR"/* "$PYTHON_DIR"; do
-  if [ -d "$_candidate/lib/python3.12" ] || [ -d "$_candidate/lib/python3.13" ] || [ -d "$_candidate/lib/python3.14" ]; then
+for _candidate in "$PYTHON_DIR"/*/install "$PYTHON_DIR"/install "$PYTHON_DIR"; do
+  if [ -d "$_candidate/lib" ]; then
     PYTHON_HOME="$_candidate"
     break
   fi
@@ -311,23 +219,12 @@ else
 fi
 cd "$HERE"
 
-# ── Remove macOS quarantine (prevents "Killed" on unsigned binaries) ──
-if command -v xattr >/dev/null 2>&1; then
-  if xattr -lr "$HERE" 2>/dev/null | grep -qm1 "com.apple.quarantine"; then
-    echo "  Removing macOS security restriction..."
-    xattr -rd com.apple.quarantine "$HERE" 2>/dev/null || true
-    echo "  Done"
-  fi
-fi
-
 # ── Self-heal launcher shebangs ───────────────────────────────
 # Same class of bug as Windows: if the portable zip was built on
-# one machine and shebangs ended up absolute (or if mac-rebuild.sh
-# just regenerated the venv at a new absolute path), they break
-# when the folder moves. fix_shims.py rewrites them to the local
-# python. Harmless (no-op) when shebangs are already `/bin/sh`-
-# wrapped relocatable stubs, which is the common case on macOS.
-# Kept in sync with Hermes.sh — previously only Hermes.sh ran this.
+# one machine and shebangs ended up absolute, they break when the
+# folder moves. fix_shims.py rewrites them to the local python.
+# Harmless (no-op) when shebangs are already `/bin/sh`-wrapped
+# relocatable stubs, which is the common case on macOS/Linux.
 if [ -f "$HERE/lib/fix_shims.py" ]; then
   PORTABLE_PY=""
   # Prefer the real python-build-standalone binary (never a trampoline).
@@ -354,33 +251,36 @@ DESKTOP_MODE=0
 cleanup() {
   # Kill watchdog first to prevent it from restarting config_server
   if [ -n "${WATCHDOG_PID:-}" ] && kill -0 "$WATCHDOG_PID" 2>/dev/null; then
-    kill_tree "$WATCHDOG_PID"
+    kill "$WATCHDOG_PID" 2>/dev/null || true
   fi
   # Kill config server if still alive — but NOT in desktop mode.
   # In desktop mode, the config server must keep running as long as
   # the desktop app is alive; killing it here would break the app's
   # ability to access the config panel and model catalog.
-  # Read the PID from .config_pid file — the watchdog updates this
-  # file when it restarts the config server, so we always get the
-  # current PID even if the watchdog restarted it.
   if [ "$DESKTOP_MODE" = "0" ]; then
-    _CLEANUP_CONFIG_PID="$CONFIG_PID"
-    if [ -f "$HERE/data/.config_pid" ]; then
-      _CLEANUP_CONFIG_PID=$(cat "$HERE/data/.config_pid" 2>/dev/null || echo "$CONFIG_PID")
-    fi
-    if [ -n "$_CLEANUP_CONFIG_PID" ] && kill -0 "$_CLEANUP_CONFIG_PID" 2>/dev/null; then
-      kill_tree "$_CLEANUP_CONFIG_PID"
+    if [ -n "$CONFIG_PID" ] && kill -0 "$CONFIG_PID" 2>/dev/null; then
+      kill "$CONFIG_PID" 2>/dev/null || true
     fi
   fi
   # Kill hermes child if still alive (covers Ctrl-C from this script)
   if [ -n "$HERMES_PID" ] && kill -0 "$HERMES_PID" 2>/dev/null; then
-    kill_tree "$HERMES_PID"
+    kill "$HERMES_PID" 2>/dev/null || true
   fi
   if [ "$OWN_LOCK" = "1" ]; then
     rm -f "$HERE/data/.hermes.lock" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT INT TERM
+
+# ── Welcome banner ──────────────────────────────────────────
+echo ""
+echo -e "${GOLD}  ██╗   ██╗██╗  ██╗   ██╗ ██████╗${NC}"
+echo -e "${GOLD}  ╚██╗ ██╔╝██║  ╚██╗ ██╔╝██╔════╝${NC}"
+echo -e "${AMBER}   ╚████╔╝ ██║   ╚████╔╝ ██║  ███╗${NC}"
+echo -e "${AMBER}    ╚██╔╝  ██║    ╚██╔╝  ██║   ██║${NC}"
+echo -e "${BRONZE}     ██║   ███████╗██║   ╚██████╔╝${NC}"
+echo -e "${BRONZE}     ╚═╝   ╚══════╝╚═╝    ╚═════╝${NC}"
+echo ""
 
 # ── Single-instance lock (atomic via noclobber) ───────────────
 # Atomic create-or-fail: `set -C` makes the subsequent `>` bail with a
@@ -414,49 +314,7 @@ if ! ( set -C; echo $$ > "$LOCK" ) 2>/dev/null; then
 fi
 OWN_LOCK=1
 
-# ── Banner ──────────────────────────────────────────────────
-GOLD='\033[38;5;220m'
-AMBER='\033[38;5;214m'
-BRONZE='\033[38;5;166m'
-NC='\033[0m'
-echo ""
-echo -e "${GOLD}  ██╗   ██╗██╗  ██╗   ██╗ ██████╗${NC}"
-echo -e "${GOLD}  ╚██╗ ██╔╝██║  ╚██╗ ██╔╝██╔════╝${NC}"
-echo -e "${AMBER}   ╚████╔╝ ██║   ╚████╔╝ ██║  ███╗${NC}"
-echo -e "${AMBER}    ╚██╔╝  ██║    ╚██╔╝  ██║   ██║${NC}"
-echo -e "${BRONZE}     ██║   ███████╗██║   ╚██████╔╝${NC}"
-echo -e "${BRONZE}     ╚═╝   ╚══════╝╚═╝    ╚═════╝${NC}"
-echo ""
-echo "        Hermes Portable"
-echo ""
-
-
-# ── Start Hermes Web UI (optional) ──────────────────────────────
-# Check if Node.js is available and version >= 23
-NODE_OK=false
-if [ -n "$NODE_DIR" ] && [ -x "$NODE_DIR/bin/node" ]; then
-  NODE_VER=$("$NODE_DIR/bin/node" -v 2>/dev/null | sed 's/v//' | cut -d. -f1)
-  if [ -n "$NODE_VER" ] && [ "$NODE_VER" -ge 23 ] 2>/dev/null; then
-    NODE_OK=true
-  fi
-fi
-if [ "$NODE_OK" = "true" ]; then
-  if command -v hermes-web-ui >/dev/null 2>&1 || [ -x "$NODE_DIR/bin/hermes-web-ui" ]; then
-    echo "  Starting Hermes Web UI on port 8648..."
-    hermes-web-ui start 8648 >/dev/null 2>&1 || true
-    echo "  Hermes Web UI: http://127.0.0.1:8648"
-  fi
-else
-  echo "  Hermes Web UI: skipped (Node.js >= 23 required)"
-fi
-
 # ── Desktop mode launch ────────────────────────────────────────
-open_url() {
-  if command -v open >/dev/null 2>&1; then open "$1"
-  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1"
-  fi
-}
-
 if [ "$LAUNCH_MODE" = "desktop" ]; then
   echo ""
   echo "  启动桌面版..."
@@ -470,6 +328,8 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
     DESKTOP_APP="$HERE/runtime/desktop/dist/mac/Hermes.app"
   elif [ -x "$HERE/runtime/desktop/dist/linux-unpacked/Hermes" ]; then
     DESKTOP_APP="$HERE/runtime/desktop/dist/linux-unpacked/Hermes"
+  elif [ -x "$HERE/runtime/desktop/dist/Hermes.AppImage" ]; then
+    DESKTOP_APP="$HERE/runtime/desktop/dist/Hermes.AppImage"
   fi
 
   if [ -z "$DESKTOP_APP" ]; then
@@ -478,13 +338,15 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
     echo "  请先构建桌面版:"
     echo "    python3 tools/build.py"
     echo ""
+    echo "  或使用 CLI 模式:"
+    echo "    ./$(basename "$0") --cli"
+    echo ""
     exit 1
   fi
 
   # macOS: 检查桌面版二进制架构是否匹配
   if [ "$OS" = "Darwin" ] && command -v file >/dev/null 2>&1; then
     _APP_BIN=""
-    # 从 Info.plist 读取可执行文件名
     _PLIST="$DESKTOP_APP/Contents/Info.plist"
     if [ -f "$_PLIST" ]; then
       _EXEC_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$_PLIST" 2>/dev/null || true)
@@ -527,49 +389,11 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
   export HERMES_BROWSER_OPENED=1
   nohup "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" \
     > "$HERE/data/config_server.log" 2>&1 &
-  CONFIG_PID=$!
-
-  # Wait for Config Server to start
-  echo "  Starting Config Server..."
-  for i in $(seq 1 20); do
-    sleep 0.5
-    if curl -s -o /dev/null "http://127.0.0.1:17520/" 2>/dev/null; then
-      echo "  Config Server ready"
-      break
-    fi
-  done
-
-  # Read Token from runtime.json
-  TOKEN=""
-  if [ -f "$HERE/data/runtime.json" ]; then
-    TOKEN=$(python3 -c "
-import json
-from pathlib import Path
-try:
-    runtime = json.loads(Path('$HERE/data/runtime.json').read_text())
-    print(runtime.get('configServerToken', ''))
-except:
-    pass
-" 2>/dev/null)
-  fi
-
-
-  # Open browser with Token
-  if [ -n "$TOKEN" ]; then
-    open_url "http://127.0.0.1:17520/#token=$TOKEN"
-  else
-    open_url "http://127.0.0.1:17520/"
-  fi
-
   echo "  Config panel: http://127.0.0.1:17520"
 
   # 启动桌面版
   case "$DESKTOP_APP" in
-    *.app) 
-      open "$DESKTOP_APP"
-      # Wait a bit for the app to start before cleanup
-      sleep 2
-      ;;
+    *.app) open "$DESKTOP_APP" ;;
     *)     exec "$DESKTOP_APP" "$@" ;;
   esac
   exit 0
@@ -583,7 +407,11 @@ if [ -f "$HERE/data/.env" ]; then
   fi
 fi
 
-
+open_url() {
+  if command -v open >/dev/null 2>&1; then open "$1"
+  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1"
+  fi
+}
 
 if [ "${1-}" = "--config" ] || [ "$HAS_KEY" = "false" ]; then
   echo ""
@@ -607,51 +435,30 @@ start_config_server() {
   CONFIG_PID=$!
 }
 
-MAX_RESTARTS=3
-RESTART_COUNT_FILE="$HERE/data/.restart_count"
-echo 0 > "$RESTART_COUNT_FILE"
-
 watchdog_config_server() {
+  # parent_pid is captured in the watchdog subshell so a kill -9 of
+  # the launcher (which never runs the EXIT trap) still tears us down
+  # within one tick.
   local parent_pid=$$
   while true; do
     sleep 10
+    # Launcher dead — exit. Cleanup trap handles the normal-exit path.
     if ! kill -0 "$parent_pid" 2>/dev/null; then
       exit 0
     fi
-    # Read current PIDs from files
-    local config_pid=""
-    local hermes_pid=""
-    [ -f "$HERE/data/.config_pid" ] && config_pid=$(cat "$HERE/data/.config_pid")
-    [ -f "$HERE/data/.hermes_pid" ] && hermes_pid=$(cat "$HERE/data/.hermes_pid")
-    
-    # Restart config_server if crashed
-    if [ -n "$config_pid" ] && ! kill -0 "$config_pid" 2>/dev/null; then
-      echo "  Config Server crashed. Restarting..."
+    # NOTE: don't gate on HERMES_PID here. `watchdog_config_server &`
+    # forks BEFORE hermes starts, so the watchdog's snapshot of
+    # HERMES_PID is "" forever — the parent's later assignment can't
+    # propagate back into a fork. Gating on it caused the watchdog to
+    # `break` on its first tick, defeating the auto-restart entirely.
+    # Restart config_server if it's gone.
+    if [ -n "$CONFIG_PID" ] && ! kill -0 "$CONFIG_PID" 2>/dev/null; then
       start_config_server
-      # Update PID file after restart
-      echo "$CONFIG_PID" > "$HERE/data/.config_pid"
-    fi
-    # Restart hermes gateway if crashed (auto-restart)
-    if [ -n "$hermes_pid" ] && ! kill -0 "$hermes_pid" 2>/dev/null; then
-      local restart_count=$(cat "$RESTART_COUNT_FILE" 2>/dev/null || echo 0)
-      if [ "$restart_count" -lt "$MAX_RESTARTS" ]; then
-        restart_count=$((restart_count + 1))
-        echo "$restart_count" > "$RESTART_COUNT_FILE"
-        echo "  Hermes Gateway crashed. Restarting ($restart_count/$MAX_RESTARTS)..."
-        "$VENV_DIR/bin/hermes" &
-        local new_hermes_pid=$!
-        echo "$new_hermes_pid" > "$HERE/data/.hermes_pid"
-      else
-        echo "  Hermes Gateway crashed $MAX_RESTARTS times. Giving up."
-        exit 1
-      fi
     fi
   done
 }
 
 start_config_server
-# Save config PID to file for watchdog
-echo $CONFIG_PID > "$HERE/data/.config_pid"
 watchdog_config_server &
 WATCHDOG_PID=$!
 echo "  Config panel: http://127.0.0.1:17520 (change model anytime)"

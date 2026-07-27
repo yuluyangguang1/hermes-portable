@@ -358,7 +358,13 @@ if defined NODE_DIR (
 
 rem Background config server (always available for model changes)
 set "HERMES_BROWSER_OPENED=1"
-start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
+set "CONFIG_PID="
+rem Start config server and capture its PID via PowerShell.
+rem `start /b` doesn't easily expose the PID, so we use PowerShell's
+rem Start-Process -PassThru to get the process object and extract its Id.
+for /f "delims=" %%P in ('powershell -NoProfile -Command "$p = Start-Process -FilePath '%VENV_DIR%\Scripts\python.exe' -ArgumentList '%HERE%\lib\config_server.py' -WindowStyle Hidden -PassThru; $p.Id" 2^>nul') do (
+    set "CONFIG_PID=%%P"
+)
 
 rem Wait for Config Server to start
 timeout /t 3 /nobreak >nul
@@ -379,23 +385,15 @@ if defined TOKEN (
     echo   Config panel: http://127.0.0.1:17520 (change model anytime)
 )
 
-rem Record our console PID in the lock file so future launches can
-rem detect stale locks. We find our own PID via a unique window title.
-rem
-rem IMPORTANT: `echo X > file` in cmd writes a TRAILING SPACE after X
-rem (cmd parses whitespace between the value and `>` as part of the
-rem echoed argument). The space would then fail the `tasklist /FI "PID
-rem eq 1234 "` match on re-entry, making every subsequent launch treat
-rem the lock as stale - effectively disabling the single-instance
-rem check. The `(echo X)>file` form trims the trailing space because
-rem the parenthesized block ends at `)`.
-set "HERMES_TITLE=HermesLauncher_%RANDOM%_%TIME%"
-title !HERMES_TITLE!
+rem Record our own PID in the lock file for future stale-lock detection.
+rem We use PowerShell to get the current process PID — this is far more
+rem reliable than the window-title approach (which fails if the window
+rem title changes, if the process isn't a console app, or if tasklist
+rem output format differs across Windows locales).
 set "MY_PID="
-for /f "tokens=2" %%A in ('tasklist /V /FI "WINDOWTITLE eq !HERMES_TITLE!" /NH 2^>nul ^| findstr /I "cmd"') do (
-    if not defined MY_PID set "MY_PID=%%A"
+for /f "delims=" %%P in ('powershell -NoProfile -Command "[System.Diagnostics.Process]::GetCurrentProcess().Id" 2^>nul') do (
+    if not defined MY_PID set "MY_PID=%%P"
 )
-title Hermes Portable
 if defined MY_PID (
     (echo !MY_PID!)> "%LOCK_FILE%"
 ) else (
@@ -411,11 +409,12 @@ goto :cleanup
 del "%LOCK_FILE%" >nul 2>&1
 del "%LOCK_FILE%.tmp" >nul 2>&1
 
-rem Kill background config_server (listening on ports 17520-17529)
-for /l %%p in (17520,1,17529) do (
-    for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":%%p " ^| findstr "LISTENING"') do (
-        if not "%%a"=="0" taskkill /F /PID %%a >nul 2>&1
-    )
+rem Kill background config_server by PID (not by port scan).
+rem The old approach scanned ports 17520-17529 and killed whatever was
+rem listening — which could kill unrelated processes. Now we track the
+rem PID when we start the config server.
+if defined CONFIG_PID (
+    taskkill /F /PID !CONFIG_PID! >nul 2>&1
 )
 
 rem Pause only on non-zero exit so the user can read the error
