@@ -107,6 +107,15 @@ http://127.0.0.1:17520
 
 ## 📋 更新日志
 
+### v0.24.0 (2026-07-27)
+- 新增快速切换模型功能（参考 OpenClaw，配置中心内一键切换）
+- 修复启动脚本 4 类严重 Bug（缩进/未定义函数/作用域/文件不存在）
+- 修复 open_url() 函数作用域（不再定义在 if 块内）
+- 修复 watchdog 子 shell 变量隔离（改用 PID 文件通信，重启后正确更新）
+- 优化 PYTHONHOME 检测（支持任意 python3.x，不再硬编码 3.12）
+- 修复 macOS `open` 非阻塞问题（desktop mode 增加等待）
+- 新增远程构建工作流（build.yml，支持 workflow_dispatch 填 tag 或 push v* tag 触发三平台构建 + GitHub Release）
+
 ### v0.23.0 (2026-07-21)
 - 配置中心全面优化
 - 渠道配置更新
