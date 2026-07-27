@@ -1,0 +1,157 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.24.0). Leave empty for no release.'
+        required: false
+        default: ''
+      platform:
+        description: 'Build platform (all/macos-arm64/macos-x64/windows-x64)'
+        required: false
+        default: 'all'
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-macos-arm64:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Build
+        run: python3 tools/build.py
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: dist/HermesPortable/
+          retention-days: 7
+
+  build-macos-x64:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    runs-on: macos-15-intel
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Build
+        run: python3 tools/build.py
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x64
+          path: dist/HermesPortable/
+          retention-days: 7
+
+  build-windows-x64:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Build
+        shell: bash
+        run: python tools/build.py
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: dist/HermesPortable/
+          retention-days: 7
+
+  create-release:
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '')
+    needs:
+      - build-macos-arm64
+      - build-macos-x64
+      - build-windows-x64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Assemble per-platform zips
+        run: |
+          set -e
+          for platform in macos-arm64 macos-x64 windows-x64; do
+            if [ -d "artifacts/$platform" ]; then
+              cd artifacts/$platform
+              for f in Hermes.command Hermes.sh lib/update.sh tools/mac-rebuild.sh tools/linux-rebuild.sh uv; do
+                [ -f "$f" ] && chmod +x "$f"
+              done
+              for bindir in venv-*/bin venv/bin python-*/*/bin python/bin node-*/bin node/bin; do
+                [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} + 2>/dev/null || true
+              done
+              zip -yrq "../../HermesPortable-$platform.zip" HermesPortable/
+              cd ../..
+              echo "  Created HermesPortable-$platform.zip"
+            else
+              echo "  ! $platform missing — skipping"
+            fi
+          done
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          body_path: RELEASE_NOTES.md
+          files: |
+            HermesPortable-macos-arm64.zip
+            HermesPortable-macos-x64.zip
+            HermesPortable-windows-x64.zip
+          fail_on_unmatched_files: false
+
+  ci-build:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Build (Linux)
+        run: python3 tools/build.py --no-desktop
+      - name: Verify build
+        run: |
+          ls -la dist/HermesPortable/
+          test -f dist/HermesPortable/Hermes.sh
+          test -f dist/HermesPortable/lib/config_server.py
+          test -f dist/HermesPortable/venv/bin/hermes
+          echo "Build verification passed!"
