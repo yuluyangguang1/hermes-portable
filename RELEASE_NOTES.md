@@ -1,37 +1,23 @@
-# Hermes Portable v0.23.0 发版说明
+# Hermes Portable v0.24.0 发版说明
 
 ## 🎉 主要更新
 
-### 配置中心全面优化
-- ✅ 使用 Tabler Icons 替换 Unicode 表情符号
-- ✅ 添加设计 Token（间距/圆角/阴影/动画）
-- ✅ 统一排版（行高/字间距/圆角）
-- ✅ 修复 footer 边框问题
-- ✅ 修复设置区域间距
+### 快速切换模型
+- ✅ 新增快速切换模型功能（参考 OpenClaw，配置中心内一键切换）
+- ✅ 支持在配置中心实时更换当前会话的模型
+- ✅ 无需重启即可应用新模型
 
-### 渠道配置更新
-- ✅ 添加 Discord Application ID 字段
-- ✅ 更新 8 个渠道配置（Telegram/Discord/Slack/WhatsApp/WeChat/Email/Signal/Matrix）
+### 启动脚本 Bug 修复
+- ✅ 修复 4 类严重 Bug（缩进/未定义函数/作用域/文件不存在）
+- ✅ 修复 open_url() 函数作用域（不再定义在 if 块内）
+- ✅ 修复 watchdog 子 shell 变量隔离（改用 PID 文件通信）
+- ✅ 优化 PYTHONHOME 检测（支持任意 python3.x，不再硬编码 3.12）
+- ✅ 修复 macOS `open` 非阻塞问题（desktop mode 增加等待）
 
-### 前端设计优化
-- ✅ 图片懒加载
-- ✅ 字体优化（font-display: swap）
-- ✅ 响应式设计统一
-- ✅ 颜色对比度优化
-- ✅ 字体大小优化（12px → 14px）
-- ✅ 阴影层次优化
-- ✅ 间距系统优化
-
-### 无障碍支持
-- ✅ 添加 prefers-reduced-motion
-- ✅ 添加 focus-visible 焦点指示器
-- ✅ 添加 ARIA 标签
-- ✅ 添加表单标签
-
-### 动画优化
-- ✅ 修复 transition: all
-- ✅ 添加 ease-out 缓动
-- ✅ 统一动画时长
+### 远程构建工作流
+- ✅ 新增 build.yml 远程构建工作流
+- ✅ 支持 workflow_dispatch 填 tag 或 push v* tag 触发
+- ✅ 三平台构建 + 自动 GitHub Release
 
 ## 📦 文件结构
 
