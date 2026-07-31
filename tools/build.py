@@ -599,6 +599,7 @@ def step_nodejs(ctx):
 
     # Install hermes-web-ui globally (includes both server and client)
     # Using @latest + --force to ensure the newest version is always installed
+    # Note: We don't use --omit=optional as it skips important UI components
     if system == "Windows":
         npm = node_dir / "npm.cmd"
     else:
@@ -608,6 +609,8 @@ def step_nodejs(ctx):
         try:
             path_sep = ";" if system == "Windows" else ":"
             env = {**ctx.get("env", {}), "PATH": str(node_dir / "bin") + path_sep + ctx.get("env", {}).get("PATH", "")}
+            # First clear npm cache to ensure we get the latest version
+            run([str(npm), "cache", "clean", "--force"], env=env)
             run([str(npm), "install", "-g", "hermes-web-ui@latest", "--force"], env=env)
             ok("hermes-web-ui installed")
         except Exception as e:
