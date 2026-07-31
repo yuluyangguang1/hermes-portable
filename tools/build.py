@@ -598,7 +598,7 @@ def step_nodejs(ctx):
     ok(f"Node.js v{NODE_VERSION} ready")
 
     # Install hermes-web-ui globally (includes both server and client)
-    # Using --force to ensure latest version is installed, not a cached one
+    # Using @latest + --force to ensure the newest version is always installed
     if system == "Windows":
         npm = node_dir / "npm.cmd"
     else:
@@ -608,7 +608,7 @@ def step_nodejs(ctx):
         try:
             path_sep = ";" if system == "Windows" else ":"
             env = {**ctx.get("env", {}), "PATH": str(node_dir / "bin") + path_sep + ctx.get("env", {}).get("PATH", "")}
-            run([str(npm), "install", "-g", "hermes-web-ui@latest", "--omit=optional", "--force"], env=env)
+            run([str(npm), "install", "-g", "hermes-web-ui@latest", "--force"], env=env)
             ok("hermes-web-ui installed")
         except Exception as e:
             warn(f"hermes-web-ui install failed: {e}")
