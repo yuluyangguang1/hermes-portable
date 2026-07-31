@@ -580,6 +580,20 @@ def step_nodejs(ctx):
 
     archive.unlink(missing_ok=True)
 
+    # Fix npm/npx binary paths for Node.js v24+ portable installations.
+    # Node.js v24's npm CLI script references '../lib/cli.js' which is
+    # incorrect for portable installs where npm is in lib/node_modules/npm/.
+    # Without this fix, `npm install` fails with MODULE_NOT_FOUND.
+    if system != "Windows":
+        npm_bin = node_dir / "bin" / "npm"
+        npx_bin = node_dir / "bin" / "npx"
+        if npm_bin.exists():
+            npm_bin.write_text('#!/usr/bin/env node\nrequire("../lib/node_modules/npm/lib/cli.js")(process)\n')
+            npm_bin.chmod(0o755)
+        if npx_bin.exists():
+            npx_bin.write_text('#!/usr/bin/env node\nrequire("../lib/node_modules/npm/lib/cli.js")(process)\n')
+            npx_bin.chmod(0o755)
+
     # Verify node / npm / npx actually made it out of the archive.
     # This is cheap defense-in-depth: if any future change (tarfile
     # filter, flatten logic, mirror hiccup) ever loses one of them
