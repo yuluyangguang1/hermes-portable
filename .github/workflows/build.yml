@@ -101,21 +101,26 @@ jobs:
           for platform in macos-arm64 macos-x64 windows-x64; do
             if [ -d "artifacts/$platform" ]; then
               cd artifacts/$platform
-              # The artifact contains HermesPortable/ at the top level
-              if [ -d "HermesPortable" ]; then
-                for f in Hermes.command Hermes.sh lib/update.sh tools/mac-rebuild.sh tools/linux-rebuild.sh uv; do
-                  [ -f "$f" ] && chmod +x "$f"
-                done
-                for bindir in venv-*/bin venv/bin python-*/*/bin python/bin node-*/bin node/bin; do
-                  [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} + 2>/dev/null || true
-                done
-                zip -yrq "../../HermesPortable-$platform.zip" HermesPortable/
-                cd ../..
-                echo "  Created HermesPortable-$platform.zip"
-              else
-                echo "  ! HermesPortable/ not found in $platform — skipping"
-                cd ../..
-              fi
+              # The artifact was uploaded from dist/HermesPortable/, so its
+              # contents are at the top level (not in a HermesPortable/ subdir)
+              # We need to create the HermesPortable/ directory structure
+              # for the zip, so users get a clean HermesPortable/ folder.
+              for f in Hermes.command Hermes.sh lib/update.sh tools/mac-rebuild.sh tools/linux-rebuild.sh uv; do
+                [ -f "$f" ] && chmod +x "$f"
+              done
+              for bindir in venv-*/bin venv/bin python-*/*/bin python/bin node-*/bin node/bin; do
+                [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} + 2>/dev/null || true
+              done
+              # Create HermesPortable/ directory with all contents
+              mkdir -p HermesPortable
+              # Move all top-level items into HermesPortable/ (except HermesPortable itself if it exists)
+              for item in *; do
+                [ "$item" = "HermesPortable" ] && continue
+                mv "$item" HermesPortable/
+              done
+              zip -yrq "../../HermesPortable-$platform.zip" HermesPortable/
+              cd ../..
+              echo "  Created HermesPortable-$platform.zip"
             else
               echo "  ! $platform missing — skipping"
             fi
