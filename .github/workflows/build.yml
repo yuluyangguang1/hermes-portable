@@ -101,15 +101,21 @@ jobs:
           for platform in macos-arm64 macos-x64 windows-x64; do
             if [ -d "artifacts/$platform" ]; then
               cd artifacts/$platform
-              for f in Hermes.command Hermes.sh lib/update.sh tools/mac-rebuild.sh tools/linux-rebuild.sh uv; do
-                [ -f "$f" ] && chmod +x "$f"
-              done
-              for bindir in venv-*/bin venv/bin python-*/*/bin python/bin node-*/bin node/bin; do
-                [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} + 2>/dev/null || true
-              done
-              zip -yrq "../../HermesPortable-$platform.zip" HermesPortable/
-              cd ../..
-              echo "  Created HermesPortable-$platform.zip"
+              # The artifact contains HermesPortable/ at the top level
+              if [ -d "HermesPortable" ]; then
+                for f in Hermes.command Hermes.sh lib/update.sh tools/mac-rebuild.sh tools/linux-rebuild.sh uv; do
+                  [ -f "$f" ] && chmod +x "$f"
+                done
+                for bindir in venv-*/bin venv/bin python-*/*/bin python/bin node-*/bin node/bin; do
+                  [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} + 2>/dev/null || true
+                done
+                zip -yrq "../../HermesPortable-$platform.zip" HermesPortable/
+                cd ../..
+                echo "  Created HermesPortable-$platform.zip"
+              else
+                echo "  ! HermesPortable/ not found in $platform — skipping"
+                cd ../..
+              fi
             else
               echo "  ! $platform missing — skipping"
             fi
