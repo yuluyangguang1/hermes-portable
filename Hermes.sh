@@ -200,6 +200,26 @@ export HOME="$SANDBOX"
 export HERMES_HOME="$HERE/data"
 export PYTHONIOENCODING=utf-8
 export PYTHONUTF8=1
+
+# ── Self-heal: fix permissions and quarantine on every startup ──
+# When the portable zip is downloaded on macOS, files may:
+# 1. Have com.apple.quarantine attributes (Gatekeeper blocks unsigned binaries)
+# 2. Lose execute permissions (zip doesn't always preserve them)
+# We fix both issues automatically on every launch so the package works
+# out-of-the-box without manual intervention.
+if [ "$OS" = "Darwin" ]; then
+  # Clear quarantine attributes silently
+  if command -v xattr >/dev/null 2>&1; then
+    xattr -rc "$HERE" 2>/dev/null || true
+  fi
+  # Ensure execute permissions on all binaries
+  find "$HERE/venv/bin" "$HERE/python" -type f -name "python*" -exec chmod +x {} + 2>/dev/null || true
+  find "$HERE/venv/bin" -type f \( -name "hermes" -o -name "hermes_cli" -o -name "python*" -o -name "python3*" \) -exec chmod +x {} + 2>/dev/null || true
+  if [ -n "$NODE_DIR" ]; then
+    find "$NODE_DIR" -type f -name "*.js" -path "*/bin/*" -exec chmod +x {} + 2>/dev/null || true
+  fi
+fi
+
 # Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
 # Find the 'install' dir containing lib/python3.12 inside PYTHON_DIR
 PYTHON_HOME=""
