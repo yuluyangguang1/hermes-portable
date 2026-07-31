@@ -499,6 +499,7 @@ def step_data(ctx):
 def step_nodejs(ctx):
     ROOT, system, arch = ctx["ROOT"], ctx["system"], ctx["arch"]
     node_dir = ROOT / ctx["node_name"]
+    src = ROOT / "hermes-agent"
     exe = "node.exe" if system == "Windows" else "node"
     if node_dir.exists() and any(node_dir.rglob(exe)):
         ok("Node.js already present"); return
@@ -596,17 +597,18 @@ def step_nodejs(ctx):
 
     ok(f"Node.js v{NODE_VERSION} ready")
 
-    # Install hermes-web-ui globally
+    # Install hermes-web-ui globally (includes both server and client)
+    # Using --force to ensure latest version is installed, not a cached one
     if system == "Windows":
         npm = node_dir / "npm.cmd"
     else:
         npm = node_dir / "bin" / "npm"
     if npm.exists():
-        info("Installing hermes-web-ui...")
+        info("Installing hermes-web-ui (latest from npm) …")
         try:
             path_sep = ";" if system == "Windows" else ":"
             env = {**ctx.get("env", {}), "PATH": str(node_dir / "bin") + path_sep + ctx.get("env", {}).get("PATH", "")}
-            run([str(npm), "install", "-g", "hermes-web-ui", "--omit=optional"], env=env)
+            run([str(npm), "install", "-g", "hermes-web-ui@latest", "--omit=optional", "--force"], env=env)
             ok("hermes-web-ui installed")
         except Exception as e:
             warn(f"hermes-web-ui install failed: {e}")
