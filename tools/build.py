@@ -1019,6 +1019,19 @@ def main():
         print()
 
     total_bytes = sum(f.stat().st_size for f in ROOT.rglob("*") if f.is_file())
+
+    # Final cleanup: clear macOS quarantine attributes on the entire build.
+    # python-build-standalone binaries are unsigned, and macOS Gatekeeper
+    # blocks them. This also ensures the zip archive doesn't carry
+    # com.apple.quarantine xattrs that would affect end users.
+    if system == "Darwin":
+        info("Final cleanup: clearing macOS quarantine attributes …")
+        try:
+            subprocess.run(["xattr", "-rc", str(ROOT)], check=False)
+            ok("Quarantine attributes cleared")
+        except FileNotFoundError:
+            warn("xattr not found — skipping quarantine cleanup")
+
     print(f"{G}{B}  ✓ Build complete{X}")
     print(f"  Location: {C}{ROOT}{X}")
     print(f"  Size    : {C}{total_bytes / 1e6:.0f} MB{X}")
