@@ -234,6 +234,18 @@ def step_python(ctx):
                     if f.name.startswith("python") and f.is_file():
                         f.chmod(0o755)
 
+    # Clear macOS quarantine attributes (com.apple.quarantine).
+    # python-build-standalone binaries are unsigned, and macOS Gatekeeper
+    # will block them with "Unable to verify developer" errors.
+    # We strip the xattr so the binaries run without user intervention.
+    if system == "Darwin":
+        info("Clearing macOS quarantine attributes …")
+        try:
+            subprocess.run(["xattr", "-rc", str(ROOT)], check=False)
+            ok("Quarantine attributes cleared")
+        except FileNotFoundError:
+            warn("xattr not found — skipping quarantine cleanup (non-macOS build?)")
+
 
 def _find_python(ctx):
     """Locate the python executable inside the portable python dir."""
