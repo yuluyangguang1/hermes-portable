@@ -302,8 +302,90 @@ def step_hermes(ctx):
              "or ensure ~/.hermes/hermes-agent exists.")
 
 
+def _fix_editable_paths(venv, system, src):
+    """Rewrite absolute paths in editable finder files to be relative.
+
+    uv creates __editable___<package>_<version>_finder.py files with
+    absolute paths in the MAPPING dict. We rewrite them to use relative
+    paths (relative to the venv's site-packages directory) so the
+    portable bundle remains relocatable.
+
+    The editable finder uses a MAPPING dict like:
+        MAPPING = {'package': '/absolute/path/to/src/package', ...}
+
+    We convert each path to a relative path from site-packages to the
+    hermes-agent source directory.
+    """
+    import re
+
+    if system == "Windows":
+        site_packages = venv / "Lib" / "site-packages"
+    else:
+        site_packages = venv / "lib" / f"python{ctx_python_version(venv)}" / "site-packages"
+
+    if not site_packages.exists():
+        warn(f"Site-packages not found at {site_packages}")
+        return
+
+    # Find all editable finder files
+    finder_files = sorted(site_packages.glob("__editable__*_finder.py"))
+    if not finder_files:
+        return
+
+    src_abs = str(src.resolve())
+
+    for finder_file in finder_files:
+        content = finder_file.read_text(encoding="utf-8")
+        modified = False
+
+        # Replace absolute paths to hermes-agent source with relative paths
+        # The MAPPING dict has entries like: 'package': '/abs/path/to/hermes-agent/package'
+        # We need to convert '/abs/path/to/hermes-agent' to a relative path from site-packages
+        try:
+            rel_src = os.path.relpath(src_abs, str(site_packages))
+        except ValueError:
+            # On Windows, relative path across drives fails
+            rel_src = src_abs
+
+        # Replace absolute source paths with relative paths
+        # Pattern matches: '/abs/path/to/hermes-agent/package_name'
+        pattern = re.compile(
+            r"'([^']+)':\s*'" + re.escape(src_abs) + r"/([^']+)'"
+        )
+
+        def replacer(m):
+            package_name = m.group(1)
+            sub_path = m.group(2)
+            return f"'{package_name}': '{rel_src}/{sub_path}'"
+
+        new_content = pattern.sub(replacer, content)
+        if new_content != content:
+            finder_file.write_text(new_content, encoding="utf-8")
+            modified = True
+
+        if modified:
+            ok(f"Fixed editable paths in {finder_file.name}")
+
+
+def ctx_python_version(venv):
+    """Detect Python version from venv directory structure."""
+    if (venv / "lib").exists():
+        for d in sorted((venv / "lib").iterdir()):
+            if d.name.startswith("python"):
+                return d.name[len("python"):]
+    return "3.12"
+
+
 def step_venv(ctx):
-    """Create venv via `uv venv` (relocatable) and install deps non-editable."""
+    """Create venv via `uv venv` (relocatable) and install deps via editable install.
+
+    NOTE: hermes-agent's setup.py now blocks non-editable (wheel/sdist) installs
+    with a RuntimeError. Editable installs must be used instead, but they write
+    absolute paths into site-packages/__editable__.*.py finder files. We
+    post-process those files to convert absolute paths to relative paths so
+    the portable bundle remains relocatable (USB key drive letter changes,
+    /Volumes/USB name changes, etc.).
+    """
     ROOT, system = ctx["ROOT"], ctx["system"]
     venv = ROOT / ctx["venv_name"]
     uv = ROOT / ("uv.exe" if system == "Windows" else "uv")
@@ -318,18 +400,23 @@ def step_venv(ctx):
     py_venv = (venv / "Scripts" / "python.exe") if system == "Windows" \
         else (venv / "bin" / "python")
 
-    info(f"Installing hermes-agent[{EXTRAS}] (non-editable) …")
-    # IMPORTANT: no `-e` flag. editable installs write absolute paths into
-    # site-packages/*.pth and break the moment the folder moves (USB key
-    # drive letter changes, /Volumes/USB name changes, etc.).
+    info(f"Installing hermes-agent[{EXTRAS}] (editable) …")
+    # Use editable install (-e) since hermes-agent blocks wheel/sdist builds.
+    # The setup.py guard only fires for bdist_wheel/sdist, not build_editable.
     try:
-        run([str(uv), "pip", "install", f"{src}[{EXTRAS}]",
+        run([str(uv), "pip", "install", "-e", f"{src}[{EXTRAS}]",
              "--python", str(py_venv)])
     except subprocess.CalledProcessError:
         warn("Full extras failed, falling back to core …")
-        run([str(uv), "pip", "install", str(src),
+        run([str(uv), "pip", "install", "-e", str(src),
              "--python", str(py_venv)])
     ok("Dependencies installed")
+
+    # Post-process editable finder files to make paths relative.
+    # uv creates __editable___<package>_<version>_finder.py files with
+    # absolute paths in the MAPPING dict. We rewrite them to use
+    # relative paths so the bundle is relocatable.
+    _fix_editable_paths(venv, system, src)
 
 def step_data(ctx):
     ROOT = ctx["ROOT"]
