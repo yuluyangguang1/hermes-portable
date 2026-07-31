@@ -623,6 +623,9 @@ _STATIC_ASSETS = [
     "lib/update.py",
     "lib/update.sh",
     "lib/fix_shims.py",
+    # lib/config/ — config server UI
+    "lib/config/index.html",
+    "lib/config/index-standalone.html",
     # Root — user-facing docs and assets
     "favicon.svg",
     "HermesPortable使用说明.html",
