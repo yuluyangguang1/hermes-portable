@@ -1,23 +1,17 @@
-# Hermes Portable v0.24.0 发版说明
+# Hermes Portable v0.24.1 发版说明
 
 ## 🎉 主要更新
 
-### 快速切换模型
-- ✅ 新增快速切换模型功能（参考 OpenClaw，配置中心内一键切换）
-- ✅ 支持在配置中心实时更换当前会话的模型
-- ✅ 无需重启即可应用新模型
+### 构建系统修复
+- ✅ 修复 hermes-agent setup.py 阻止 wheel/sdist 安装问题（改用可编辑安装）
+- ✅ 修复 Python 二进制文件缺少执行权限问题
+- ✅ 修复 macOS Gatekeeper 阻止未签名二进制文件运行问题
+- ✅ 修复 create-release 作业中的制品结构不匹配问题
+- ✅ 确保每次构建时安装最新版本的 hermes-web-ui
 
-### 启动脚本 Bug 修复
-- ✅ 修复 4 类严重 Bug（缩进/未定义函数/作用域/文件不存在）
-- ✅ 修复 open_url() 函数作用域（不再定义在 if 块内）
-- ✅ 修复 watchdog 子 shell 变量隔离（改用 PID 文件通信）
-- ✅ 优化 PYTHONHOME 检测（支持任意 python3.x，不再硬编码 3.12）
-- ✅ 修复 macOS `open` 非阻塞问题（desktop mode 增加等待）
-
-### 远程构建工作流
-- ✅ 新增 build.yml 远程构建工作流
-- ✅ 支持 workflow_dispatch 填 tag 或 push v* tag 触发
-- ✅ 三平台构建 + 自动 GitHub Release
+### 配置文件修复
+- ✅ 修复 lib/config/index.html 在便携式构建中缺失问题
+- ✅ 修复 lib/config/index-standalone.html 在便携式构建中缺失问题
 
 ## 📦 文件结构
 
@@ -53,6 +47,7 @@ HermesPortable-Universal.zip
 - fix_shims.py 修复
 - Watchdog 自动重启
 - Token 认证支持
+- macOS quarantine 属性清理
 
 ### 渠道支持
 - Telegram
@@ -92,6 +87,14 @@ http://127.0.0.1:17520
 - [Hermes Agent 官方](https://hermes-agent.nousresearch.com/)
 
 ## 📋 更新日志
+
+### v0.24.1 (2026-07-31)
+- 修复 hermes-agent setup.py 阻止 wheel/sdist 安装问题（改用可编辑安装 + 路径后处理）
+- 修复 Python 二进制文件缺少执行权限问题
+- 修复 macOS Gatekeeper 阻止未签名二进制文件运行问题（xattr 清理）
+- 修复 lib/config/index.html 在便携式构建中缺失问题
+- 修复 create-release 作业中的制品结构不匹配问题
+- 确保每次构建时安装最新版本的 hermes-web-ui (--force 标志)
 
 ### v0.24.0 (2026-07-27)
 - 新增快速切换模型功能（参考 OpenClaw，配置中心内一键切换）
