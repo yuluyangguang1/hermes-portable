@@ -219,8 +219,20 @@ def step_python(ctx):
             "uv python install failed. Cannot create a portable Python.\n"
             "  • Ensure internet access is available during build.\n"
             "  • System-Python copies are NOT portable across machines\n"
-            "    (symlinks + hardcoded paths in pyvenv.cfg break)."
+            "    (symlinks + hardcoded paths in pyvenv.cfg break).\n"
         )
+
+    # Fix execute permissions on Python binaries.
+    # uv python install may not preserve execute bits in some environments,
+    # causing "Permission denied" when the launcher tries to run python3.
+    # This is especially common on macOS where zip extraction can lose
+    # execute permissions.
+    if system != "Windows":
+        for bin_dir in py_dir.rglob("bin"):
+            if bin_dir.is_dir():
+                for f in bin_dir.iterdir():
+                    if f.name.startswith("python") and f.is_file():
+                        f.chmod(0o755)
 
 
 def _find_python(ctx):
