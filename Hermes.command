@@ -298,6 +298,7 @@ export PYTHONUTF8=1
 # 2. Lose execute permissions (zip doesn't always preserve them)
 # We fix both issues automatically on every launch so the package works
 # out-of-the-box without manual intervention.
+HERMES_FIRST_LAUNCH_LOG="$HERE/data/.first-launch.log"
 if [ "$OS" = "Darwin" ]; then
   # Clear quarantine attributes silently
   if command -v xattr >/dev/null 2>&1; then
@@ -306,9 +307,26 @@ if [ "$OS" = "Darwin" ]; then
   # Ensure execute permissions on all binaries
   find "$HERE/venv/bin" "$HERE/python" -type f -name "python*" -exec chmod +x {} + 2>/dev/null || true
   find "$HERE/venv/bin" -type f \( -name "hermes" -o -name "hermes_cli" -o -name "python*" -o -name "python3*" \) -exec chmod +x {} + 2>/dev/null || true
+  # Node.js: fix bin scripts and npm/npx CLI wrappers
   if [ -n "$NODE_DIR" ]; then
     find "$NODE_DIR" -type f -name "*.js" -path "*/bin/*" -exec chmod +x {} + 2>/dev/null || true
+    # npm/npx CLI scripts in node_modules (not in a bin/ subdir)
+    find "$NODE_DIR/lib/node_modules" -type f \( -name "npm" -o -name "npx" \) -exec chmod +x {} + 2>/dev/null || true
+    # npm/npx shell scripts in node/bin/ (e.g. npm, npx, corepack)
+    if [ -d "$NODE_DIR/bin" ]; then
+      find "$NODE_DIR/bin" -type f \( -name "npm" -o -name "npx" -o -name "corepack" \) -exec chmod +x {} + 2>/dev/null || true
+    fi
+    # Also fix any executable in node/.bin/
+    if [ -d "$NODE_DIR/.bin" ]; then
+      find "$NODE_DIR/.bin" -type f -exec chmod +x {} + 2>/dev/null || true
+    fi
   fi
+  # hermes-agent Python scripts
+  if [ -d "$HERE/hermes-agent" ]; then
+    find "$HERE/hermes-agent" -type f -name "*.py" -exec chmod +x {} + 2>/dev/null || true
+  fi
+  # Log first-launch attempt for debugging permission issues
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Self-heal completed on macOS startup" >> "$HERMES_FIRST_LAUNCH_LOG" 2>/dev/null || true
 fi
 
 # Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
