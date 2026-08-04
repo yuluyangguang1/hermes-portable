@@ -983,9 +983,17 @@ def _save_config_locked(data):
 
     model_name = data.get("model_name", "")
     provider = data.get("model_provider", "openrouter")
+    # `default` is always prefixed with the *real* provider id so downstream
+    # consumers that split on "/" get the correct provider (not a namespace
+    # baked into the model id, e.g. nous selecting "anthropic/claude-fable-5").
+    # `upstream_id` keeps the exact model string the user picked (may itself
+    # contain "/", e.g. "anthropic/claude-fable-5") so callers that need the
+    # literal upstream model id can read it directly without re-parsing.
+    default_model = f"{provider}/{model_name}"
     cfg = {
         "model": {
-            "default": model_name if "/" in model_name else f"{provider}/{model_name}",
+            "default": default_model,
+            "upstream_id": model_name,
             "provider": provider,
         },
         "agent": {
@@ -1629,19 +1637,19 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self.send_error(404)
 
     def _serve_html(self):
+        # NOTE: The frontend (lib/config/index.html) is fully self-contained — it
+        # inlines PROVIDERS / CHANNELS and drives active provider / env / enabled
+        # channels / first-run detection at runtime via fetch('/api/config'). The
+        # former `__PROVIDERS__` / `__CHANNELS__` / `__ACTIVE_PROVIDER__` /
+        # `__CURRENT_ENV__` / `__ENABLED_CHANNELS__` / `__FIRST_RUN__` template
+        # substitutions were no-ops (those placeholders don't exist in the HTML),
+        # so they've been removed. Don't reintroduce them unless the HTML is
+        # changed to consume server-injected values.
         config = read_config()
         page = HTML_PAGE
-        page = page.replace("__PROVIDERS__", json.dumps(config["providers"]))
-        page = page.replace("__CHANNELS__", json.dumps(config["channels"]))
-        page = page.replace("__ACTIVE_PROVIDER__", config["active_provider"])
-        page = page.replace("__CURRENT_ENV__", json.dumps(config["env"]))
         gw = config["config"].get("gateway", {})
         platforms = gw.get("platforms", {})
         enabled = [k for k, v in platforms.items() if v.get("enabled")]
-        page = page.replace("__ENABLED_CHANNELS__", json.dumps(enabled))
-        # Detect first run: no API key configured
-        has_key = any(config["env"].get(p["env"]) for p in config["providers"])
-        page = page.replace("__FIRST_RUN__", "true" if not has_key else "false")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("X-Content-Type-Options", "nosniff")
