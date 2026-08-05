@@ -43,3 +43,7 @@ config_panel_v2.html
 logo/*.png
 logo/_drafts/
 favicon_*.png
+
+# Runtime config generated at launch (private)
+data/config.yaml
+data/SOUL.md
