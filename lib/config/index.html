@@ -475,17 +475,9 @@
     color: var(--accent);
     background: var(--hover-strong, var(--hover));
   }
-  .btn {
-    transition: background 0.15s ease, transform 0.08s ease, opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  }
   .btn:active {
     transform: scale(0.97);
     background: var(--border);
-  }
-  .btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
   }
   .btn.destructive {
     color: var(--danger, #ff6b6b);
@@ -1715,10 +1707,8 @@ function restoreConfig() {
 }
 
 function saveConfig() {
-  const saveBtn = document.getElementById('saveBtn');
   const p = PROVIDERS.find(x => x.id === activeProvider);
   if (p && !currentEnv[p.env]) { toast('请填写 ' + p.name + ' API Key', 'error'); return; }
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '保存中…'; }
   const sel = document.getElementById('modelSelect');
   const data = {
     env: currentEnv,
@@ -1738,27 +1728,19 @@ function saveConfig() {
     .then(r => r.json()).then(res => {
       if (res.success) { toast('已保存', 'success'); savedOnce = true; if(isFirstRun) updateStep(3); }
       else toast(res.error || '错误', 'error');
-    })
-    .catch(() => toast('网络错误', 'error'))
-    .finally(() => { if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '保存'; } });
+    }).catch(() => toast('网络错误', 'error'));
 }
 
 function launchHermes() {
   if (!savedOnce) { toast('请先保存配置', 'error'); return; }
-  const launchBtn = document.getElementById('launchBtn');
-  if (launchBtn) { launchBtn.disabled = true; launchBtn.textContent = '启动中…'; }
   fetch('/api/launch', { method:'POST' }).then(r => r.json()).then(res => {
     if (res.success) {
       toast('Hermes 已启动，可关闭此页', 'success');
-      // Only attempt to close if this page was opened by a script (launcher
-      // webview); a top-level tab can't be closed by script and would just
-      // throw, so guard it.
       try { if (window.opener || window.history.length === 1) window.close(); } catch (e) {}
     } else {
       toast(res.error || '启动失败', 'error');
     }
-  }).catch(() => toast('网络错误', 'error'))
-    .finally(() => { if (launchBtn) { launchBtn.disabled = false; launchBtn.textContent = '启动'; } });
+  }).catch(() => toast('网络错误', 'error'));
 }
 
 function toast(msg, type) {
