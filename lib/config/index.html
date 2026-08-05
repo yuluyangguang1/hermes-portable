@@ -1217,11 +1217,13 @@ const PROVIDERS = [
   {id:'alibaba',name:'阿里云',tags:[],desc:'',base:'',models:['qwen3.7-max','qwen3.7-plus','qwen3.6-max','qwen3.6-plus'],link:''},
   {id:'longcat',name:'LongCat',tags:['cn'],desc:'LongCat 2.0',base:'https://api.longcat.chat/openai/v1',models:['LongCat-Flash-Lite','LongCat-2.0-Preview'],link:'https://longcat.chat/platform'},
   {id:'zai',name:'Z.AI / 智谱',tags:['hot','cn'],desc:'GLM-5.2 / GLM-5.1 / GLM-4.7',base:'https://open.bigmodel.cn/api/paas/v4',models:['glm-5.2','glm-5.1','glm-5','glm-5v-turbo','glm-5-turbo','glm-4.7','glm-4.5','glm-4.5-flash'],link:'https://open.bigmodel.cn/'},
+  {id:'ark_agentplan',name:'火山 Agentplan',tags:['cn'],desc:'火山引擎代码专用',base:'https://ark.cn-beijing.volces.com/api/coding',models:['ark-code-latest'],link:'https://www.volcengine.com/activity/codingplan'},
   {id:'byteplus',name:'BytePlus',tags:['cn'],desc:'火山海外版',base:'https://ark.ap-southeast.bytepluses.com/api/coding',models:['ark-code-latest'],link:'https://www.byteplus.com/'},
   {id:'doubao_seed',name:'DouBao Seed',tags:['cn'],desc:'豆包 Seed 2.1 Pro',base:'https://ark.cn-beijing.volces.com/api/compatible',models:['doubao-seed-2-1-pro-260628'],link:'https://console.volcengine.com/ark/'},
   {id:'bailing',name:'百灵',tags:['cn'],desc:'支付宝百灵',base:'https://api.tbox.cn/api/anthropic',models:['Ling-2.5-1T'],link:'https://alipaytbox.yuque.com/'},
   {id:'kat_coder',name:'KAT-Coder',tags:['cn'],desc:'流水灯代码模型',base:'https://vanchin.streamlake.ai/api/gateway/v1',models:['KAT-Coder-Pro V1','KAT-Coder-Air V1'],link:'https://console.streamlake.ai/'},
-  {id:'bailian',name:'阿里百炼',tags:['cn'],desc:'',base:'https://dashscope.aliyuncs.com/compatible-mode/v1',models:['qwen3-coder-plus','qwen3-max'],link:''},
+  {id:'bailian',name:'阿里百炼',tags:['cn'],desc:'阿里云百炼平台',base:'https://dashscope.aliyuncs.com/compatible-mode/v1',models:['qwen3-coder-plus','qwen3-max'],link:'https://bailian.console.aliyun.com/'},
+  {id:'bailian_coding',name:'百炼代码版',tags:['cn'],desc:'百炼代码版',base:'https://coding.dashscope.aliyuncs.com/apps/anthropic',models:['qwen3-coder-plus','qwen3-max'],link:'https://bailian.console.aliyun.com/'},
 
   // ── 国际主流 ──
   {id:'nous',name:'Nous Portal',tags:[],desc:'',base:'',models:['anthropic/claude-fable-5','anthropic/claude-opus-4.8','anthropic/claude-sonnet-5','anthropic/claude-haiku-4.5','openai/gpt-5.6-sol','openai/gpt-5.6-sol-pro','openai/gpt-5.6-terra','openai/gpt-5.6-terra-pro','openai/gpt-5.6-luna','openai/gpt-5.6-luna-pro','openai/gpt-5.5','openai/gpt-5.5-pro','openai/gpt-5.4-mini','openai/gpt-5.4-nano','openai/gpt-5.3-codex','google/gemini-3.5-flash','google/gemini-3-pro-preview','google/gemini-3.1-pro-preview','google/gemini-3.1-flash-lite-preview','google/gemini-3-flash-preview','x-ai/grok-4.5','x-ai/grok-4.3','qwen/qwen3.7-max','qwen/qwen3.7-plus','qwen/qwen3.6-plus','qwen/qwen3.6-35b-a3b','deepseek/deepseek-v4-pro','deepseek/deepseek-v4-flash','z-ai/glm-5.2','z-ai/glm-5.1','minimax/minimax-m3','minimax/minimax-m2.7','stepfun/step-3.7-flash','stepfun/step-3.5-flash','xiaomi/mimo-v2.5-pro','tencent/hy3','nvidia/nemotron-3-super-120b-a12b','sakana/fugu-ultra','nousresearch/hermes-4-405b','nousresearch/hermes-4-70b','nousresearch/deephermes-3-mistral-24b'],link:''},
@@ -1264,6 +1266,8 @@ const PROVIDERS = [
   {id:'kimi-coding',name:'Kimi 代码版',tags:[],desc:'',base:'',models:['kimi-k2.7-code','kimi-k2.6','kimi-k2.5','kimi-for-coding','kimi-k2-thinking','kimi-k2-thinking-turbo'],link:''},
   {id:'kimi-coding-cn',name:'Kimi 中国代码版',tags:[],desc:'',base:'',models:['kimi-k2.6','kimi-k2.5','kimi-k2-thinking','kimi-k2-turbo-preview'],link:''},
   {id:'minimax-cn',name:'MiniMax 中国版',tags:[],desc:'',base:'',models:['MiniMax-M3','MiniMax-M2.7','MiniMax-M2.7-highspeed','MiniMax-M2.5','MiniMax-M2.5-highspeed'],link:''},
+  {id:'alibaba-coding-plan',name:'阿里云代码计划',tags:[],desc:'',base:'',models:['qwen3.7-max','qwen3.7-plus','qwen3.6-max','qwen3.6-plus'],link:''},
+  {id:'xiaomi-token-plan',name:'小米 Token 计划',tags:[],desc:'',base:'',models:['xiaomi/mimo-v2.5-pro','xiaomi/mimo-v2-pro','xiaomi/mimo-v2-flash'],link:''},
   {id:'tencent-tokenhub',name:'腾讯 TokenHub',tags:[],desc:'',base:'',models:['hy3-preview'],link:''},
   {id:'fun-codex',name:'Codex-apikey.fun',tags:[],desc:'',base:'',models:['gpt-5.5','gpt-5.4','gpt-5.4-mini','gpt-5.3-codex','gpt-5.3-codex-spark'],link:''},
   {id:'fun-claude',name:'Claude-apikey.fun',tags:[],desc:'',base:'',models:['claude-opus-4-8','claude-opus-4-7','claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5'],link:''},
@@ -1683,11 +1687,7 @@ function restoreConfig() {
     if (cfg.memory) document.getElementById('memoryEnabled').checked = cfg.memory.memory_enabled !== false;
     if (cfg.model) {
       const full = cfg.model.default || '';
-      let provider = cfg.model.provider || 'openrouter';
-      // Legacy ids that were merged into their canonical provider — map them
-      // back so a saved config from before the merge still restores.
-      const legacyMap = {'xiaomi-token-plan':'xiaomi','bailian_coding':'bailian','ark_agentplan':'byteplus','alibaba-coding-plan':'alibaba'};
-      if (!PROVIDERS.find(x => x.id === provider)) provider = legacyMap[provider] || 'openrouter';
+      const provider = cfg.model.provider || 'openrouter';
       selectProvider(provider);
       const sel = document.getElementById('modelSelect');
       for (let opt of sel.options) {
