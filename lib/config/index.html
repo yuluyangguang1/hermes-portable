@@ -287,6 +287,23 @@
     color: var(--emerald);
     background: oklch(0.18 0.02 170);
   }
+  /* Distinguishing tag for sibling entries of the same vendor
+     (e.g. 代码 / 海外 / 中转) so multi-entry providers are legible. */
+  .provider-btn .p-tag {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 0 4px;
+    font-size: 9px;
+    line-height: 14px;
+    border-radius: 3px;
+    color: var(--fg-muted);
+    background: var(--border);
+    vertical-align: middle;
+  }
+  .provider-btn.active .p-tag {
+    color: var(--emerald);
+    background: oklch(0.25 0.02 170);
+  }
 
   /* Form elements */
   label {
@@ -1524,11 +1541,27 @@ function renderProviders() {
   // Most provider ids match an /icons/{id}.svg file directly. Only the few
   // providers without their own icon fall back to a sibling brand.
   const iconMap = {'ark_agentplan':'doubao', 'byteplus':'doubao', 'doubao_seed':'doubao', 'bailing':'gemini', 'kat_coder':'gemini', 'bailian':'qwen', 'bailian_coding':'qwen', 'modelscope':'openrouter', 'cherryin':'openrouter', 'therouter':'openrouter', 'nous':'nousresearch', 'custom':'openrouter'};
+  // Distinguishing tags for sibling entries of the same vendor so multi-entry
+  // providers (e.g. 直连 vs 中转, 北京 vs 海外) are easy to tell apart.
+  const providerTags = {
+    'xiaomi-token-plan': '中转',
+    'bailian_coding': '代码',
+    'alibaba-coding-plan': '代码计划',
+    'ark_agentplan': '北京',
+    'byteplus': '海外',
+    'doubao_seed': 'Seed',
+    'minimax-cn': '中国版',
+    'kimi-coding': '代码',
+    'kimi-coding-cn': '中国代码',
+    'glm': '代码计划',
+    'tencent-tokenhub': 'TokenHub',
+  };
   const g = document.getElementById('providerGrid');
   g.innerHTML = PROVIDERS.map(p => {
     const iconName = iconMap[p.id] || p.id;
     const icon = `<img src="/icons/${iconName}.svg" width="16" height="16" alt="" loading="lazy" decoding="async" style="border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.style.display='none'">`;
-    return `<button type="button" class="provider-btn ${p.id===activeProvider?'active':''}" onclick="selectProvider('${p.id}')">${icon}${p.name}</button>`;
+    const tag = providerTags[p.id] ? `<span class="p-tag">${providerTags[p.id]}</span>` : '';
+    return `<button type="button" class="provider-btn ${p.id===activeProvider?'active':''}" onclick="selectProvider('${p.id}')">${icon}${p.name}${tag}</button>`;
   }).join('');
 }
 
