@@ -1213,7 +1213,7 @@ const PROVIDERS = [
   {id:'nous',name:'Nous Portal',tags:[],desc:'',base:'',models:['anthropic/claude-fable-5','anthropic/claude-opus-4.8','anthropic/claude-sonnet-5','anthropic/claude-haiku-4.5','openai/gpt-5.6-sol','openai/gpt-5.6-sol-pro','openai/gpt-5.6-terra','openai/gpt-5.6-terra-pro','openai/gpt-5.6-luna','openai/gpt-5.6-luna-pro','openai/gpt-5.5','openai/gpt-5.5-pro','openai/gpt-5.4-mini','openai/gpt-5.4-nano','openai/gpt-5.3-codex','google/gemini-3.5-flash','google/gemini-3-pro-preview','google/gemini-3.1-pro-preview','google/gemini-3.1-flash-lite-preview','google/gemini-3-flash-preview','x-ai/grok-4.5','x-ai/grok-4.3','qwen/qwen3.7-max','qwen/qwen3.7-plus','qwen/qwen3.6-plus','qwen/qwen3.6-35b-a3b','deepseek/deepseek-v4-pro','deepseek/deepseek-v4-flash','z-ai/glm-5.2','z-ai/glm-5.1','minimax/minimax-m3','minimax/minimax-m2.7','stepfun/step-3.7-flash','stepfun/step-3.5-flash','xiaomi/mimo-v2.5-pro','tencent/hy3','nvidia/nemotron-3-super-120b-a12b','sakana/fugu-ultra','nousresearch/hermes-4-405b','nousresearch/hermes-4-70b','nousresearch/deephermes-3-mistral-24b'],link:''},
   {id:'anthropic',name:'Anthropic',tags:['hot'],desc:'Fable 5 / Opus 4.8 / Sonnet 5 / Haiku 4.5',base:'https://api.anthropic.com/v1',models:['claude-fable-5','claude-opus-4.8','claude-opus-4.8-fast','claude-sonnet-5','claude-opus-4-7','claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5','claude-haiku-4-5-20251001','claude-sonnet-4-20250514','claude-opus-4-20250514','claude-3-7-sonnet-latest','claude-3-5-haiku-latest'],link:'https://console.anthropic.com/'},
   {id:'openai',name:'OpenAI',tags:['hot'],desc:'GPT-5.6 Sol/Terra/Luna / 5.5 Pro / Codex / o4-mini',base:'https://api.openai.com/v1',models:['gpt-5.6-sol','gpt-5.6-sol-pro','gpt-5.6-terra','gpt-5.6-terra-pro','gpt-5.6-luna','gpt-5.6-luna-pro','gpt-5.5','gpt-5.5-pro','gpt-5.5-mini','gpt-5.4','gpt-5.4-mini','gpt-5.4-nano','gpt-5.3-codex','gpt-5.2','gpt-5','gpt-5-mini','gpt-5-nano','o3','o3-mini','o4-mini','gpt-4.1','gpt-4.1-mini'],link:'https://platform.openai.com/'},
-  {id:'google',name:'Google Gemini',tags:[],desc:'',base:'',models:['gemini-3.5-flash','gemini-3-pro-preview','gemini-3.1-pro-preview','gemini-3.1-flash-lite-preview','gemini-3-pro-preview','gemini-3-flash-preview','gemini-3-pro-image-preview','gemini-2.5-pro','gemini-2.5-flash','gemini-2.5-flash-lite','gemini-2.5-flash-image-preview'],link:''},
+  {id:'google',name:'Google Gemini',tags:[],desc:'',base:'',models:['gemini-3.5-flash','gemini-3-pro-preview','gemini-3.1-pro-preview','gemini-3.1-flash-lite-preview','gemini-3-flash-preview','gemini-3-pro-image-preview','gemini-2.5-pro','gemini-2.5-flash','gemini-2.5-flash-lite','gemini-2.5-flash-image-preview'],link:''},
   {id:'xai',name:'xAI Grok',tags:['fast'],desc:'Grok 4.5 / 4.3 / 4.20',base:'https://api.x.ai/v1',models:['grok-4.5','grok-4.3','grok-4.20'],link:'https://console.x.ai/'},
   {id:'mistral',name:'Mistral AI',tags:[],desc:'large-3 / medium / codestral',base:'https://api.mistral.ai/v1',models:['mistral-large-3','mistral-large-2411','mistral-medium-latest','mistral-small-latest','ministral-3b-latest','ministral-8b-latest','codestral-latest','pixtral-large-latest'],link:'https://console.mistral.ai/'},
   {id:'cohere',name:'Cohere',tags:[],desc:'Command A / R+',base:'https://api.cohere.com/v2',models:['command-a','command-r-plus','command-r','command-light'],link:'https://dashboard.cohere.com/'},
@@ -1505,13 +1505,16 @@ function init() {
 }
 
 function renderProviders() {
-  const iconMap = {custom:'openrouter',nous:'nousresearch'};
+  // Map every provider id to an icon file. Ids without their own svg fall
+  // back to a sibling provider's icon so the provider grid stays visually
+  // consistent (no blank gaps). Direct-match ids (e.g. 'deepseek') resolve
+  // via the `iconMap[p.id] || p.id` fallback below.
+  const iconMap = {'dashscope':'qwen', 'xiaomi':'doubao', 'stepfun':'gemini', 'baidu':'gemini', 'tencent':'gemini', 'iflytek':'gemini', 'coze':'gemini', 'alibaba':'qwen', 'longcat':'gemini', 'zai':'zhipu', 'ark_agentplan':'doubao', 'byteplus':'doubao', 'doubao_seed':'doubao', 'bailing':'gemini', 'kat_coder':'gemini', 'bailian':'qwen', 'bailian_coding':'qwen', 'nvidia':'meta', 'novita':'meta', 'sambanova':'meta', 'cloudflare':'openrouter', 'siliconflow':'deepseek', 'deepinfra':'meta', 'gmi':'openrouter', 'kilocode':'openrouter', 'ai-gateway':'openrouter', 'arcee':'openrouter', 'modelscope':'openrouter', 'cherryin':'openrouter', 'therouter':'openrouter', 'copilot':'openai', 'amazon':'openai', 'glm':'zhipu', 'kimi-coding':'kimi', 'kimi-coding-cn':'kimi', 'minimax-cn':'minimax', 'alibaba-coding-plan':'qwen', 'xiaomi-token-plan':'doubao', 'tencent-tokenhub':'gemini', 'fun-codex':'openai', 'fun-claude':'claude', 'cliproxyapi':'openrouter', 'opencode-zen':'openrouter', 'opencode-go':'openrouter', 'claude-oauth':'claude', 'google-gemini-cli':'gemini', 'xai-oauth':'xai', 'openai-codex':'openai', 'custom':'openrouter', 'nous':'nousresearch'};
   const g = document.getElementById('providerGrid');
   g.innerHTML = PROVIDERS.map(p => {
     const iconName = iconMap[p.id] || p.id;
     const icon = `<img src="/icons/${iconName}.svg" width="16" height="16" alt="" loading="lazy" decoding="async" style="border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.style.display='none'">`;
-    return `<button type="button" class="provider-btn ${p.id===activeProvider?'active':''}"
-            onclick="selectProvider('${p.id}')">${icon}${p.name}</button>`;
+    return `<button type="button" class="provider-btn ${p.id===activeProvider?'active':''}" onclick="selectProvider('${p.id}')">${icon}${p.name}</button>`;
   }).join('');
 }
 
@@ -1678,6 +1681,11 @@ function restoreConfig() {
       }
       updateModelPreview();
     }
+    // If the active provider already has a saved key, allow launching without
+    // forcing another save (otherwise a returning user is wrongly blocked by
+    // the `!savedOnce` guard in launchHermes() on every page reload).
+    const _ap = PROVIDERS.find(x => x.id === activeProvider);
+    if (_ap && data.env && data.env[_ap.env]) { savedOnce = true; }
     if (cfg.gateway && cfg.gateway.platforms) {
       enabledChannels = Object.keys(cfg.gateway.platforms).filter(k => cfg.gateway.platforms[k].enabled);
       renderChannels();
@@ -1727,10 +1735,18 @@ function saveConfig() {
 }
 
 function launchHermes() {
-  if (!savedOnce) { toast('请先保存', 'error'); return; }
+  if (!savedOnce) { toast('请先保存配置', 'error'); return; }
   fetch('/api/launch', { method:'POST' }).then(r => r.json()).then(res => {
-    if (res.success) { toast('Hermes 已启动', 'success'); setTimeout(() => window.close(), 1500); }
-  });
+    if (res.success) {
+      toast('Hermes 已启动，可关闭此页', 'success');
+      // Only attempt to close if this page was opened by a script (launcher
+      // webview); a top-level tab can't be closed by script and would just
+      // throw, so guard it.
+      try { if (window.opener || window.history.length === 1) window.close(); } catch (e) {}
+    } else {
+      toast(res.error || '启动失败', 'error');
+    }
+  }).catch(() => toast('网络错误', 'error'));
 }
 
 function toast(msg, type) {
