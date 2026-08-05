@@ -475,9 +475,25 @@
     color: var(--accent);
     background: var(--hover-strong, var(--hover));
   }
+  .btn {
+    transition: background 0.18s ease, transform 0.08s ease, color 0.18s ease, border-color 0.18s ease;
+  }
   .btn:active {
     transform: scale(0.97);
     background: var(--border);
+  }
+  /* Transient confirmation flash for the save/launch actions (not a
+     disabled state — the button stays usable, it just briefly signals
+     success/failure so the click is perceptible). */
+  .btn.flash-ok {
+    background: var(--emerald);
+    border-color: var(--emerald);
+    color: var(--bg);
+  }
+  .btn.flash-err {
+    background: var(--danger, #ff6b6b);
+    border-color: var(--danger, #ff6b6b);
+    color: #fff;
   }
   .btn.destructive {
     color: var(--danger, #ff6b6b);
@@ -1724,23 +1740,34 @@ function saveConfig() {
     enabled_channels: enabledChannels,
     skin: 'default',
   };
+  const btn = document.getElementById('saveBtn');
   fetch('/api/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) })
     .then(r => r.json()).then(res => {
-      if (res.success) { toast('已保存', 'success'); savedOnce = true; if(isFirstRun) updateStep(3); }
-      else toast(res.error || '错误', 'error');
-    }).catch(() => toast('网络错误', 'error'));
+      if (res.success) {
+        toast('已保存', 'success'); savedOnce = true; if(isFirstRun) updateStep(3);
+        flash(btn, 'ok');
+      } else { toast(res.error || '错误', 'error'); flash(btn, 'err'); }
+    }).catch(() => { toast('网络错误', 'error'); flash(btn, 'err'); });
 }
 
 function launchHermes() {
   if (!savedOnce) { toast('请先保存配置', 'error'); return; }
+  const btn = document.getElementById('launchBtn');
   fetch('/api/launch', { method:'POST' }).then(r => r.json()).then(res => {
     if (res.success) {
       toast('Hermes 已启动，可关闭此页', 'success');
+      flash(btn, 'ok');
       try { if (window.opener || window.history.length === 1) window.close(); } catch (e) {}
-    } else {
-      toast(res.error || '启动失败', 'error');
-    }
-  }).catch(() => toast('网络错误', 'error'));
+    } else { toast(res.error || '启动失败', 'error'); flash(btn, 'err'); }
+  }).catch(() => { toast('网络错误', 'error'); flash(btn, 'err'); });
+}
+
+// Brief success/error highlight on a button (auto-clears, button stays usable).
+function flash(btn, kind) {
+  if (!btn) return;
+  const cls = kind === 'ok' ? 'flash-ok' : 'flash-err';
+  btn.classList.add(cls);
+  setTimeout(() => btn.classList.remove(cls), 1100);
 }
 
 function toast(msg, type) {
