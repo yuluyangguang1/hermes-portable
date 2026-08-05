@@ -1295,6 +1295,8 @@ const PROVIDERS = [
   {id:'google-gemini-cli',name:'Google Gemini OAuth',tags:[],desc:'',base:'',models:['gemini-3.1-pro-preview','gemini-3-pro-preview','gemini-3-flash-preview'],link:''},
   {id:'xai-oauth',name:'xAI Grok OAuth',tags:[],desc:'',base:'',models:['grok-4.5','grok-4.3','grok-4.20-0309-reasoning','grok-4.20-0309-non-reasoning'],link:''},
   {id:'openai-codex',name:'OpenAI Codex',tags:[],desc:'',base:'',models:['gpt-5.5','gpt-5.4','gpt-5.3-codex'],link:''},
+  {id:'upstage',name:'Upstage Solar',tags:['kr'],desc:'韩国 Solar 推理模型',base:'https://api.upstage.ai/v1',models:['solar-pro3','solar-pro2','solar-mini','solar-pro','syn-pro','solar-embedding-1'],link:''},
+  {id:'qwen-oauth',name:'Qwen Portal (OAuth)',tags:['cn'],desc:'通义千问 OAuth 门户',base:'https://portal.qwen.ai/v1',models:['qwen-max','qwen-plus','qwen-turbo','qwen-long','qwen3-coder-plus','qwen2.5-72b-instruct'],link:''},
   {id:'custom',name:'自定义 / 中转站',tags:[],desc:'自定义/中转站',base:'',models:[],link:''},
 ];
 
@@ -1540,7 +1542,7 @@ function init() {
 function renderProviders() {
   // Most provider ids match an /icons/{id}.svg file directly. Only the few
   // providers without their own icon fall back to a sibling brand.
-  const iconMap = {'ark_agentplan':'doubao', 'byteplus':'doubao', 'doubao_seed':'doubao', 'bailing':'gemini', 'kat_coder':'gemini', 'bailian':'qwen', 'bailian_coding':'qwen', 'modelscope':'openrouter', 'cherryin':'openrouter', 'therouter':'openrouter', 'nous':'nousresearch', 'custom':'openrouter'};
+  const iconMap = {'ark_agentplan':'doubao', 'byteplus':'doubao', 'doubao_seed':'doubao', 'bailing':'gemini', 'kat_coder':'gemini', 'bailian':'qwen', 'bailian_coding':'qwen', 'modelscope':'openrouter', 'cherryin':'openrouter', 'therouter':'openrouter', 'nous':'nousresearch', 'qwen-oauth':'qwen', 'custom':'openrouter'};
   // Distinguishing tags for sibling entries of the same vendor so multi-entry
   // providers (e.g. 直连 vs 中转, 北京 vs 海外) are easy to tell apart.
   const providerTags = {
