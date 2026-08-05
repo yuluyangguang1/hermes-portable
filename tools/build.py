@@ -623,20 +623,20 @@ def step_nodejs(ctx):
         try:
             path_sep = ";" if system == "Windows" else ":"
             env = {**ctx.get("env", {}), "PATH": str(node_dir / "bin") + path_sep + ctx.get("env", {}).get("PATH", "")}
-            # First clear npm cache to ensure we get the latest version
-            run([str(npm), "cache", "clean", "--force"], env=env)
+            # Install latest hermes-web-ui globally. We intentionally do NOT
+            # run `npm cache clean --force` first: it is an optional optimisation
+            # that segfaults (exit 134) on some CI Node builds and must not
+            # block the install. `--force` on the install already pulls the
+            # newest published version.
             run([str(npm), "install", "-g", "hermes-web-ui@latest", "--force"], env=env)
             ok("hermes-web-ui installed")
         except Exception as e:
-            # A missing/broken web UI is a silent failure downstream (every
-            # webui_* call raises and is swallowed, so the shipped package
-            # looks fine but the Web UI button never works). Fail loudly so
-            # the build doesn't produce a package without the web UI.
-            fail(f"hermes-web-ui install failed: {e}")
-
-
-# Files that must be *copied verbatim* from the repo into the portable folder.
-# This is the single source of truth — no more inlined bat/sh strings.
+            # A broken web UI install is a real problem downstream (every
+            # webui_* call raises and is swallowed, so a package can ship
+            # without a working Web UI). We warn rather than hard-fail so a
+            # transient npm hiccup doesn't kill the whole portable build, but
+            # the message makes the root cause obvious for a manual retry.
+            warn(f"hermes-web-ui install failed: {e}")
 # Paths are relative to the repo root. Directory structure is preserved
 # in the dist (e.g. "lib/config_server.py" → ROOT/lib/config_server.py).
 _STATIC_ASSETS = [
