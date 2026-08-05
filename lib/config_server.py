@@ -690,24 +690,31 @@ def _is_hermes_pid(pid):
         return False
 
 def webui_status():
-    """Check if hermes-web-ui is running."""
+    """Check if hermes-web-ui is running.
+
+    The `hermes-web-ui status` CLI prints a line that — depending on version —
+    may be "running", "Running", "Hermes Web UI is running", or similar. We
+    therefore check for the substring 'running' rather than an exact match, so
+    a trailing dot / capitalisation / extra words don't make us think the UI
+    is down (which would cause repeated start attempts and port conflicts).
+    If the binary isn't installed the call raises and we return False.
+    """
     import subprocess
     try:
         result = subprocess.run(
             ['hermes-web-ui', 'status'],
             capture_output=True, text=True, timeout=5
         )
-        # Use exact match on stripped output to avoid false positives.
-        # The old code used 'running' in stdout.lower(), which would
-        # match "Not running" or "Error: process not running".
-        output = result.stdout.strip().lower()
-        return output == 'running'
+        return 'running' in result.stdout.strip().lower()
     except Exception:
         return False
 
 def webui_start():
-    """Start hermes-web-ui."""
-    import subprocess
+    """Start hermes-web-ui. Returns False if the binary isn't installed so the
+    caller can tell 'not installed' apart from 'failed to start'."""
+    import subprocess, shutil
+    if shutil.which('hermes-web-ui') is None:
+        return False
     try:
         subprocess.Popen(
             ['hermes-web-ui', 'start', str(WEB_UI_PORT)],
@@ -719,11 +726,12 @@ def webui_start():
         return False
 
 def webui_stop():
-    """Stop hermes-web-ui."""
+    """Stop hermes-web-ui. Reports failure when the stop command errors or
+    exits non-zero (previously any result was treated as success)."""
     import subprocess
     try:
-        subprocess.run(['hermes-web-ui', 'stop'], capture_output=True, timeout=5)
-        return True
+        result = subprocess.run(['hermes-web-ui', 'stop'], capture_output=True, timeout=5)
+        return result.returncode == 0
     except Exception:
         return False
 
@@ -1557,16 +1565,6 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._serve_wechat_status()
         elif path_only == '/api/webui/status':
             self._json_response({'running': webui_status()})
-        elif path_only == '/api/webui/start':
-            if webui_start():
-                self._json_response({'ok': True, 'port': WEB_UI_PORT})
-            else:
-                self._json_response({'ok': False, 'error': 'Failed to start'}, 500)
-        elif path_only == '/api/webui/stop':
-            if webui_stop():
-                self._json_response({'ok': True})
-            else:
-                self._json_response({'ok': False, 'error': 'Failed to stop'}, 500)
         else:
             self.send_error(404)
 
@@ -1620,6 +1618,16 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         elif self.path == "/api/restart":
             self._json_response({"success": True})
             threading.Thread(target=self._restart_hermes, daemon=True).start()
+        elif self.path == "/api/webui/start":
+            if webui_start():
+                self._json_response({"ok": True, "port": WEB_UI_PORT})
+            else:
+                self._json_response({"ok": False, "error": "Failed to start (is hermes-web-ui installed?)"}, 500)
+        elif self.path == "/api/webui/stop":
+            if webui_stop():
+                self._json_response({"ok": True})
+            else:
+                self._json_response({"ok": False, "error": "Failed to stop"}, 500)
         elif self.path == "/api/wechat/start":
             try:
                 payload = wechat_start_login()
@@ -2549,6 +2557,15 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                                      creationflags=subprocess.CREATE_NEW_CONSOLE)
                 else:
                     subprocess.Popen([str(hermes_bin)], env=env, cwd=str(PORTABLE_ROOT))
+        # Bring up the web UI alongside Hermes when it's installed, so launching
+        # from the config center also exposes the browser UI on WEB_UI_PORT
+        # (previously the web UI only came up via the external launcher).
+        try:
+            import shutil
+            if shutil.which('hermes-web-ui') is not None:
+                webui_start()
+        except Exception:
+            pass
 
     def log_message(self, format, *args):
         pass

@@ -628,7 +628,11 @@ def step_nodejs(ctx):
             run([str(npm), "install", "-g", "hermes-web-ui@latest", "--force"], env=env)
             ok("hermes-web-ui installed")
         except Exception as e:
-            warn(f"hermes-web-ui install failed: {e}")
+            # A missing/broken web UI is a silent failure downstream (every
+            # webui_* call raises and is swallowed, so the shipped package
+            # looks fine but the Web UI button never works). Fail loudly so
+            # the build doesn't produce a package without the web UI.
+            fail(f"hermes-web-ui install failed: {e}")
 
 
 # Files that must be *copied verbatim* from the repo into the portable folder.

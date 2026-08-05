@@ -2264,27 +2264,45 @@ init();
       const res = await fetch('/api/webui/status');
       const data = await res.json();
       if (data.running) {
-        window.open('http://127.0.0.1:8648', '_blank');
+        openWebUI();
       } else {
         btn.textContent = '启动中...';
         btn.disabled = true;
         const startRes = await fetch('/api/webui/start');
         const startData = await startRes.json();
         if (startData.ok) {
-          setTimeout(() => {
-            window.open('http://127.0.0.1:8648', '_blank');
-            btn.textContent = '打开';
-            btn.disabled = false;
-          }, 2000);
+          // Poll status instead of a fixed 2s wait — npm cold start can exceed
+          // 2s, and opening too early lands on a blank page.
+          let tries = 0;
+          const poll = setInterval(async () => {
+            tries++;
+            try {
+              const r = await fetch('/api/webui/status');
+              const d = await r.json();
+              if (d.running || tries > 15) {
+                clearInterval(poll);
+                openWebUI();
+                btn.textContent = '打开';
+                btn.disabled = false;
+              }
+            } catch (_) {
+              if (tries > 15) { clearInterval(poll); btn.disabled = false; btn.textContent = '打开'; }
+            }
+          }, 1000);
         } else {
           btn.textContent = '启动失败';
           btn.disabled = false;
+          toast('Web UI 启动失败' + (startData.error ? '：' + startData.error : ''), 'error');
         }
       }
     } catch (err) {
       btn.textContent = '错误';
       btn.disabled = false;
     }
+  }
+  function openWebUI() {
+    const w = window.open('http://127.0.0.1:8648', '_blank');
+    if (!w) toast('请允许弹窗，或手动访问 http://127.0.0.1:8648', 'error');
   }
 </script>
 
