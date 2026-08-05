@@ -1602,7 +1602,12 @@ function updateModelSelect() {
 }
 
 function updateModelPreview() {
-  document.getElementById('modelPreview').textContent = '当前: ' + activeProvider + '/' + document.getElementById('modelSelect').value;
+  const m = document.getElementById('modelSelect').value;
+  // Model names that already carry a namespace (e.g. 'anthropic/claude-fable-5',
+  // 'xiaomi/mimo-v2.5-pro') shouldn't be prefixed again with the provider id,
+  // otherwise the preview shows a doubled prefix like 'xiaomi/xiaomi/mimo-...'.
+  const shown = (m && m.includes('/')) ? m : (activeProvider + '/' + m);
+  document.getElementById('modelPreview').textContent = '当前: ' + shown;
   // Update quick switch dropdown
   populateQuickSwitch();
 }
