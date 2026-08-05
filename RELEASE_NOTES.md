@@ -1,3 +1,60 @@
+# Hermes Portable v1.20.0 发版说明
+
+## 🎉 主要更新
+
+### 配置中心修复与增强
+- ✅ 修复 standalone 版本模型列表坏格式（61 个 provider 引号混用导致 JS 解析断裂）
+- ✅ 删除后端配置服务器中失效的在线 catalog 模板占位符（no-op 死代码）
+- ✅ 修复保存配置时 default 模型字段前缀丢失（nous / xiaomi-token-plan 等路由错误）
+- ✅ 配置中心图标库补全为 72 个真实品牌 SVG（原仅 32 个，50 个 provider 无图标）
+- ✅ 保存 / 启动按钮反馈改为瞬时闪光态（flash-ok / flash-err），既明显又不卡操作
+- ✅ 同厂商多入口加区分标签（中转 / 代码 / 北京 / 海外 / TokenHub 等），选择区更清晰
+- ✅ 修复首次运行引导每次刷新都弹出的问题（改为按真实配置判断首次运行状态）
+- ✅ 修复模型预览重复前缀（如 `xiaomi/xiaomi/mimo-v2.5-pro` → `xiaomi/mimo-v2.5-pro`）
+- ✅ 查看 .env 改为页内弹窗，不再依赖浏览器弹窗权限
+- ✅ 修复测试连接功能：修正 Xiaomi 错误域名，覆盖全部 74 个 provider（原仅 18 个可测）
+- ✅ 移除 DeepSeek 已退役别名 `deepseek-chat` / `deepseek-reasoner`（2026-07-24 retired）
+
+### 配置同步上游
+- 同步 Hermes Agent 上游新增可配置能力（provider 插件、config schema 开关），详见本期审查
+
+## 📦 文件结构
+
+```
+HermesPortable-Universal.zip
+├── Hermes.command          # macOS 启动器
+├── Hermes.bat              # Windows 启动器
+├── lib/
+│   ├── config_server.py    # 配置服务器
+│   ├── config/
+│   │   ├── index.html      # 配置中心前端
+│   │   └── index-standalone.html  # 自包含版
+│   └── fix_shims.py        # 修复脚本
+├── tools/
+│   └── build.py            # 构建脚本
+├── data/
+│   ├── .env                # API Keys
+│   ├── config.yaml         # 模型配置
+│   └── runtime.json        # 运行时信息
+└── VERSION                 # 版本号
+```
+
+## 🔧 技术改进
+
+### 配置中心
+- 真实品牌图标（icons/ 72 个 SVG）
+- 设计 Token 系统 + 统一排版
+- 移动端响应式
+- 首次运行引导按真实配置判断，不再每次刷新弹出
+
+### 启动流程
+- PYTHONHOME 检测优化
+- fix_shims.py 修复
+- Watchdog 自动重启
+- Token 认证支持
+
+---
+
 # Hermes Portable v0.24.1 发版说明
 
 ## 🎉 主要更新
