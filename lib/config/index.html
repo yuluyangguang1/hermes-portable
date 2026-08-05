@@ -1970,14 +1970,24 @@ function viewEnv() {
   fetch('/api/config').then(r => r.json()).then(data => {
     const env = data.env || {};
     const lines = Object.keys(env).map(k => k + '=' + (env[k].length > 20 ? env[k].slice(0,8)+'...'+env[k].slice(-4) : env[k]));
-    const w = window.open('', '_blank');
-    if (w) {
-      w.document.write('<pre style="font-family:monospace;padding:20px;background:#170d02;color:#f5f5f5;font-size:13px;line-height:1.6;">'+lines.join('\n')+'</pre>');
-      w.document.title = 'Hermes .env';
-    } else {
-      toast('请允许弹窗', 'error');
+    let modal = document.getElementById('envModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'envModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:8000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);';
+      document.body.appendChild(modal);
     }
-  });
+    modal.innerHTML = `
+      <div style="background:var(--bg,#170d02);border:1px solid var(--border,#3a3327);border-radius:10px;padding:18px 20px;max-width:90vw;width:560px;box-shadow:0 12px 40px rgba(0,0,0,0.5);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:12px;color:var(--emerald,#9bbc00);letter-spacing:0.06em;">Hermes .env</span>
+          <button type="button" class="btn" style="padding:4px 10px;font-size:11px;" onclick="document.getElementById('envModal').style.display='none'">关闭</button>
+        </div>
+        <pre style="font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg,#f5f5f5);background:rgba(0,0,0,0.25);border-radius:6px;padding:12px;overflow:auto;max-height:60vh;margin:0;white-space:pre-wrap;word-break:break-all;">${lines.join('\n') || '(暂无已配置的 API Key)'}</pre>
+      </div>`;
+    modal.style.display = 'flex';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+  }).catch(() => { toast('读取配置失败', 'error'); });
 }
 
 function resetConfig() {
