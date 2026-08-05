@@ -475,9 +475,17 @@
     color: var(--accent);
     background: var(--hover-strong, var(--hover));
   }
+  .btn {
+    transition: background 0.15s ease, transform 0.08s ease, opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
   .btn:active {
     transform: scale(0.97);
     background: var(--border);
+  }
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
   }
   .btn.destructive {
     color: var(--danger, #ff6b6b);
@@ -1168,7 +1176,7 @@ select:focus-visible {
     </div>
 
     <div class="actions">
-      <button type="button" class="btn btn-save" onclick="saveConfig()">保存</button>
+      <button type="button" class="btn btn-save" id="saveBtn" onclick="saveConfig()">保存</button>
       <button type="button" class="btn" id="restartBtn" onclick="restartHermes()" style="display:none">重启 Hermes</button>
       <button type="button" class="btn primary btn-launch" id="launchBtn" onclick="launchHermes()">启动</button>
     </div>
@@ -1505,11 +1513,9 @@ function init() {
 }
 
 function renderProviders() {
-  // Map every provider id to an icon file. Ids without their own svg fall
-  // back to a sibling provider's icon so the provider grid stays visually
-  // consistent (no blank gaps). Direct-match ids (e.g. 'deepseek') resolve
-  // via the `iconMap[p.id] || p.id` fallback below.
-  const iconMap = {'dashscope':'qwen', 'xiaomi':'doubao', 'stepfun':'gemini', 'baidu':'gemini', 'tencent':'gemini', 'iflytek':'gemini', 'coze':'gemini', 'alibaba':'qwen', 'longcat':'gemini', 'zai':'zhipu', 'ark_agentplan':'doubao', 'byteplus':'doubao', 'doubao_seed':'doubao', 'bailing':'gemini', 'kat_coder':'gemini', 'bailian':'qwen', 'bailian_coding':'qwen', 'nvidia':'meta', 'novita':'meta', 'sambanova':'meta', 'cloudflare':'openrouter', 'siliconflow':'deepseek', 'deepinfra':'meta', 'gmi':'openrouter', 'kilocode':'openrouter', 'ai-gateway':'openrouter', 'arcee':'openrouter', 'modelscope':'openrouter', 'cherryin':'openrouter', 'therouter':'openrouter', 'copilot':'openai', 'amazon':'openai', 'glm':'zhipu', 'kimi-coding':'kimi', 'kimi-coding-cn':'kimi', 'minimax-cn':'minimax', 'alibaba-coding-plan':'qwen', 'xiaomi-token-plan':'doubao', 'tencent-tokenhub':'gemini', 'fun-codex':'openai', 'fun-claude':'claude', 'cliproxyapi':'openrouter', 'opencode-zen':'openrouter', 'opencode-go':'openrouter', 'claude-oauth':'claude', 'google-gemini-cli':'gemini', 'xai-oauth':'xai', 'openai-codex':'openai', 'custom':'openrouter', 'nous':'nousresearch'};
+  // Most provider ids match an /icons/{id}.svg file directly. Only the few
+  // providers without their own icon fall back to a sibling brand.
+  const iconMap = {'ark_agentplan':'doubao', 'byteplus':'doubao', 'doubao_seed':'doubao', 'bailing':'gemini', 'kat_coder':'gemini', 'bailian':'qwen', 'bailian_coding':'qwen', 'modelscope':'openrouter', 'cherryin':'openrouter', 'therouter':'openrouter', 'nous':'nousresearch', 'custom':'openrouter'};
   const g = document.getElementById('providerGrid');
   g.innerHTML = PROVIDERS.map(p => {
     const iconName = iconMap[p.id] || p.id;
@@ -1709,6 +1715,10 @@ function restoreConfig() {
 }
 
 function saveConfig() {
+  const saveBtn = document.getElementById('saveBtn');
+  const p = PROVIDERS.find(x => x.id === activeProvider);
+  if (p && !currentEnv[p.env]) { toast('请填写 ' + p.name + ' API Key', 'error'); return; }
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '保存中…'; }
   const sel = document.getElementById('modelSelect');
   const data = {
     env: currentEnv,
@@ -1724,18 +1734,19 @@ function saveConfig() {
     enabled_channels: enabledChannels,
     skin: 'default',
   };
-  const p = PROVIDERS.find(x => x.id === activeProvider);
-  if (p && !currentEnv[p.env]) { toast('请填写 ' + p.name + ' API Key', 'error'); return; }
-
   fetch('/api/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) })
     .then(r => r.json()).then(res => {
       if (res.success) { toast('已保存', 'success'); savedOnce = true; if(isFirstRun) updateStep(3); }
       else toast(res.error || '错误', 'error');
-    }).catch(() => toast('网络错误', 'error'));
+    })
+    .catch(() => toast('网络错误', 'error'))
+    .finally(() => { if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '保存'; } });
 }
 
 function launchHermes() {
   if (!savedOnce) { toast('请先保存配置', 'error'); return; }
+  const launchBtn = document.getElementById('launchBtn');
+  if (launchBtn) { launchBtn.disabled = true; launchBtn.textContent = '启动中…'; }
   fetch('/api/launch', { method:'POST' }).then(r => r.json()).then(res => {
     if (res.success) {
       toast('Hermes 已启动，可关闭此页', 'success');
@@ -1746,7 +1757,8 @@ function launchHermes() {
     } else {
       toast(res.error || '启动失败', 'error');
     }
-  }).catch(() => toast('网络错误', 'error'));
+  }).catch(() => toast('网络错误', 'error'))
+    .finally(() => { if (launchBtn) { launchBtn.disabled = false; launchBtn.textContent = '启动'; } });
 }
 
 function toast(msg, type) {
