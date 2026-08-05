@@ -1752,6 +1752,23 @@ function restoreConfig() {
         cs.style.color = 'var(--fg-muted,#9a968e)';
       }
     }
+    // Decide first-run state from the *actual* saved config rather than the
+    // hardcoded `isFirstRun = true`, so the onboarding overlay and launch
+    // lock don't re-appear on every page reload after the user has already
+    // configured the app.
+    const _hasSaved = (data.env && Object.keys(data.env).some(k => data.env[k])) ||
+                      (data.config && Object.keys(data.config).length > 0);
+    if (_hasSaved) {
+      isFirstRun = false;
+      dismissOnboarding();
+      const lb = document.getElementById('launchBtn');
+      if (lb) lb.disabled = false;
+    } else {
+      isFirstRun = true;
+      showOnboarding();
+      const lb = document.getElementById('launchBtn');
+      if (lb) lb.disabled = true;
+    }
   }).catch(() => {});
 }
 
