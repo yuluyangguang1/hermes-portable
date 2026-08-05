@@ -1825,7 +1825,7 @@ function testConnection() {
   fetch('/api/test', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({provider: activeProvider, api_key: key, model: ''})
+    body: JSON.stringify({provider: activeProvider, api_key: key, model: '', base: p.base || ''})
   }).then(r => r.json()).then(data => {
     if (data.success) {
       result.innerHTML = '<span style="color:var(--emerald)">✓ ' + (data.message || '连接成功') + '</span>';

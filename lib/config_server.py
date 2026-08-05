@@ -2324,9 +2324,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 "headers": {"x-goog-api-key": api_key},
             },
             "xiaomi": {
-                # Xiaomi MiMo uses api.xiaomimimo.com (NOT api.xiaoai.mi.com —
-                # that's Xiaomi's smart-home assistant, unrelated).
-                "url": "https://api.xiaomimimo.com/v1/models",
+                # Xiaomi MiMo official API endpoint.
+                "url": "https://api.xiaomi.com/v1/models",
                 "headers": {"Authorization": f"Bearer {api_key}"},
             },
             "nous": {
@@ -2396,7 +2395,17 @@ class ConfigHandler(SimpleHTTPRequestHandler):
 
         cfg = PROVIDER_CONFIGS.get(provider_id)
         if not cfg:
-            return {"success": False, "error": f"Unknown provider: {provider_id}"}
+            # Fall back to the provider's base URL supplied by the frontend
+            # (from its PROVIDERS definition) so every provider with a known
+            # base is testable, not just the 18 hard-coded entries above.
+            base = (data.get("base") or "").rstrip("/")
+            if base:
+                cfg = {
+                    "url": base + "/models",
+                    "headers": {"Authorization": f"Bearer {api_key}"},
+                }
+            else:
+                return {"success": False, "error": f"Unknown provider: {provider_id}"}
         if not cfg.get("url"):
             return {"success": False, "error": "Missing base URL for custom provider"}
 
