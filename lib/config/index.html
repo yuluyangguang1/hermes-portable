@@ -1100,7 +1100,7 @@ select:focus-visible {
         </div>
         <div class="field">
           <label>默认模型</label>
-          <select id="modelSelect"></select>
+          <span id="modelSelectHost"><select id="modelSelect"></select></span>
           <div class="model-preview" id="modelPreview">current: —</div>
           <div id="catalogStatus" style="margin-top:4px;font-family:var(--font-mono);font-size:9px;color:var(--fg-muted,#9a968e);letter-spacing:0.04em;display:none"></div>
         </div>
@@ -1297,7 +1297,10 @@ const PROVIDERS = [
   {id:'openai-codex',name:'OpenAI Codex',tags:[],desc:'',base:'',models:['gpt-5.5','gpt-5.4','gpt-5.3-codex'],link:''},
   {id:'upstage',name:'Upstage Solar',tags:['kr'],desc:'韩国 Solar 推理模型',base:'https://api.upstage.ai/v1',models:['solar-pro3','solar-pro2','solar-mini','solar-pro','syn-pro','solar-embedding-1'],link:''},
   {id:'qwen-oauth',name:'Qwen Portal (OAuth)',tags:['cn'],desc:'通义千问 OAuth 门户',base:'https://portal.qwen.ai/v1',models:['qwen-max','qwen-plus','qwen-turbo','qwen-long','qwen3-coder-plus','qwen2.5-72b-instruct'],link:''},
-  {id:'custom',name:'自定义 / 中转站',tags:[],desc:'自定义/中转站',base:'',models:[],link:''},
+  {id:'custom',name:'自定义 / 中转站',tags:[],desc:'自定义/中转站',base:'',base_url_env:'CUSTOM_BASE_URL',models:[],link:''},
+  {id:'bedrock',name:'AWS Bedrock',tags:[],desc:'AWS SDK 凭证',base:'',base_url_env:'BEDROCK_BASE_URL',extra_fields:[{key:'AWS_ACCESS_KEY_ID',label:'AWS Access Key ID',type:'text'},{key:'AWS_SECRET_ACCESS_KEY',label:'AWS Secret Access Key',type:'password'},{key:'AWS_REGION',label:'AWS Region',type:'text'}],models:[],link:''},
+  {id:'vertex',name:'Google Vertex AI',tags:[],desc:'OAuth2 服务账号',base:'',base_url_env:'VERTEX_BASE_URL',extra_fields:[{key:'GOOGLE_CLIENT_EMAIL',label:'Service Account Email',type:'text'},{key:'GOOGLE_PRIVATE_KEY',label:'Service Account Private Key',type:'password'},{key:'GOOGLE_PROJECT_ID',label:'GCP Project ID',type:'text'}],models:[],link:''},
+  {id:'azure-foundry',name:'Azure Foundry',tags:[],desc:'Azure AI Foundry',base:'',base_url_env:'AZURE_FOUNDRY_BASE_URL',models:[],link:''},
 ];
 
 
@@ -1528,8 +1531,6 @@ function updateStep(step) {
 
 function init() {
   renderProviders();
-  renderApiKeySection();
-  updateModelSelect();
   renderChannels();
   restoreConfig();
   // First run: show onboarding, disable launch
@@ -1542,7 +1543,7 @@ function init() {
 function renderProviders() {
   // Most provider ids match an /icons/{id}.svg file directly. Only the few
   // providers without their own icon fall back to a sibling brand.
-  const iconMap = {'ark_agentplan':'doubao', 'byteplus':'doubao', 'doubao_seed':'doubao', 'bailing':'gemini', 'kat_coder':'gemini', 'bailian':'qwen', 'bailian_coding':'qwen', 'modelscope':'openrouter', 'cherryin':'openrouter', 'therouter':'openrouter', 'nous':'nousresearch', 'qwen-oauth':'qwen', 'custom':'openrouter'};
+  const iconMap = {'ark_agentplan':'doubao', 'byteplus':'doubao', 'doubao_seed':'doubao', 'bailing':'gemini', 'kat_coder':'gemini', 'bailian':'qwen', 'bailian_coding':'qwen', 'modelscope':'openrouter', 'cherryin':'openrouter', 'therouter':'openrouter', 'nous':'nousresearch', 'qwen-oauth':'qwen', 'custom':'openrouter', 'bedrock':'amazon', 'vertex':'google', 'upstage':'ai-gateway', 'azure-foundry':'azure'};
   // Distinguishing tags for sibling entries of the same vendor so multi-entry
   // providers (e.g. 直连 vs 中转, 北京 vs 海外) are easy to tell apart.
   const providerTags = {
@@ -1574,13 +1575,39 @@ function renderApiKeySection() {
   const p = PROVIDERS.find(x => x.id === activeProvider);
   if (!p) return;
   const hasKey = currentEnv[p.env] && currentEnv[p.env].length > 0;
-  s.innerHTML = `<div class="field">
+  // base_url / extra fields only for providers that declare them
+  const bue = p.base_url_env;
+  const baseVal = bue ? (currentEnv[bue] || '') : '';
+  let extraHtml = '';
+  if (bue) {
+    extraHtml += `<div class="field" style="margin-top:8px">
+      <label>Base URL (自定义端点)</label>
+      <input type="text" id="baseUrl_${bue}" placeholder="https://your-endpoint.example.com/v1"
+             value="${escapeHtml(baseVal)}"
+             oninput="currentEnv['${bue}']=this.value; if(!this.value) delete currentEnv['${bue}'];">
+    </div>`;
+  }
+  for (const ef of (p.extra_fields || [])) {
+    const ev = currentEnv[ef.key] || '';
+    extraHtml += `<div class="field" style="margin-top:8px">
+      <label>${ef.label}</label>
+      <input type="${ef.type || 'text'}" id="extra_${ef.key}" placeholder="${ef.placeholder || ''}"
+             value="${escapeHtml(ev)}"
+             oninput="currentEnv['${ef.key}']=this.value; if(!this.value) delete currentEnv['${ef.key}'];">
+    </div>`;
+  }
+  s.innerHTML = (p.env ? `<div class="field">
     <label>${p.name} API Key</label>
     <div class="api-key-row">
       <input type="password" id="apiKey_${p.env}" placeholder="粘贴你的 ${p.name} API Key"
              value="${hasKey ? escapeHtml(currentEnv[p.env]) : ''}" oninput="updateKeyStatus(this,'${p.env}')">
       <div class="api-status ${hasKey?'set':''}" id="status_${p.env}"></div>
-    </div></div>
+    </div></div>` : `<div class="field">
+    <label>${p.name} 凭证</label>
+    <div style="font-size:10px;color:var(--fg-muted,#9a968e);line-height:1.5">
+      该 provider 使用下方字段配置的凭证 / 端点，无需 API Key。
+    </div></div>`) + `
+    ${extraHtml}
     <div style="margin-top:8px">
       <button type="button" class="btn btn-save" style="width:100%;padding:8px;font-size:10px" onclick="testConnection()">
         测试连接
@@ -1596,9 +1623,40 @@ function updateKeyStatus(input, envKey) {
 }
 
 function updateModelSelect() {
-  const sel = document.getElementById('modelSelect');
   const p = PROVIDERS.find(x => x.id === activeProvider);
   if (!p) return;
+  let sel = document.getElementById('modelSelect');
+  if (!p.models || p.models.length === 0) {
+    // #4: providers without a static model list (custom / bedrock / vertex /
+    // azure-foundry) let the user type a model name directly. If the element is
+    // currently a <select> (we previously swapped it for an <input> and the
+    // user switched back), restore the <input> first.
+    if (!sel || sel.tagName !== 'INPUT') {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.id = 'modelSelect';
+      input.className = 'model-input';
+      input.placeholder = '手动填写模型名（如 anthropic.claude-v1 / gpt-5.5）';
+      input.value = currentEnv['__model_' + p.id] || '';
+      input.setAttribute('oninput', "currentEnv['__model_' + '" + p.id + "']=this.value; updateModelPreview()");
+      if (sel) sel.outerHTML = ''; // remove old select
+      const host = document.getElementById('modelSelectHost');
+      if (host) host.appendChild(input);
+      sel = input;
+    }
+    updateModelPreview();
+    return;
+  }
+  // Provider has models: ensure the element is a <select> (not a leftover
+  // <input> from a previous provider), then populate options.
+  if (!sel || sel.tagName !== 'SELECT') {
+    const select = document.createElement('select');
+    select.id = 'modelSelect';
+    const host = document.getElementById('modelSelectHost');
+    if (sel) sel.outerHTML = '';
+    if (host) host.appendChild(select);
+    sel = select;
+  }
   sel.innerHTML = p.models.map(m => `<option value="${m}">${m}</option>`).join('');
   updateModelPreview(); sel.onchange = updateModelPreview;
 }
@@ -1716,6 +1774,29 @@ function updateChannelStatus(chId) {
 
 function restoreConfig() {
   fetch('/api/config').then(r => r.json()).then(data => {
+    // #3: inject env/base_url_env/extra_fields from the backend PROVIDERS so the
+    // frontend never renders a "ghost" apiKey_undefined box (the frontend
+    // PROVIDERS list omits `env`). This keeps the two lists in sync without
+    // duplicating 79 entries by hand.
+    if (Array.isArray(data.providers)) {
+      const byId = {};
+      for (const bp of data.providers) byId[bp.id] = bp;
+      for (const fp of PROVIDERS) {
+        const bp = byId[fp.id];
+        if (bp) {
+          if (bp.env) fp.env = bp.env;
+          if (bp.base_url_env) fp.base_url_env = bp.base_url_env;
+          if (bp.extra_fields) fp.extra_fields = bp.extra_fields;
+        }
+      }
+    }
+    // Ensure there's an active provider so the API-key section renders even on
+    // first run (init() no longer does the initial render — it waits for this
+    // fetch to inject backend env fields first).
+    if (!activeProvider && Array.isArray(data.providers) && data.providers.length) {
+      activeProvider = data.providers[0].id;
+    }
+    if (!activeProvider) activeProvider = 'openrouter';
     const cfg = data.config || {};
     if (cfg.agent) document.getElementById('maxTurns').value = cfg.agent.max_turns || 90;
     if (cfg.terminal) document.getElementById('timeout').value = cfg.terminal.timeout || 180;
@@ -1730,8 +1811,13 @@ function restoreConfig() {
       const provider = cfg.model.provider || 'openrouter';
       selectProvider(provider);
       const sel = document.getElementById('modelSelect');
-      for (let opt of sel.options) {
-        if (opt.value === full || full.endsWith(opt.value)) { opt.selected = true; break; }
+      if (sel && sel.tagName === 'SELECT' && sel.options) {
+        for (let opt of sel.options) {
+          if (opt.value === full || full.endsWith(opt.value)) { opt.selected = true; break; }
+        }
+      } else if (sel && sel.tagName === 'INPUT') {
+        // Provider without a static model list: the value is the full model id.
+        sel.value = (currentEnv['__model_' + provider] || full.split('/').slice(1).join('/') || full);
       }
       updateModelPreview();
     }
@@ -1740,6 +1826,20 @@ function restoreConfig() {
     // the `!savedOnce` guard in launchHermes() on every page reload).
     const _ap = PROVIDERS.find(x => x.id === activeProvider);
     if (_ap && data.env && data.env[_ap.env]) { savedOnce = true; }
+    // Refill currentEnv from the server-side .env so any field the UI
+    // renders (API keys, channel tokens, per-provider base_url / AWS /
+    // GCP creds) is restored and survives a save round-trip instead of
+    // being clobbered by an empty in-browser mirror.
+    if (data.env) {
+      for (const k of Object.keys(data.env)) {
+        if (data.env[k]) currentEnv[k] = data.env[k];
+      }
+    }
+    // Re-render the API-key / base_url section now that currentEnv has
+    // been repopulated from the server — otherwise the inputs stay blank
+    // (renderApiKeySection ran in init() before this fetch resolved) and a
+    // subsequent save would push empty values back and wipe data/.env.
+    renderApiKeySection();
     if (cfg.gateway && cfg.gateway.platforms) {
       enabledChannels = Object.keys(cfg.gateway.platforms).filter(k => cfg.gateway.platforms[k].enabled);
       renderChannels();
@@ -1776,17 +1876,37 @@ function restoreConfig() {
       const lb = document.getElementById('launchBtn');
       if (lb) lb.disabled = true;
     }
-  }).catch(() => {});
+  }).catch((err) => {
+    // #10: never silently swallow a failed load. If /api/config fails, currentEnv
+    // stays empty — saving now would wipe data/.env. Disable the save button and
+    // tell the user instead of letting a later save overwrite their config.
+    console.error('restoreConfig failed:', err);
+    const sb = document.getElementById('saveBtn');
+    if (sb) { sb.disabled = true; sb.title = '加载配置失败，请刷新页面'; }
+    toast('加载配置失败，请刷新页面', 'error');
+    // Still render the (empty) API-key section so the UI is usable after refresh.
+    renderApiKeySection();
+  });
 }
 
 function saveConfig() {
   const p = PROVIDERS.find(x => x.id === activeProvider);
-  if (p && !currentEnv[p.env]) { toast('请填写 ' + p.name + ' API Key', 'error'); return; }
+  // Providers without an api-key env (bedrock / vertex use AWS / OAuth2
+  // creds instead) are allowed to save even without an API key; others
+  // still require one.
+  if (p && p.env && !currentEnv[p.env]) { toast('请填写 ' + p.name + ' API Key', 'error'); return; }
   const sel = document.getElementById('modelSelect');
+  // #4: providers without a static model list use a free-text model name input;
+  // require a non-empty model name so we never write an invalid "provider/" config.
+  const modelName = (sel ? sel.value : '') || currentEnv['__model_' + activeProvider] || '';
+  if (!modelName.trim()) {
+    toast('请填写模型名（如 anthropic.claude-v1）', 'error');
+    return;
+  }
   const data = {
     env: currentEnv,
     model_provider: activeProvider,
-    model_name: sel.value,
+    model_name: modelName,
     max_turns: parseInt(document.getElementById('maxTurns').value),
     timeout: parseInt(document.getElementById('timeout').value),
     compression: document.getElementById('compression').checked,
@@ -1837,19 +1957,31 @@ function testConnection() {
   const p = PROVIDERS.find(x => x.id === activeProvider);
   if (!p) return;
   const keyInput = document.getElementById('apiKey_' + p.env);
-  const key = keyInput ? keyInput.value : '';
-  if (!key || key.length < 10) {
-    toast('请先填写 API Key', 'error');
+  const key = (keyInput ? keyInput.value : '').trim();
+  // A configured base_url (custom / bedrock / vertex / azure-foundry)
+  // is itself enough to attempt a test even without an api key.
+  const bue = p.base_url_env;
+  const baseInput = bue ? document.getElementById('baseUrl_' + bue) : null;
+  let baseUrl = baseInput ? baseInput.value.trim() : '';
+  // #2/#12: reject schemes other than http(s) and require a host before
+  // sending anything to /api/test (which would otherwise connect anywhere).
+  if (baseUrl && !/^https?:\/\/[^/\s:]+(:\d+)?(\/.*)?$/i.test(baseUrl)) {
+    toast('Base URL 需为 http(s):// 开头的有效地址', 'error');
+    return;
+  }
+  if (!key && !baseUrl) {
+    toast('请先填写 API Key 或 Base URL', 'error');
     return;
   }
   const result = document.getElementById('testResult');
   result.style.display = 'block';
   result.innerHTML = '<span style="color:var(--warning)">正在测试...</span>';
+  const modelName = (document.getElementById('modelSelect') || {}).value || currentEnv['__model_' + activeProvider] || '';
 
   fetch('/api/test', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({provider: activeProvider, api_key: key, model: '', base: p.base || ''})
+    body: JSON.stringify({provider: activeProvider, api_key: key, model: modelName, base: p.base || '', base_url: baseUrl})
   }).then(r => r.json()).then(data => {
     if (data.success) {
       result.innerHTML = '<span style="color:var(--emerald)">✓ ' + (data.message || '连接成功') + '</span>';

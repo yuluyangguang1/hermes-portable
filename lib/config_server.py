@@ -567,6 +567,31 @@ PROVIDERS = [
      "base_url_env": "CUSTOM_BASE_URL",
      "custom_model": True,
      "models": ["gpt-5.5","gpt-5.5-pro","claude-opus-4-7","claude-sonnet-4-6","gemini-3.1-pro-preview","deepseek-v4-pro","grok-4.3","kimi-k2.6"]},
+    {"id": "bedrock",     "name": "AWS Bedrock",     "env": "",
+     "base_url_env": "BEDROCK_BASE_URL",
+     "extra_fields": [
+         {"key": "AWS_ACCESS_KEY_ID", "label": "AWS Access Key ID", "type": "text"},
+         {"key": "AWS_SECRET_ACCESS_KEY", "label": "AWS Secret Access Key", "type": "password"},
+         {"key": "AWS_REGION", "label": "AWS Region", "type": "text", "placeholder": "us-east-1"},
+     ],
+     "models": [],
+     "key_hint": "AWS 凭证 (无需 API Key)", "note": "AWS SDK 凭证，base_url 运行时计算",
+     "tags": []},
+    {"id": "vertex",      "name": "Google Vertex AI", "env": "",
+     "base_url_env": "VERTEX_BASE_URL",
+     "extra_fields": [
+         {"key": "GOOGLE_CLIENT_EMAIL", "label": "Service Account Email", "type": "text"},
+         {"key": "GOOGLE_PRIVATE_KEY", "label": "Service Account Private Key", "type": "password"},
+         {"key": "GOOGLE_PROJECT_ID", "label": "GCP Project ID", "type": "text"},
+     ],
+     "models": [],
+     "key_hint": "OAuth2 服务账号 (无需 API Key)", "note": "OAuth2 服务账号，base_url 运行时计算",
+     "tags": []},
+    {"id": "azure-foundry", "name": "Azure Foundry", "env": "AZURE_FOUNDRY_API_KEY",
+     "base_url_env": "AZURE_FOUNDRY_BASE_URL",
+     "models": [],
+     "key_hint": "粘贴 Azure Foundry API Key", "note": "Azure AI Foundry，base 运行时填",
+     "tags": []},
     {"id": "ark_agentplan", "name": "火山 Agentplan",  "env": "ARK_AGENTPLAN_API_KEY", "models": ["ark-code-latest"]},
     {"id": "byteplus",      "name": "BytePlus",         "env": "BYTEPLUS_API_KEY",      "models": ["ark-code-latest"]},
     {"id": "doubao_seed",   "name": "DouBao Seed",      "env": "DOUBAO_SEED_API_KEY",   "models": ["doubao-seed-2-1-pro-260628"]},
@@ -879,6 +904,60 @@ def _is_local_origin(origin: str) -> bool:
         return False
 
 
+def _is_same_origin(origin: str) -> bool:
+    """Strict same-origin check for write-API CSRF protection.
+
+    `_is_local_origin` only validates the hostname. For write endpoints we
+    additionally require the port to match the server port, so a page served
+    from a *different* local port (or any cross-site page) is rejected. The
+    frontend's fetch Origin is exactly `http://127.0.0.1:<actual_port>`, which
+    passes; a malicious `http://attacker.example.com` or even a stray local
+    `http://127.0.0.1:9999` page does not.
+    """
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(origin)
+        if parsed.hostname not in ('127.0.0.1', 'localhost', '::1'):
+            return False
+        if parsed.scheme not in ('http', 'https'):
+            return False
+        return parsed.port == actual_port
+    except Exception:
+        return False
+
+
+import ipaddress
+def _is_blocked_test_ip(host: str) -> bool:
+    """Reject hosts that resolve to a non-public IP for /api/test.
+
+    Prevents the Test button from being used as an SSRF vector against
+    loopback (127.0.0.1/::1), link-local cloud metadata (169.254.0.0/16),
+    RFC1918 private ranges, or multicast. The caller passes the hostname
+    extracted from the user-supplied base_url; we resolve it (DNS rebinding
+    is mitigated only insofar as we check the resolution result here — a
+    TTL=0 rebinding attack would need connection-time pinning, which is a
+    follow-up hardening) and block any non-global IP.
+    """
+    try:
+        import socket
+        infos = socket.getaddrinfo(host, None)
+        for info in infos:
+            ip = info[4][0]
+            try:
+                addr = ipaddress.ip_address(ip)
+            except ValueError:
+                # Unparseable — treat as blocked (fail closed).
+                return True
+            if (addr.is_loopback or addr.is_link_local \
+               or addr.is_multicast or addr.is_reserved or addr.is_unspecified \
+               or (not addr.is_global and addr.is_private)):
+                return True
+        return False
+    except Exception:
+        # DNS failure / unexpected — fail closed.
+        return True
+
+
 def _sanitize_env_value(v):
     """清理环境变量值：去除换行符防止破坏 .env 格式。"""
     if v is None:
@@ -903,9 +982,13 @@ def _known_env_keys():
     """
     keys = set()
     for p in PROVIDERS:
-        keys.add(p["env"])
+        if p.get("env"):
+            keys.add(p["env"])
         if p.get("base_url_env"):
             keys.add(p["base_url_env"])
+        for ef in p.get("extra_fields", []):
+            if ef.get("key"):
+                keys.add(ef["key"])
     for ch in CHANNELS:
         for field in ch.get("fields", []):
             keys.add(field["key"])
@@ -931,12 +1014,32 @@ def _save_config_locked(data):
     lines.append("")
     lines.append("# ── LLM Provider API Keys ──")
     for p in PROVIDERS:
-        val = data.get("env", {}).get(p["env"], "")
-        if val:
-            val = _sanitize_env_value(val)
-            lines.append(f"{p['env']}={val}")
-        else:
-            lines.append(f"# {p['env']}=")
+        env_key = p.get("env")
+        if env_key:
+            val = data.get("env", {}).get(env_key, "")
+            if val:
+                val = _sanitize_env_value(val)
+                lines.append(f"{env_key}={val}")
+            else:
+                lines.append(f"# {env_key}=")
+        # per-provider custom base URL (e.g. CUSTOM_BASE_URL, BEDROCK_BASE_URL)
+        bue = p.get("base_url_env")
+        if bue:
+            bv = data.get("env", {}).get(bue, "")
+            if bv:
+                lines.append(f"{bue}={_sanitize_env_value(bv)}")
+            else:
+                lines.append(f"# {bue}=")
+        # extra provider-specific env fields (e.g. AWS creds for bedrock)
+        for ef in p.get("extra_fields", []):
+            ek = ef.get("key")
+            if not ek:
+                continue
+            ev = data.get("env", {}).get(ek, "")
+            if ev:
+                lines.append(f"{ek}={_sanitize_env_value(ev)}")
+            else:
+                lines.append(f"# {ek}=")
     lines.append("")
     lines.append("# ── Messaging Channel Tokens ──")
     for ch in CHANNELS:
@@ -997,7 +1100,12 @@ def _save_config_locked(data):
     # `upstream_id` keeps the exact model string the user picked (may itself
     # contain "/", e.g. "anthropic/claude-fable-5") so callers that need the
     # literal upstream model id can read it directly without re-parsing.
-    default_model = f"{provider}/{model_name}"
+    default_model = f"{provider}/{model_name}" if model_name else None
+    # #4: never write an invalid "provider/" (empty model) config — the frontend
+    # already requires a model name for providers without a static list, but
+    # reject defensively here so a direct /api/save can't produce a broken config.
+    if not model_name:
+        raise ValueError("model_name is required (provider has no static model list)")
     cfg = {
         "model": {
             "default": default_model,
@@ -1581,6 +1689,30 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 pass
 
     def _dispatch_post(self):
+        # CSRF / 写接口防护:
+        # 1) 要求 Content-Type 为 application/json,挡掉 <form enctype=text/plain>
+        #    构造 JSON 体绕过预检的跨站盲打(POST 简单请求无预检,但 form 不
+        #    能设 Content-Type 为 application/json,故强制该头即可阻断)。
+        # 2) 要求 Origin 为本机同源(127.0.0.1/localhost + 同端口),挡掉恶意网页
+        #    跨站调用。读接口(/api/bootstrap 已单独校验)不在此限。
+        # 注意:更彻底的方案是校验 Authorization: Bearer <SERVER_TOKEN>(token
+        # 已通过 /api/bootstrap 下发),但现有前端未携带该头,强行要求会令 UI
+        # 全废;本轮以 Origin 同源 + Content-Type 强制达成"挡跨站盲打"止血,
+        # 完整 Bearer 方案留待下轮前后端协同改造。
+        ctype = self.headers.get("Content-Type", "")
+        has_body = (int(self.headers.get("Content-Length", 0)) or 0) > 0
+        # Require a JSON content-type only when the request carries a body.
+        # Endpoints like /api/launch / /api/restart / /api/reset have no body
+        # and the frontend issues them without a Content-Type header; rejecting
+        # them with 415 would break the "Start Hermes" button. The CSRF defense
+        # rests primarily on the strict same-origin check below.
+        if has_body and not ctype.startswith("application/json"):
+            self._json_response({"success": False, "error": "unsupported media type"}, 415)
+            return
+        origin = self.headers.get("Origin")
+        if origin and not _is_same_origin(origin):
+            self._json_response({"success": False, "error": "forbidden origin"}, 403)
+            return
         body = self.rfile.read(min(int(self.headers.get("Content-Length", 0)), 1_000_000))
         if self.path == "/api/save":
             try:
@@ -2300,7 +2432,10 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         api_key = data.get("api_key", "")
         model = data.get("model", "")
 
-        if not api_key:
+        # A user-supplied base_url (custom / bedrock / vertex / azure-foundry
+        # style providers) is itself enough to attempt a connection test even
+        # when no api_key is configured (e.g. AWS SDK / OAuth2 flows).
+        if not api_key and not data.get("base_url"):
             return {"success": False, "error": "No API key provided"}
 
         # Provider-specific test endpoints
@@ -2394,10 +2529,14 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 "method": "POST",
                 "body": json.dumps({"model": model or "sonar", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}).encode(),
             },
-            # Custom / proxy gateway — caller supplies base_url; if not provided, fail clearly
+            # Custom / proxy gateway — caller supplies base_url; if not provided, fail clearly.
+            # NOTE: Do NOT pre-set an Authorization header here. When a custom
+            # base_url is present the caller is an arbitrary endpoint and we must
+            # not leak the API key to it; the Authorization header is added only
+            # at request time when there is NO custom base_url (see below).
             "custom": {
                 "url": (data.get("base_url") or "").rstrip("/") + "/models" if data.get("base_url") else "",
-                "headers": {"Authorization": f"Bearer {api_key}"},
+                "headers": {},
             },
         }
 
@@ -2406,11 +2545,16 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             # Fall back to the provider's base URL supplied by the frontend
             # (from its PROVIDERS definition) so every provider with a known
             # base is testable, not just the 18 hard-coded entries above.
-            base = (data.get("base") or "").rstrip("/")
+            # Prefer an explicit user-supplied base_url (custom / bedrock /
+            # vertex / azure-foundry), then the static base from PROVIDERS.
+            base = (data.get("base_url") or data.get("base") or "").rstrip("/")
             if base:
+                # No Authorization here — see custom branch note; it's added
+                # only when there is no custom base_url (an attacker-controlled
+                # endpoint must not receive the user's key).
                 cfg = {
                     "url": base + "/models",
-                    "headers": {"Authorization": f"Bearer {api_key}"},
+                    "headers": {},
                 }
             else:
                 return {"success": False, "error": f"Unknown provider: {provider_id}"}
@@ -2434,29 +2578,67 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 "error": f"Refusing non-http(s) URL scheme: {scheme!r}",
             }
 
+        # Host / IP guard for user-supplied base_url: refuse to connect to
+        # loopback / link-local (cloud metadata) / private / multicast ranges.
+        # Without this, /api/test is a read-type SSRF: a malicious or careless
+        # base_url (e.g. http://169.254.169.254/...) would let the server fetch
+        # internal resources and the response body is echoed back to the caller.
+        try:
+            from urllib.parse import urlsplit
+            _host = urlsplit(cfg["url"]).hostname or ""
+        except Exception:
+            _host = ""
+        if _host and _is_blocked_test_ip(_host):
+            return {"success": False, "error": "Refusing connection to non-public host"}
+
         try:
             method = cfg.get("method", "GET")
+            # Only forward the user's API key to hosts we control / know about.
+            # For user-supplied base_url (custom / bedrock / vertex / etc.) we
+            # must NOT send `Authorization: Bearer <api_key>` to an arbitrary
+            # attacker-owned endpoint — that would leak the key. We send the
+            # key only when there is NO custom base_url (i.e. a built-in
+            # provider whose url is hardcoded to a known-good domain).
+            req_headers = {"User-Agent": "HermesPortable/1.0"}
+            if not data.get("base_url") and api_key:
+                req_headers["Authorization"] = f"Bearer {api_key}"
             req = urllib.request.Request(
                 cfg["url"],
-                headers={**cfg["headers"], "User-Agent": "HermesPortable/1.0"},
+                headers={**cfg["headers"], **req_headers},
                 method=method,
             )
             if "body" in cfg:
                 req.data = cfg["body"]
 
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            # NoRedirect handler: urllib follows 30x by default, which would let
+            # a public URL 302 to an internal one (and bypass the IP guard on
+            # the *initial* URL). Reject redirects so every hop is checked.
+            class _NoRedirect(urllib.request.HTTPRedirectHandler):
+                def redirect_request(self, req, fp, code, msg, headers, newurl):
+                    return None
+            opener = urllib.request.build_opener(_NoRedirect)
+            with opener.open(req, timeout=15) as resp:
                 status = resp.status
-                body = resp.read(2000).decode("utf-8", errors="replace")
+                # Per D#2: do NOT echo the response body back (it could contain
+                # secrets from an internal service). Only surface the status
+                # code and a model count derived from a local parse.
+                raw = resp.read(2000)
+                try:
+                    body_text = raw.decode("utf-8", errors="replace")
+                except Exception:
+                    body_text = ""
+                model_count = ""
+                if status >= 200 and status < 300:
+                    try:
+                        models_data = json.loads(body_text)
+                        if isinstance(models_data, dict) and "data" in models_data:
+                            model_count = f" ({len(models_data['data'])} models)"
+                    except Exception:
+                        pass
+                elif status in (301, 302, 303, 307, 308):
+                    return {"success": False, "error": f"HTTP {status}: redirects not allowed for test endpoint"}
 
             if status >= 200 and status < 300:
-                # Try to count available models
-                model_count = ""
-                try:
-                    models_data = json.loads(body)
-                    if isinstance(models_data, dict) and "data" in models_data:
-                        model_count = f" ({len(models_data['data'])} models)"
-                except Exception:
-                    pass
                 return {
                     "success": True,
                     "message": f"Connection OK{model_count}",
@@ -2466,14 +2648,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 return {"success": False, "error": f"HTTP {status}"}
 
         except urllib.error.HTTPError as e:
-            error_body = ""
-            try:
-                error_body = e.read(500).decode("utf-8", errors="replace")
-                err_json = json.loads(error_body)
-                error_body = err_json.get("error", {}).get("message", error_body[:200])
-            except Exception:
-                error_body = error_body[:200] if error_body else str(e)
-            return {"success": False, "error": f"HTTP {e.code}: {error_body}"}
+            # Don't echo upstream error bodies (may leak internal data).
+            return {"success": False, "error": f"HTTP {e.code}"}
         except Exception as e:
             return {"success": False, "error": str(e)[:200]}
 
