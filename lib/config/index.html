@@ -1043,12 +1043,14 @@ select:focus-visible {
   outline-offset: 2px;
 }
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" crossorigin />
 <style>
-  /* LXGW WenKai fallback for offline */
+  /* LXGW WenKai — bundled local subset (offline-safe, no CDN) */
   @font-face {
     font-family: 'LXGW WenKai';
-    src: local('LXGW WenKai'), local('LXGWWenKai-Regular');
+    src: url('/fonts/lxgw-wenkai-regular.woff2') format('woff2'),
+         local('LXGW WenKai'), local('LXGWWenKai-Regular');
+    font-weight: 400;
+    font-style: normal;
     font-display: swap;
   }
 

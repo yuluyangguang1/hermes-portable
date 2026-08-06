@@ -1645,6 +1645,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._serve_favicon()
         elif path_only.startswith("/icons/") and path_only.endswith(".svg"):
             self._serve_icon(path_only[7:])  # strip "/icons/"
+        elif path_only.startswith("/fonts/") and path_only.endswith(".woff2"):
+            self._serve_font(path_only[7:])  # strip "/fonts/"
         elif path_only == "/api/bootstrap":
             # Token endpoint (localhost only)
             origin = self.headers.get("Origin", "")
@@ -1820,6 +1822,23 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "public, max-age=86400")
             self.end_headers()
             self.wfile.write(icon_path.read_bytes())
+        else:
+            self.send_error(404)
+
+    def _serve_font(self, filename):
+        """Serve web font files (woff2) from the fonts/ directory."""
+        import re
+        # Security: only allow simple filenames (alphanumeric + hyphen + .woff2)
+        if not re.match(r'^[a-zA-Z0-9_-]+\.woff2$', filename):
+            self.send_error(400)
+            return
+        font_path = PORTABLE_ROOT / "fonts" / filename
+        if font_path.exists() and font_path.resolve().parent == (PORTABLE_ROOT / "fonts").resolve():
+            self.send_response(200)
+            self.send_header("Content-Type", "font/woff2")
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.end_headers()
+            self.wfile.write(font_path.read_bytes())
         else:
             self.send_error(404)
 
