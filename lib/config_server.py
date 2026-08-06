@@ -1647,6 +1647,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._serve_icon(path_only[7:])  # strip "/icons/"
         elif path_only.startswith("/fonts/") and path_only.endswith(".woff2"):
             self._serve_font(path_only[7:])  # strip "/fonts/"
+        elif path_only.startswith("/tabler/") and path_only.endswith(".css"):
+            self._serve_tabler_css(path_only[8:])  # strip "/tabler/"
         elif path_only == "/api/bootstrap":
             # Token endpoint (localhost only)
             origin = self.headers.get("Origin", "")
@@ -1839,6 +1841,22 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "public, max-age=86400")
             self.end_headers()
             self.wfile.write(font_path.read_bytes())
+        else:
+            self.send_error(404)
+
+    def _serve_tabler_css(self, filename):
+        """Serve the bundled Tabler icons webfont CSS from the tabler/ directory."""
+        import re
+        if not re.match(r'^[a-zA-Z0-9_.-]+\.css$', filename):
+            self.send_error(400)
+            return
+        css_path = PORTABLE_ROOT / "tabler" / filename
+        if css_path.exists() and css_path.resolve().parent == (PORTABLE_ROOT / "tabler").resolve():
+            self.send_response(200)
+            self.send_header("Content-Type", "text/css")
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.end_headers()
+            self.wfile.write(css_path.read_bytes())
         else:
             self.send_error(404)
 

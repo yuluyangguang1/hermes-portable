@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#edff45" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#edff45" media="(prefers-color-scheme: light)">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="stylesheet" href="/tabler/tabler-icons.min.css">
 <style>
   /* Google Fonts removed for China compatibility */
 
@@ -266,6 +266,32 @@
   @keyframes modalPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
   @media (prefers-reduced-motion: reduce) {
     .tab-panel.active, #envModal > div, #wechatModal > div { animation: none; }
+  }
+  /* Terminal-themed .env preview panel (audit #2: extend terminal motif) */
+  .env-term {
+    background: var(--bg, #170d02);
+    border: 1px solid var(--border, #3a3327);
+    border-radius: 10px;
+    width: 560px; max-width: 90vw;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .env-term-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border, #3a3327);
+    background: rgb(var(--mid-base) / 0.04);
+  }
+  .env-term-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+  .env-term-dot.r { background: #ff5f56; }
+  .env-term-dot.y { background: #ffbd2e; }
+  .env-term-dot.g { background: #27c93f; }
+  .env-term-title { font-family: var(--font-mono); font-size: 12px; color: var(--accent); letter-spacing: 0.06em; margin-left: 4px; }
+  .env-term-body {
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.6;
+    color: var(--fg, #f5f5f5);
+    padding: 14px 16px; overflow: auto; max-height: 60vh;
+    margin: 0; white-space: pre-wrap; word-break: break-all;
   }
 
   /* Provider grid */
@@ -678,7 +704,7 @@
   .y-label-xs { font-size: 0.6875rem; letter-spacing: 0.125rem; text-transform: uppercase; }
   .y-title { font-family: var(--font-serif); font-size: 2.625rem; font-weight: 700; line-height: 1.25; letter-spacing: 0.0525rem; }
   .y-display { font-family: var(--font-serif); font-size: 3.5rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; mix-blend-mode: plus-lighter; }
-  .y-sub { font-size: 1.125rem; line-height: 1.6; opacity: 0.6; }
+  .y-sub { font-size: 1.125rem; line-height: 1.6; color: var(--fg-muted); }
   .y-op-5 { opacity: 0.5; } .y-op-7 { opacity: 0.7; }
 
   @keyframes yblink { 0%,50% { opacity: 1; } 51%,100% { opacity: 0; } }
@@ -699,10 +725,10 @@
   .y-td:nth-child(1) { background: var(--fg); }
   .y-td:nth-child(2) { background: var(--fg); opacity: 0.6; }
   .y-td:nth-child(3) { background: var(--fg); opacity: 0.5; }
-  .y-term-label { margin-left: auto; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.1em; opacity: 0.5; }
+  .y-term-label { margin-left: auto; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.1em; color: var(--fg-muted); }
   .y-term-b { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.75; padding: 18px 16px; white-space: pre-wrap; min-height: 100px; word-break: break-word; text-align: left; }
   .y-term-b .p { color: var(--accent); }
-  .y-term-b .t { opacity: 0.6; }
+  .y-term-b .t { color: var(--fg-muted); }
 
   .y-footer { display: grid; grid-template-columns: 1fr 1fr 1fr; border: 1px solid var(--border); margin-top: 28px; border-radius: var(--radius-lg); overflow: hidden; }
   .y-footer .c { padding: var(--space-4); border-right: 1px solid var(--border); display: flex; align-items: center; justify-content: center; text-align: center; }
@@ -2303,12 +2329,13 @@ function viewEnv() {
       document.body.appendChild(modal);
     }
     modal.innerHTML = `
-      <div style="background:var(--bg,#170d02);border:1px solid var(--border,#3a3327);border-radius:10px;padding:18px 20px;max-width:90vw;width:560px;box-shadow:0 12px 40px rgba(0,0,0,0.5);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <span id="envModalTitle" style="font-size:12px;color:var(--emerald,#9bbc00);letter-spacing:0.06em;">Hermes .env</span>
-          <button type="button" id="envModalClose" class="btn" style="padding:4px 10px;font-size:11px;" onclick="document.getElementById('envModal').style.display='none'">关闭</button>
+      <div class="env-term">
+        <div class="env-term-bar">
+          <span class="env-term-dot r"></span><span class="env-term-dot y"></span><span class="env-term-dot g"></span>
+          <span id="envModalTitle" class="env-term-title">Hermes .env</span>
+          <button type="button" id="envModalClose" class="btn" style="margin-left:auto;padding:4px 10px;font-size:11px;" onclick="document.getElementById('envModal').style.display='none'">关闭</button>
         </div>
-        <pre style="font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg,#f5f5f5);background:rgba(0,0,0,0.25);border-radius:6px;padding:12px;overflow:auto;max-height:60vh;margin:0;white-space:pre-wrap;word-break:break-all;">${lines.join('\n') || '(暂无已配置的 API Key)'}</pre>
+        <pre class="env-term-body">${lines.join('\n') || '(暂无已配置的 API Key)'}</pre>
       </div>`;
     modal.style.display = 'flex';
     modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
