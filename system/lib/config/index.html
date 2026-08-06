@@ -184,7 +184,7 @@
     height: 72px;
     margin-bottom: 12px;
     filter: drop-shadow(0 0 12px rgba(255, 230, 203, 0.15));
-    transition: transform 0.4s ease;
+    transition: transform 0.3s ease-out;
   }
   .header .logo:hover {
     transform: scale(1.08) rotate(-3deg);
@@ -286,7 +286,7 @@
   .provider-btn.active {
     border-color: var(--emerald-dim);
     color: var(--emerald);
-    background: oklch(0.18 0.02 170);
+    background: rgb(var(--bg-base) / 0.6);
   }
   /* Distinguishing tag for sibling entries of the same vendor
      (e.g. 代码 / 海外 / 中转) so multi-entry providers are legible. */
@@ -303,7 +303,7 @@
   }
   .provider-btn.active .p-tag {
     color: var(--emerald);
-    background: oklch(0.25 0.02 170);
+    background: rgb(var(--bg-base) / 0.7);
   }
 
   /* Form elements */
@@ -440,7 +440,7 @@
     padding: 2px 8px;
     border-radius: var(--radius-sm);
   }
-  .channel-status.on { background: oklch(0.765 0.177 163.223 / 0.1); color: var(--emerald); }
+  .channel-status.on { background: rgb(var(--accent-base) / 0.14); color: var(--emerald); }
   .channel-status.off { background: var(--muted); color: var(--fg-muted); }
   .channel-right { display: flex; align-items: center; gap: 8px; }
 
@@ -526,7 +526,7 @@
     color: var(--fg);
     border-color: var(--fg);
   }
-  .btn-save:hover { background: oklch(0.18 0.02 170); }
+  .btn-save:hover { background: rgb(var(--bg-base) / 0.6); }
   .btn-launch {
     background: var(--emerald-dim);
     color: var(--bg);
@@ -581,10 +581,9 @@
 
   /* Onboarding overlay */
   .onboarding {
-    position: fixed; inset: 0; z-index: 300;
-    background: rgba(4,28,28,0.92);
+    position: fixed; inset: 0; z-index: 7000;
     display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(8px);
+    background: rgba(23,13,2,0.92);
   }
   .onboarding.hidden { display: none; }
   .onboarding-card {
@@ -798,7 +797,7 @@
     padding: 8px 12px;
     font-size: 13px;
     font-family: var(--font-sans);
-    transition: border-color 150ms var(--ease-out);
+    transition: border-color 150ms ease-out;
   }
   .provider-search:focus-visible {
     outline: none;
@@ -818,7 +817,7 @@
     font-size: 12px;
     font-family: var(--font-sans);
     cursor: pointer;
-    transition: all 150ms var(--ease-out);
+    transition: border-color 150ms ease-out, color 150ms ease-out, transform 150ms ease-out;
   }
   .pf-btn:hover { border-color: var(--fg); color: var(--fg); }
   .pf-btn:active { transform: scale(0.97); }
@@ -1270,7 +1269,7 @@ select:focus-visible {
           <button type="button" class="btn" style="flex:1" onclick="refreshLogs()">刷新日志</button>
           <button type="button" class="btn" style="flex:1" onclick="clearLogView()">清空显示</button>
         </div>
-        <pre id="logContent" style="background:#170d02;color:#f5f5f5;padding:12px;border-radius:8px;font-family:var(--font-mono);font-size:11px;line-height:1.6;max-height:280px;overflow:auto;margin:0;white-space:pre-wrap;word-break:break-all;">点击「刷新日志」查看最近 200 行</pre>
+        <pre id="logContent" style="background:var(--bg);color:var(--fg);padding:12px;border-radius:8px;font-family:var(--font-mono);font-size:11px;line-height:1.6;max-height:280px;overflow:auto;margin:0;white-space:pre-wrap;word-break:break-all;">点击「刷新日志」查看最近 200 行</pre>
       </div>
     </div>
 
@@ -2256,7 +2255,7 @@ function viewEnv() {
     if (!modal) {
       modal = document.createElement('div');
       modal.id = 'envModal';
-      modal.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:8000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(23,13,2,0.92);z-index:8000;display:none;align-items:center;justify-content:center;';
       document.body.appendChild(modal);
     }
     modal.innerHTML = `
@@ -2353,13 +2352,13 @@ function _wechatModal() {
   if (modal) return modal;
   modal = document.createElement('div');
   modal.id = 'wechatModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:8000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(23,13,2,0.92);z-index:8000;display:flex;align-items:center;justify-content:center;';
   modal.innerHTML = `
     <div style="background:var(--card,#1a1208);border:1px solid var(--border,#f5f5f526);padding:28px 24px;max-width:380px;width:90%;text-align:center;font-family:var(--font-sans);">
       <h3 style="font-family:var(--font-serif);font-size:1.4rem;margin-bottom:8px;color:var(--fg,#f5f5f5);letter-spacing:0;">扫码登录微信</h3>
       <p id="wechatModalHint" style="font-family:var(--font-mono);font-size:11px;color:var(--fg-muted,#9a968e);letter-spacing:0.04em;margin-bottom:16px;">使用微信扫描下方二维码，完成手机端确认即可</p>
       <div id="wechatQrBox" style="background:white;padding:12px;min-width:240px;min-height:240px;display:flex;align-items:center;justify-content:center;">
-        <span style="color:#666;font-family:monospace;font-size:12px;">加载中…</span>
+        <span style="color:var(--fg-muted);font-family:monospace;font-size:12px;">加载中…</span>
       </div>
       <div id="wechatStatusLine" style="margin-top:14px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted,#9a968e);min-height:1.4em;letter-spacing:0.04em;"></div>
       <div style="display:flex;gap:8px;margin-top:18px;">
@@ -2386,9 +2385,9 @@ function _renderWechatQr(dataUrl, rawContent) {
   } else if (rawContent) {
     // Fallback when both PNG renderers failed — let the user copy
     // the raw URL into any QR generator app.
-    box.innerHTML = `<pre style="margin:0;padding:8px;color:#333;font-family:monospace;font-size:10px;word-break:break-all;white-space:pre-wrap;max-width:240px;">${escapeHtml(rawContent)}</pre>`;
+    box.innerHTML = `<pre style="margin:0;padding:8px;color:var(--fg-muted);font-family:monospace;font-size:10px;word-break:break-all;white-space:pre-wrap;max-width:240px;">${escapeHtml(rawContent)}</pre>`;
   } else {
-    box.innerHTML = '<span style="color:#999;font-family:monospace;font-size:12px;">二维码生成失败</span>';
+    box.innerHTML = '<span style="color:var(--fg-muted);font-family:monospace;font-size:12px;">二维码生成失败</span>';
   }
 }
 
@@ -2529,8 +2528,8 @@ function cancelWeChatLogin(closeModal) {
       if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'disconnectOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
-        overlay.innerHTML = '<div style="background:#1a1208;padding:32px 40px;border-radius:14px;text-align:center;border:1px solid rgba(237,255,69,0.15);max-width:360px;"><h3 style="color:#f5f5f5;margin-bottom:8px;font-size:1em;">连接已断开</h3><p style="color:#9a968e;font-size:0.85em;line-height:1.6;">Hermes 进程已停止。请重新双击启动器。</p></div>';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(23,13,2,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = '<div style="background:var(--card);padding:32px 40px;border-radius:14px;text-align:center;border:1px solid rgb(var(--accent-base) / 0.15);max-width:360px;"><h3 style="color:var(--fg);margin-bottom:8px;font-size:1em;">连接已断开</h3><p style="color:var(--fg-muted);font-size:0.85em;line-height:1.6;">Hermes 进程已停止。请重新双击启动器。</p></div>';
         document.body.appendChild(overlay);
       }
     }
