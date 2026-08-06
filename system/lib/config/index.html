@@ -207,12 +207,13 @@
 
   /* Section labels like 9119 */
   .section-label {
-    font-family: var(--font-sans);
-    font-size: 14px;
-    letter-spacing: 0.15em;
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: var(--fg-muted);
-    margin-bottom: var(--space-4);
+    color: var(--fg);
+    margin-bottom: var(--space-3);
     padding-left: var(--space-4);
     mix-blend-mode: plus-lighter;
   }
@@ -764,11 +765,13 @@
     letter-spacing: -0.005em;
   }
   .section-label {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.1em;
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: var(--fg-muted);
+    color: var(--fg);
+    margin-bottom: var(--space-3);
   }
 
   /* Provider grid — flatter buttons */
@@ -777,6 +780,68 @@
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 0;
     border: 1px solid var(--border);
+  }
+  .provider-toolbar {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    margin-bottom: var(--space-3);
+    flex-wrap: wrap;
+  }
+  .provider-search {
+    flex: 1 1 200px;
+    min-width: 0;
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    color: var(--fg);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    transition: border-color 150ms var(--ease-out);
+  }
+  .provider-search:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .provider-filter {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .pf-btn {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--fg-muted);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all 150ms var(--ease-out);
+  }
+  .pf-btn:hover { border-color: var(--fg); color: var(--fg); }
+  .pf-btn:active { transform: scale(0.97); }
+  .pf-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .provider-group-label {
+    grid-column: 1 / -1;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    padding: 10px 2px 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .provider-empty {
+    grid-column: 1 / -1;
+    color: var(--fg-muted);
+    font-size: 13px;
+    padding: 16px 2px;
   }
   .provider-btn {
     background: transparent;
@@ -1085,6 +1150,15 @@ select:focus-visible {
     <div id="tab-model" class="tab-panel active">
       <div class="section-label">API 密钥</div>
       <div class="card">
+        <div class="provider-toolbar">
+          <input type="search" id="providerSearch" class="provider-search" placeholder="搜索模型厂商…" aria-label="搜索模型厂商" oninput="onProviderSearch(this.value)">
+          <div class="provider-filter" role="group" aria-label="按标签筛选">
+            <button type="button" class="pf-btn active" data-tag="" onclick="onProviderTag('')">全部</button>
+            <button type="button" class="pf-btn" data-tag="hot" onclick="onProviderTag('hot')">热门</button>
+            <button type="button" class="pf-btn" data-tag="cn" onclick="onProviderTag('cn')">国内</button>
+            <button type="button" class="pf-btn" data-tag="fast" onclick="onProviderTag('fast')">极速</button>
+          </div>
+        </div>
         <div class="provider-grid" id="providerGrid"></div>
         <div id="apiKeySection"></div>
       </div>
@@ -1302,6 +1376,23 @@ const PROVIDERS = [
   {id:'vertex',name:'Google Vertex AI',tags:[],desc:'OAuth2 服务账号',base:'',base_url_env:'VERTEX_BASE_URL',extra_fields:[{key:'GOOGLE_CLIENT_EMAIL',label:'Service Account Email',type:'text'},{key:'GOOGLE_PRIVATE_KEY',label:'Service Account Private Key',type:'password'},{key:'GOOGLE_PROJECT_ID',label:'GCP Project ID',type:'text'}],models:[],link:''},
   {id:'azure-foundry',name:'Azure Foundry',tags:[],desc:'Azure AI Foundry',base:'',base_url_env:'AZURE_FOUNDRY_BASE_URL',models:[],link:''},
 ];
+
+
+// Provider 分组(对应源码注释分组,用于搜索/筛选下的分区标题)
+const PROVIDER_GROUPS = [
+  { key: 'cn', label: '国内热门' },
+  { key: 'intl', label: '国际主流' },
+  { key: 'agg', label: '聚合平台' },
+  { key: 'other', label: '其他 / 中转 / 本地' },
+];
+const GROUP_OF = {
+  'deepseek':'cn','zhipu':'cn','dashscope':'cn','kimi':'cn','minimax':'cn','xiaomi':'cn','doubao':'cn','stepfun':'cn','baidu':'cn','baichuan':'cn','yi':'cn','tencent':'cn','iflytek':'cn','coze':'cn','volcengine':'cn','alibaba':'cn','longcat':'cn','zai':'cn','ark_agentplan':'cn','byteplus':'cn','doubao_seed':'cn','bailing':'cn','kat_coder':'cn','bailian':'cn','bailian_coding':'cn',
+  'nous':'intl','anthropic':'intl','openai':'intl','google':'intl','xai':'intl','mistral':'intl','cohere':'intl','groq':'intl','cerebras':'intl','perplexity':'intl','huggingface':'intl','nvidia':'intl','novita':'intl','together':'intl','fireworks':'intl','replicate':'intl','sambanova':'intl','cloudflare':'intl','siliconflow':'intl','deepinfra':'intl','gmi':'intl','kilocode':'intl','ai-gateway':'intl','arcee':'intl','modelscope':'intl','cherryin':'intl','therouter':'intl',
+  'openrouter':'agg',
+  'ollama':'other','copilot':'other','amazon':'other','lmstudio':'other','glm':'other','kimi-coding':'other','kimi-coding-cn':'other','minimax-cn':'other','alibaba-coding-plan':'other','xiaomi-token-plan':'other','tencent-tokenhub':'other','fun-codex':'other','fun-claude':'other','cliproxyapi':'other','opencode-zen':'other','opencode-go':'other','claude-oauth':'other','google-gemini-cli':'other','xai-oauth':'other','openai-codex':'other','upstage':'other','qwen-oauth':'other','custom':'other','bedrock':'other','vertex':'other','azure-foundry':'other',
+};
+let providerSearch = '';
+let providerTag = '';
 
 
 const CHANNELS = [
@@ -1585,12 +1676,44 @@ function renderProviders() {
     'tencent-tokenhub': 'TokenHub',
   };
   const g = document.getElementById('providerGrid');
-  g.innerHTML = PROVIDERS.map(p => {
-    const iconName = iconMap[p.id] || p.id;
-    const icon = `<img src="/icons/${iconName}.svg" width="16" height="16" alt="" loading="lazy" decoding="async" style="border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.style.display='none'">`;
-    const tag = providerTags[p.id] ? `<span class="p-tag">${providerTags[p.id]}</span>` : '';
-    return `<button type="button" class="provider-btn ${p.id===activeProvider?'active':''}" onclick="selectProvider('${p.id}')">${icon}${p.name}${tag}</button>`;
-  }).join('');
+  const q = providerSearch.trim().toLowerCase();
+  // 先按搜索/tag 过滤
+  let list = PROVIDERS.filter(p => {
+    if (providerTag && !(p.tags || []).includes(providerTag)) return false;
+    if (q && !(`${p.name} ${p.id} ${(p.tags||[]).join(' ')}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+  if (!list.length) {
+    g.innerHTML = `<div class="provider-empty">没有匹配的模型厂商</div>`;
+    return;
+  }
+  // 按分组渲染,组间加小标题
+  let html = '';
+  for (const grp of PROVIDER_GROUPS) {
+    const items = list.filter(p => (GROUP_OF[p.id] || 'other') === grp.key);
+    if (!items.length) continue;
+    html += `<div class="provider-group-label">${grp.label}</div>`;
+    html += items.map(p => {
+      const iconName = iconMap[p.id] || p.id;
+      const icon = `<img src="/icons/${iconName}.svg" width="16" height="16" alt="" loading="lazy" decoding="async" style="border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.style.display='none'">`;
+      const tag = providerTags[p.id] ? `<span class="p-tag">${providerTags[p.id]}</span>` : '';
+      return `<button type="button" class="provider-btn ${p.id===activeProvider?'active':''}" onclick="selectProvider('${p.id}')">${icon}${p.name}${tag}</button>`;
+    }).join('');
+  }
+  g.innerHTML = html;
+}
+
+function onProviderSearch(v) {
+  providerSearch = v || '';
+  renderProviderGrid();
+}
+
+function onProviderTag(tag) {
+  providerTag = tag;
+  document.querySelectorAll('.pf-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-tag') === tag);
+  });
+  renderProviderGrid();
 }
 
 function selectProvider(id) { activeProvider = id; renderProviders(); renderApiKeySection(); updateModelSelect(); }
