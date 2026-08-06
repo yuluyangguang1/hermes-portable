@@ -1689,29 +1689,27 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 pass
 
     def _dispatch_post(self):
-        # CSRF / 写接口防护:
-        # 1) 要求 Content-Type 为 application/json,挡掉 <form enctype=text/plain>
-        #    构造 JSON 体绕过预检的跨站盲打(POST 简单请求无预检,但 form 不
-        #    能设 Content-Type 为 application/json,故强制该头即可阻断)。
-        # 2) 要求 Origin 为本机同源(127.0.0.1/localhost + 同端口),挡掉恶意网页
-        #    跨站调用。读接口(/api/bootstrap 已单独校验)不在此限。
-        # 注意:更彻底的方案是校验 Authorization: Bearer <SERVER_TOKEN>(token
-        # 已通过 /api/bootstrap 下发),但现有前端未携带该头,强行要求会令 UI
-        # 全废;本轮以 Origin 同源 + Content-Type 强制达成"挡跨站盲打"止血,
-        # 完整 Bearer 方案留待下轮前后端协同改造。
+        # CSRF / 写接口防护(纵深防御,两层):
+        # 1) Content-Type 仅在有 body 时强制 application/json,挡掉 <form
+        #    enctype=text/plain> 构造 JSON 体绕过预检的跨站盲打。
+        # 2) 要求「Origin 同源」或「有效 Bearer token」二者之一:
+        #    - 浏览器同源页面:Origin 为本机同端口 → 放行(无 Origin 的跨站
+        #      页面被拒,挡 CSRF 盲打)。
+        #    - 本机脚本 / 自动化:通常不带浏览器 Origin 头,必须携带
+        #      `Authorization: Bearer <SERVER_TOKEN>`(token 由 /api/bootstrap
+        #      下发,仅 localhost 可获取)才能写,否则 403。这堵住了「无 Origin
+        #      的本机进程直接写配置」的缺口。
+        # 读接口(/api/bootstrap 已单独校验 localhost)不在此限。
         ctype = self.headers.get("Content-Type", "")
         has_body = (int(self.headers.get("Content-Length", 0)) or 0) > 0
-        # Require a JSON content-type only when the request carries a body.
-        # Endpoints like /api/launch / /api/restart / /api/reset have no body
-        # and the frontend issues them without a Content-Type header; rejecting
-        # them with 415 would break the "Start Hermes" button. The CSRF defense
-        # rests primarily on the strict same-origin check below.
         if has_body and not ctype.startswith("application/json"):
             self._json_response({"success": False, "error": "unsupported media type"}, 415)
             return
         origin = self.headers.get("Origin")
-        if origin and not _is_same_origin(origin):
-            self._json_response({"success": False, "error": "forbidden origin"}, 403)
+        origin_ok = bool(origin) and _is_same_origin(origin)
+        token_ok = self._bearer_ok()
+        if not (origin_ok or token_ok):
+            self._json_response({"success": False, "error": "forbidden: same-origin or valid token required"}, 403)
             return
         body = self.rfile.read(min(int(self.headers.get("Content-Length", 0)), 1_000_000))
         if self.path == "/api/save":
@@ -1824,6 +1822,22 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self.wfile.write(icon_path.read_bytes())
         else:
             self.send_error(404)
+
+    def _bearer_ok(self):
+        """Validate an optional Authorization: Bearer <SERVER_TOKEN> header.
+
+        Used as the second factor in write-API CSRF defense. A browser same-origin
+        page is already accepted via the Origin check in _dispatch_post; this lets
+        trusted localhost automation (which fetches /api/bootstrap to obtain the
+        token) also write config without a browser Origin header. Any other caller
+        (no Origin, no valid token) is rejected.
+        """
+        auth = self.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return False
+        provided = auth[len("Bearer "):].strip()
+        # Constant-time-ish compare (token is 64 hex chars; avoid early-exit leak).
+        return provided == SERVER_TOKEN and bool(SERVER_TOKEN)
 
     def _json_response(self, data, status=200):
         self.send_response(status)

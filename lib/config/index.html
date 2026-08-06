@@ -1496,6 +1496,31 @@ const CHANNELS = [
     ]
   }
 ];
+// Bearer token: 获取 /api/bootstrap 下发的 SERVER_TOKEN,并包装全局 fetch 给
+// 同源写请求自动附加 Authorization 头。后端写接口要求「Origin 同源」或「有效
+// Bearer token」二者之一;本机脚本无浏览器 Origin 头时必须带 token 才放行。
+// 即便 token 尚未就绪,同源页面的 Origin 已满足后端校验,故降级不报错。
+let SERVER_TOKEN = '';
+(async function bootstrapToken() {
+  try {
+    const r = await fetch('/api/bootstrap');
+    if (r.ok) { const d = await r.json(); SERVER_TOKEN = d.token || ''; }
+  } catch (e) { /* 失败时同源 Origin 仍满足后端校验 */ }
+})();
+(function wrapFetch() {
+  const _orig = window.fetch.bind(window);
+  window.fetch = function(url, opts) {
+    opts = opts || {};
+    const method = (opts.method || 'GET').toUpperCase();
+    if ((url + '').startsWith('/api/') && method === 'POST') {
+      opts.headers = opts.headers || {};
+      if (SERVER_TOKEN && !opts.headers['Authorization']) {
+        opts.headers['Authorization'] = 'Bearer ' + SERVER_TOKEN;
+      }
+    }
+    return _orig(url, opts);
+  };
+})();
 let activeProvider = '';
 let currentEnv = {};
 let enabledChannels = [];
