@@ -485,6 +485,7 @@ _STATIC_ASSETS = [
     "HermesPortable使用说明.html",
     # runtime/ — all system files
     "system/lib/config_server.py",
+    "system/lib/config/index.html",
     "system/lib/chat_viewer.py",
     "system/lib/update.py",
     "system/lib/update.sh",

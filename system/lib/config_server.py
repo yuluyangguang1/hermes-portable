@@ -5,6 +5,7 @@ Hermes Portable — Web 配置面板 v3
 """
 import json
 import os
+import secrets
 import subprocess
 import sys
 import threading
@@ -37,6 +38,15 @@ MODEL_CATALOG_CACHE_TTL_SEC = 6 * 3600  # 6 hours
 MODEL_CATALOG_CACHE_FILE = DATA_DIR / ".model-catalog-cache.json"
 _model_catalog_lock = threading.Lock()
 _model_catalog_state = {"data": None, "fetched_at": 0.0}
+
+# Version check cache — avoids hitting GitHub API on every /api/version
+# poll from the frontend. 60-second TTL is a good balance between
+# freshness and rate-limit avoidance (GitHub allows 60 req/hour
+# unauthenticated; without caching, polling every 5s exhausts that
+# in 5 minutes).
+_version_cache_lock = threading.Lock()
+_version_cache = {"result": None, "fetched_at": 0.0}
+_VERSION_CACHE_TTL_SEC = 60
 
 
 def _load_catalog_from_disk():
@@ -325,7 +335,7 @@ PROVIDERS = [
         "qwen-max-latest","qwen-plus-latest","qwen-turbo-latest","qwen-long",
     ]},
     {"id": "kimi",        "name": "Kimi / Moonshot","env": "KIMI_API_KEY",       "models": [
-        "kimi-k2.7-code","kimi-k2.6","kimi-k2.5","kimi-k2-thinking-turbo","kimi-k2-thinking",
+        "kimi-k3","kimi-k2.7-code","kimi-k2.6","kimi-k2.5","kimi-k2-thinking-turbo","kimi-k2-thinking",
         "moonshot-v1-128k","moonshot-v1-32k",
     ]},
     {"id": "minimax",     "name": "MiniMax",        "env": "MINIMAX_API_KEY",    "models": [
@@ -557,6 +567,42 @@ PROVIDERS = [
      "base_url_env": "CUSTOM_BASE_URL",
      "custom_model": True,
      "models": ["gpt-5.5","gpt-5.5-pro","claude-opus-4-7","claude-sonnet-4-6","gemini-3.1-pro-preview","deepseek-v4-pro","grok-4.3","kimi-k2.6"]},
+    {"id": "bedrock",     "name": "AWS Bedrock",     "env": "",
+     "base_url_env": "BEDROCK_BASE_URL",
+     "extra_fields": [
+         {"key": "AWS_ACCESS_KEY_ID", "label": "AWS Access Key ID", "type": "text"},
+         {"key": "AWS_SECRET_ACCESS_KEY", "label": "AWS Secret Access Key", "type": "password"},
+         {"key": "AWS_REGION", "label": "AWS Region", "type": "text", "placeholder": "us-east-1"},
+     ],
+     "models": [],
+     "key_hint": "AWS 凭证 (无需 API Key)", "note": "AWS SDK 凭证，base_url 运行时计算",
+     "tags": []},
+    {"id": "vertex",      "name": "Google Vertex AI", "env": "",
+     "base_url_env": "VERTEX_BASE_URL",
+     "extra_fields": [
+         {"key": "GOOGLE_CLIENT_EMAIL", "label": "Service Account Email", "type": "text"},
+         {"key": "GOOGLE_PRIVATE_KEY", "label": "Service Account Private Key", "type": "password"},
+         {"key": "GOOGLE_PROJECT_ID", "label": "GCP Project ID", "type": "text"},
+     ],
+     "models": [],
+     "key_hint": "OAuth2 服务账号 (无需 API Key)", "note": "OAuth2 服务账号，base_url 运行时计算",
+     "tags": []},
+    {"id": "azure-foundry", "name": "Azure Foundry", "env": "AZURE_FOUNDRY_API_KEY",
+     "base_url_env": "AZURE_FOUNDRY_BASE_URL",
+     "models": [],
+     "key_hint": "粘贴 Azure Foundry API Key", "note": "Azure AI Foundry，base 运行时填",
+     "tags": []},
+    {"id": "ark_agentplan", "name": "火山 Agentplan",  "env": "ARK_AGENTPLAN_API_KEY", "models": ["ark-code-latest"]},
+    {"id": "byteplus",      "name": "BytePlus",         "env": "BYTEPLUS_API_KEY",      "models": ["ark-code-latest"]},
+    {"id": "doubao_seed",   "name": "DouBao Seed",      "env": "DOUBAO_SEED_API_KEY",   "models": ["doubao-seed-2-1-pro-260628"]},
+    {"id": "bailing",       "name": "百灵",             "env": "BAILING_API_KEY",       "models": ["Ling-2.5-1T"]},
+    {"id": "kat_coder",     "name": "KAT-Coder",        "env": "KAT_CODER_API_KEY",     "models": ["KAT-Coder-Pro V1","KAT-Coder-Air V1"]},
+    {"id": "modelscope",    "name": "ModelScope",       "env": "MODELSCOPE_API_KEY",    "models": ["ZhipuAI/GLM-5.1"]},
+    {"id": "bailian",       "name": "阿里百炼",         "env": "BAILIAN_API_KEY",       "models": ["qwen3-coder-plus","qwen3-max"]},
+    {"id": "bailian_coding","name": "百炼代码版",        "env": "BAILIAN_CODING_API_KEY","models": ["qwen3-coder-plus","qwen3-max"]},
+    {"id": "cherryin",      "name": "CherryIN",         "env": "CHERRYIN_API_KEY",      "models": ["anthropic/claude-opus-4.8","anthropic/claude-sonnet-5"]},
+    {"id": "therouter",     "name": "TheRouter",        "env": "THEROUTER_API_KEY",     "models": ["openai/gpt-5.5","openai/gpt-5.4-mini","openai/gpt-5.4-nano"]},
+
 ]
 
 CHANNELS = [
@@ -637,21 +683,63 @@ CHANNELS = [
 
 WEB_UI_PORT = 8648
 
+def _is_hermes_pid(pid):
+    """Check if a PID is actually a hermes process.
+
+    Prevents killing an unrelated process that happens to reuse a
+    stale lock file's PID. Uses /proc on Linux, ps on macOS/BSD,
+    and tasklist on Windows.
+    """
+    if not pid or pid <= 1:
+        return False
+    try:
+        if sys.platform == "win32":
+            r = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"],
+                capture_output=True, text=True, timeout=5,
+            )
+            # CSV output: "Image Name","PID","Session Name","Session#","Mem Usage"
+            return "hermes" in r.stdout.lower()
+        else:
+            # Linux: check /proc/<pid>/cmdline
+            cmdline = Path(f"/proc/{pid}/cmdline")
+            if cmdline.exists():
+                return "hermes" in cmdline.read_bytes().decode("utf-8", errors="replace")
+            # macOS/BSD: fall back to ps
+            r = subprocess.run(
+                ["ps", "-p", str(pid), "-o", "command="],
+                capture_output=True, text=True, timeout=5,
+            )
+            return "hermes" in r.stdout.lower()
+    except Exception:
+        return False
+
 def webui_status():
-    """Check if hermes-web-ui is running."""
+    """Check if hermes-web-ui is running.
+
+    The `hermes-web-ui status` CLI prints a line that — depending on version —
+    may be "running", "Running", "Hermes Web UI is running", or similar. We
+    therefore check for the substring 'running' rather than an exact match, so
+    a trailing dot / capitalisation / extra words don't make us think the UI
+    is down (which would cause repeated start attempts and port conflicts).
+    If the binary isn't installed the call raises and we return False.
+    """
     import subprocess
     try:
         result = subprocess.run(
             ['hermes-web-ui', 'status'],
             capture_output=True, text=True, timeout=5
         )
-        return 'running' in result.stdout.lower()
+        return 'running' in result.stdout.strip().lower()
     except Exception:
         return False
 
 def webui_start():
-    """Start hermes-web-ui."""
-    import subprocess
+    """Start hermes-web-ui. Returns False if the binary isn't installed so the
+    caller can tell 'not installed' apart from 'failed to start'."""
+    import subprocess, shutil
+    if shutil.which('hermes-web-ui') is None:
+        return False
     try:
         subprocess.Popen(
             ['hermes-web-ui', 'start', str(WEB_UI_PORT)],
@@ -663,11 +751,12 @@ def webui_start():
         return False
 
 def webui_stop():
-    """Stop hermes-web-ui."""
+    """Stop hermes-web-ui. Reports failure when the stop command errors or
+    exits non-zero (previously any result was treated as success)."""
     import subprocess
     try:
-        subprocess.run(['hermes-web-ui', 'stop'], capture_output=True, timeout=5)
-        return True
+        result = subprocess.run(['hermes-web-ui', 'stop'], capture_output=True, timeout=5)
+        return result.returncode == 0
     except Exception:
         return False
 
@@ -681,11 +770,15 @@ def parse_env():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
+                # Strip 'export ' prefix if present (common in shell-generated .env files)
+                k = k.strip()
+                if k.startswith("export "):
+                    k = k[7:].strip()
                 v = v.strip()
                 # Strip matching surrounding quotes: KEY="value" → value
                 if len(v) >= 2 and v[0] == v[-1] and v[0] in ('"', "'"):
                     v = v[1:-1]
-                keys[k.strip()] = v
+                keys[k] = v
     return keys
 
 def parse_yaml_safe(path):
@@ -728,6 +821,28 @@ def _yaml_dump_simple(d, indent=0):
         if isinstance(v, dict):
             lines.append(f"{prefix}{k}:")
             lines.extend(_yaml_dump_simple(v, indent + 1))
+        elif isinstance(v, list):
+            # YAML block sequence: each item on its own line with "- "
+            if not v:
+                lines.append(f"{prefix}{k}: []")
+            else:
+                lines.append(f"{prefix}{k}:")
+                for item in v:
+                    if isinstance(item, dict):
+                        # Nested dict in list — dump as inline mapping
+                        sub = _yaml_dump_simple(item, indent + 1)
+                        if sub:
+                            lines.append(f"{prefix}  - {sub[0].lstrip()}")
+                            lines.extend(sub[1:])
+                        else:
+                            lines.append(f"{prefix}  - {{}}")
+                    elif isinstance(item, list):
+                        # Nested list — dump as nested block sequence
+                        lines.append(f"{prefix}  -")
+                        for sub_item in item:
+                            lines.append(f"{prefix}    - {_yaml_scalar(sub_item)}")
+                    else:
+                        lines.append(f"{prefix}  - {_yaml_scalar(item)}")
         elif isinstance(v, bool):
             lines.append(f"{prefix}{k}: {'true' if v else 'false'}")
         elif isinstance(v, (int, float)):
@@ -742,6 +857,21 @@ def _yaml_dump_simple(d, indent=0):
             s = s.replace("\n", "\\n").replace("\r", "\\r")
             lines.append(f'{prefix}{k}: "{s}"')
     return lines
+
+
+def _yaml_scalar(v):
+    """Format a scalar value for YAML output."""
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    elif isinstance(v, (int, float)):
+        return str(v)
+    elif v is None:
+        return "null"
+    else:
+        s = str(v)
+        s = s.replace("\\", "\\\\").replace('"', '\\"')
+        s = s.replace("\n", "\\n").replace("\r", "\\r")
+        return f'"{s}"'
 
 
 
@@ -762,6 +892,70 @@ def _atomic_write_text(path, content, encoding="utf-8"):
         except Exception: pass
         raise
 
+
+
+def _is_local_origin(origin: str) -> bool:
+    """Check if the origin is from localhost."""
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(origin)
+        return parsed.hostname in ('127.0.0.1', 'localhost', '::1')
+    except Exception:
+        return False
+
+
+def _is_same_origin(origin: str) -> bool:
+    """Strict same-origin check for write-API CSRF protection.
+
+    `_is_local_origin` only validates the hostname. For write endpoints we
+    additionally require the port to match the server port, so a page served
+    from a *different* local port (or any cross-site page) is rejected. The
+    frontend's fetch Origin is exactly `http://127.0.0.1:<actual_port>`, which
+    passes; a malicious `http://attacker.example.com` or even a stray local
+    `http://127.0.0.1:9999` page does not.
+    """
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(origin)
+        if parsed.hostname not in ('127.0.0.1', 'localhost', '::1'):
+            return False
+        if parsed.scheme not in ('http', 'https'):
+            return False
+        return parsed.port == actual_port
+    except Exception:
+        return False
+
+
+import ipaddress
+def _is_blocked_test_ip(host: str) -> bool:
+    """Reject hosts that resolve to a non-public IP for /api/test.
+
+    Prevents the Test button from being used as an SSRF vector against
+    loopback (127.0.0.1/::1), link-local cloud metadata (169.254.0.0/16),
+    RFC1918 private ranges, or multicast. The caller passes the hostname
+    extracted from the user-supplied base_url; we resolve it (DNS rebinding
+    is mitigated only insofar as we check the resolution result here — a
+    TTL=0 rebinding attack would need connection-time pinning, which is a
+    follow-up hardening) and block any non-global IP.
+    """
+    try:
+        import socket
+        infos = socket.getaddrinfo(host, None)
+        for info in infos:
+            ip = info[4][0]
+            try:
+                addr = ipaddress.ip_address(ip)
+            except ValueError:
+                # Unparseable — treat as blocked (fail closed).
+                return True
+            if (addr.is_loopback or addr.is_link_local \
+               or addr.is_multicast or addr.is_reserved or addr.is_unspecified \
+               or (not addr.is_global and addr.is_private)):
+                return True
+        return False
+    except Exception:
+        # DNS failure / unexpected — fail closed.
+        return True
 
 
 def _sanitize_env_value(v):
@@ -788,9 +982,13 @@ def _known_env_keys():
     """
     keys = set()
     for p in PROVIDERS:
-        keys.add(p["env"])
+        if p.get("env"):
+            keys.add(p["env"])
         if p.get("base_url_env"):
             keys.add(p["base_url_env"])
+        for ef in p.get("extra_fields", []):
+            if ef.get("key"):
+                keys.add(ef["key"])
     for ch in CHANNELS:
         for field in ch.get("fields", []):
             keys.add(field["key"])
@@ -816,12 +1014,32 @@ def _save_config_locked(data):
     lines.append("")
     lines.append("# ── LLM Provider API Keys ──")
     for p in PROVIDERS:
-        val = data.get("env", {}).get(p["env"], "")
-        if val:
-            val = _sanitize_env_value(val)
-            lines.append(f"{p['env']}={val}")
-        else:
-            lines.append(f"# {p['env']}=")
+        env_key = p.get("env")
+        if env_key:
+            val = data.get("env", {}).get(env_key, "")
+            if val:
+                val = _sanitize_env_value(val)
+                lines.append(f"{env_key}={val}")
+            else:
+                lines.append(f"# {env_key}=")
+        # per-provider custom base URL (e.g. CUSTOM_BASE_URL, BEDROCK_BASE_URL)
+        bue = p.get("base_url_env")
+        if bue:
+            bv = data.get("env", {}).get(bue, "")
+            if bv:
+                lines.append(f"{bue}={_sanitize_env_value(bv)}")
+            else:
+                lines.append(f"# {bue}=")
+        # extra provider-specific env fields (e.g. AWS creds for bedrock)
+        for ef in p.get("extra_fields", []):
+            ek = ef.get("key")
+            if not ek:
+                continue
+            ev = data.get("env", {}).get(ek, "")
+            if ev:
+                lines.append(f"{ek}={_sanitize_env_value(ev)}")
+            else:
+                lines.append(f"# {ek}=")
     lines.append("")
     lines.append("# ── Messaging Channel Tokens ──")
     for ch in CHANNELS:
@@ -876,9 +1094,22 @@ def _save_config_locked(data):
 
     model_name = data.get("model_name", "")
     provider = data.get("model_provider", "openrouter")
+    # `default` is always prefixed with the *real* provider id so downstream
+    # consumers that split on "/" get the correct provider (not a namespace
+    # baked into the model id, e.g. nous selecting "anthropic/claude-fable-5").
+    # `upstream_id` keeps the exact model string the user picked (may itself
+    # contain "/", e.g. "anthropic/claude-fable-5") so callers that need the
+    # literal upstream model id can read it directly without re-parsing.
+    default_model = f"{provider}/{model_name}" if model_name else None
+    # #4: never write an invalid "provider/" (empty model) config — the frontend
+    # already requires a model name for providers without a static list, but
+    # reject defensively here so a direct /api/save can't produce a broken config.
+    if not model_name:
+        raise ValueError("model_name is required (provider has no static model list)")
     cfg = {
         "model": {
-            "default": model_name if "/" in model_name else f"{provider}/{model_name}",
+            "default": default_model,
+            "upstream_id": model_name,
             "provider": provider,
         },
         "agent": {
@@ -1004,6 +1235,10 @@ def _ilink_request(path, base_url=None, method="GET", body=None,
                         f"iLink API returned HTTP {resp.status}: "
                         f"{payload[:200].decode('utf-8', errors='replace')}")
                 try:
+                    content_type = resp.headers.get("Content-Type", "")
+                    if "json" not in content_type and "text" not in content_type:
+                        raise RuntimeError(
+                            f"iLink response had unexpected Content-Type: {content_type}")
                     return json.loads(payload.decode("utf-8"))
                 except json.JSONDecodeError as e:
                     raise RuntimeError(f"iLink response was not JSON: {e}")
@@ -1047,7 +1282,10 @@ def _ilink_poll_qr(qrcode_token, base_url=None):
             base_url=base_url, timeout=ILINK_QR_POLL_TIMEOUT_SEC,
         )
     except RuntimeError as e:
-        if "timed out" in str(e).lower():
+        # _ilink_request wraps TimeoutError/OSError as "iLink API timed out: ..."
+        # We check for the exact prefix to distinguish from other errors that
+        # happen to contain "timed out" in their message (e.g. SSL errors).
+        if str(e).startswith("iLink API timed out"):
             return {"status": "wait"}
         raise
 
@@ -1116,6 +1354,8 @@ def wechat_start_login():
     cap protects against accidental and intentional resource leaks.
     """
     import secrets
+    import threading
+    import time
     # Cap check FIRST — before we hit the iLink API. We don't want to
     # burn upstream quota on requests we're going to refuse anyway.
     with _wechat_lock:
@@ -1251,1849 +1491,17 @@ def wechat_cancel_login(session=None):
 #  HTML — matching Hermes Web UI style (port 9119)
 # ═══════════════════════════════════════════════════════════════
 
-HTML_PAGE = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hermes Portable — 配置</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23041c1c'/%3E%3Cg fill='none' stroke='%23ffe6cb' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M 28 32 L 42 60 M 56 32 L 42 60 L 36 78'/%3E%3Cpath d='M 64 32 L 64 60 Q 64 72 76 72 L 76 32'/%3E%3C/g%3E%3C/svg%3E">
-<meta name="theme-color" content="#edff45" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#edff45" media="(prefers-color-scheme: light)">
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<style>
-  /* Google Fonts removed for China compatibility */
-
-  :root {
-    /* yu.ai v2 Design System */
-    --bg-base: 23 13 2;
-    --mid-base: 245 240 232;
-    --dim-base: 170 166 158;
-    --accent-base: 237 255 69;
-    --warn-base: 255 189 56;
-    --danger-base: 255 138 107;
-    
-    --bg: rgb(var(--bg-base));
-    --mid: rgb(var(--mid-base));
-    --dim: rgb(var(--dim-base));
-    --accent: rgb(var(--accent-base));
-    --warn: rgb(var(--warn-base));
-    --danger: rgb(var(--danger-base));
-    
-    --border: rgb(var(--mid-base) / .12);
-    --border-strong: rgb(var(--mid-base) / .24);
-    --hover: rgb(var(--mid-base) / .05);
-    --hover-strong: rgb(var(--mid-base) / .08);
-    
-    --fg: var(--mid);
-    --fg-muted: var(--dim);
-    --card: var(--bg);
-    --secondary: var(--bg);
-    --muted: var(--border);
-    --accent: var(--accent);
-    --emerald: var(--accent);
-    --emerald-dim: var(--accent);
-    --warning: var(--warn);
-    --success: var(--accent);
-    --destructive: var(--danger);
-    
-    --font-sans: system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-    --font-serif: 'LXGW WenKai', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
-    --font-mono: 'Courier New', 'Menlo', monospace;
-  }
-  [data-theme="light"] {
-    --bg-base: 245 245 245;
-    --mid-base: 23 13 2;
-    --dim-base: 80 70 60;
-    --accent-base: 0 0 200;
-    --border: rgb(var(--mid-base) / .18);
-    --border-strong: rgb(var(--mid-base) / .3);
-    --hover: rgb(var(--mid-base) / .06);
-    --hover-strong: rgb(var(--mid-base) / .1);
-  }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) {
-      --bg-base: 245 245 245;
-      --mid-base: 23 13 2;
-      --dim-base: 80 70 60;
-      --accent-base: 0 0 200;
-      --border: rgb(var(--mid-base) / .18);
-      --border-strong: rgb(var(--mid-base) / .3);
-      --hover: rgb(var(--mid-base) / .04);
-      --hover-strong: rgb(var(--mid-base) / .07);
-    }
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  /* yu.ai background layers */
-  .bg-i { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-  .bg-i img {
-    width: 100vw; height: 100vh; object-fit: cover;
-    opacity: 0.06; filter: grayscale(1) brightness(0.7);
-    object-position: center bottom;
-  }
-  .bg-n {
-    position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    mix-blend-mode: color-dodge; opacity: 0.03;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%23eaeaea' filter='url(%23n)' opacity='.6'/%3E%3C/svg%3E");
-    background-size: 512px 512px;
-  }
-  .bg-g {
-    position: fixed; inset: 0; z-index: 300; pointer-events: none;
-    mix-blend-mode: lighten; opacity: 0.15;
-    background: radial-gradient(ellipse at 0% 0%, rgba(255,189,56,0.25) 0%, transparent 50%);
-  }
-  [data-theme="light"] .bg-i img { opacity: 0.04; filter: grayscale(1) brightness(1.5); }
-  [data-theme="light"] .bg-n { opacity: 0.015; }
-  [data-theme="light"] .bg-g { opacity: 0.06; }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) .bg-i img { opacity: 0.04; filter: grayscale(1) brightness(1.5); }
-    :root:not([data-theme="dark"]) .bg-n { opacity: 0.015; }
-    :root:not([data-theme="dark"]) .bg-g { opacity: 0.06; }
-  }
-
-
-  body {
-    font-family: var(--font-sans);
-    background: var(--bg);
-    color: var(--fg);
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
-    scrollbar-color: #f5f5f533 transparent;
-    position: relative;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  /* warm glow overlay (official style) */
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
-    pointer-events: none; z-index: 99;
-    mix-blend-mode: lighten;
-    opacity: 0.22;
-    background: radial-gradient(ellipse at 0% 0%, rgba(255,189,56,0) 60%, rgba(255,189,56,0.35) 100%);
-  }
-  /* grain overlay */
-  body::after {
-    content: '';
-    position: fixed; inset: 0;
-    pointer-events: none; z-index: 100;
-    mix-blend-mode: color-dodge;
-    opacity: 0.1;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%23eaeaea' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
-    background-size: 512px 512px;
-  }
-
-  .container {
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 32px 16px 48px;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* Header */
-  .header {
-    text-align: center;
-    padding: 24px 0 20px;
-  }
-  .header .logo {
-    display: inline-block;
-    width: 72px;
-    height: 72px;
-    margin-bottom: 12px;
-    filter: drop-shadow(0 0 12px rgba(255, 230, 203, 0.15));
-    transition: transform 0.4s ease;
-  }
-  .header .logo:hover {
-    transform: scale(1.08) rotate(-3deg);
-  }
-  .header h1 {
-    font-family: var(--font-sans);
-    font-size: 28px;
-    font-weight: 400;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--fg);
-  }
-  .header .subtitle {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--fg-muted);
-    letter-spacing: 0.08em;
-    margin-top: 4px;
-  }
-
-  /* Section labels like 9119 */
-  .section-label {
-    font-family: var(--font-sans);
-    font-size: 12px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--fg-muted);
-    margin-bottom: 8px;
-    padding-left: 2px;
-    mix-blend-mode: plus-lighter;
-  }
-
-  /* Card */
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 12px;
-  }
-
-  /* Tabs */
-  .tabs {
-    display: flex;
-    gap: 2px;
-    margin-bottom: 16px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 3px;
-  }
-  .tab {
-    flex: 1;
-    padding: 8px 0;
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-    border: none;
-    background: transparent;
-    color: var(--fg-muted);
-    border-radius: 6px;
-    transition: all 0.15s;
-  }
-  .tab:hover { color: var(--fg); background: var(--secondary); }
-  .tab.active {
-    background: var(--secondary);
-    color: var(--fg);
-    font-weight: 700;
-  }
-
-  .tab-panel { display: none; }
-  .tab-panel.active { display: block; }
-
-  /* Provider grid */
-  .provider-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-    margin-bottom: 12px;
-  }
-  .provider-btn {
-    padding: 8px 4px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--fg-muted);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.15s;
-  }
-  .provider-btn { text-transform: none; letter-spacing: 0; }
-  .provider-btn:hover { border-color: var(--fg); color: var(--fg); }
-  .provider-btn.active {
-    border-color: var(--emerald-dim);
-    color: var(--emerald);
-    background: oklch(0.18 0.02 170);
-  }
-
-  /* Form elements */
-  label {
-    display: block;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--fg-muted);
-    margin-bottom: 4px;
-  }
-  input[type="text"], input[type="password"], input[type="number"], select {
-    width: 100%;
-    padding: 8px 12px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--fg);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  input, select, textarea { text-transform: none; letter-spacing: normal; }
-  input:focus, select:focus { border-color: var(--fg); }
-  select { cursor: pointer; }
-  select option { background: var(--bg); color: var(--fg); }
-
-  .field { margin-bottom: 10px; }
-  .field:last-child { margin-bottom: 0; }
-  .row { display: flex; gap: 8px; }
-  .row .field { flex: 1; }
-
-  /* API key row */
-  .api-key-row { display: flex; gap: 8px; align-items: center; }
-  .api-key-row input { flex: 1; }
-  .api-status {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--border); flex-shrink: 0;
-    transition: background 0.15s;
-  }
-  .api-status.set { background: var(--emerald); }
-
-  /* Toggle switch */
-  .toggle-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .toggle-row:last-child { border-bottom: none; }
-  .toggle-info { flex: 1; }
-  .toggle-label {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--fg);
-  }
-  .toggle-desc {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--fg-muted);
-    margin-top: 2px;
-  }
-  .switch {
-    position: relative;
-    width: 36px; height: 18px;
-    flex-shrink: 0;
-    margin-left: 12px;
-  }
-  .switch input { opacity: 0; width: 0; height: 0; }
-  .slider {
-    position: absolute; cursor: pointer; inset: 0;
-    background: var(--muted);
-    border-radius: 18px;
-    border: 1px solid var(--border);
-    transition: 0.2s;
-  }
-  .slider:before {
-    content: "";
-    position: absolute;
-    height: 12px; width: 12px;
-    left: 2px; bottom: 2px;
-    background: var(--fg-muted);
-    border-radius: 50%;
-    transition: 0.2s;
-  }
-  .switch input:checked + .slider { background: var(--emerald-dim); border-color: var(--emerald); }
-  .switch input:checked + .slider:before { transform: translateX(18px); background: var(--fg); }
-
-  /* Channel cards */
-  .channel-card {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 6px;
-    transition: border-color 0.15s;
-  }
-  .channel-card.enabled { border-color: var(--emerald-dim); }
-  .channel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-  }
-  .channel-info { display: flex; align-items: center; gap: 10px; }
-  .channel-icon {
-    font-size: 14px;
-    color: var(--fg-muted);
-    width: 20px;
-    text-align: center;
-    font-family: var(--font-mono);
-  }
-  .channel-name {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--fg);
-  }
-  .channel-desc {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--fg-muted);
-  }
-  .channel-status {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 2px 8px;
-    border-radius: 4px;
-  }
-  .channel-status.on { background: oklch(0.765 0.177 163.223 / 0.1); color: var(--emerald); }
-  .channel-status.off { background: var(--muted); color: var(--fg-muted); }
-  .channel-right { display: flex; align-items: center; gap: 8px; }
-
-  .channel-fields {
-    margin-top: 12px;
-    display: none;
-  }
-  .channel-fields.show { display: block; }
-
-  /* Model preview */
-  .model-preview {
-    margin-top: 6px;
-    padding: 6px 10px;
-    background: var(--bg);
-    border-radius: 4px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--emerald);
-    letter-spacing: 0.05em;
-  }
-
-  /* Actions */
-  .actions {
-    display: flex;
-    gap: 8px;
-    padding: 16px 0 24px;
-  }
-  .btn {
-    flex: 1;
-    padding: 10px 16px;
-    border: 1px solid var(--border-strong, var(--border));
-    border-radius: 6px;
-    font-family: var(--font-sans);
-    font-size: 13px;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    text-align: center;
-    font-weight: 600;
-    background: var(--hover);
-    color: var(--mid);
-    min-height: 40px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-  }
-  .btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--hover-strong, var(--hover));
-  }
-  .btn:active {
-    transform: scale(0.97);
-    background: var(--border);
-  }
-  .btn.destructive {
-    color: var(--danger, #ff6b6b);
-    border-color: var(--danger, #ff6b6b);
-  }
-  .btn.destructive:hover {
-    background: var(--danger, #ff6b6b);
-    color: var(--bg);
-  }
-  .btn-save {
-    background: var(--secondary);
-    color: var(--fg);
-    border-color: var(--fg);
-  }
-  .btn-save:hover { background: oklch(0.18 0.02 170); }
-  .btn-launch {
-    background: var(--emerald-dim);
-    color: var(--bg);
-    border-color: var(--emerald);
-  }
-  .btn-launch:hover { background: var(--emerald); }
-  .btn-launch:disabled {
-    background: var(--muted);
-    color: var(--fg-muted);
-    border-color: var(--border);
-    cursor: not-allowed;
-  }
-
-  /* Toast */
-  .toast {
-    position: fixed;
-    top: 16px; right: 16px;
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    transform: translateX(120%);
-    transition: transform 0.2s ease;
-    z-index: 200;
-    border: 1px solid var(--border);
-  }
-  .toast.show { transform: translateX(0); }
-  .toast.success { background: var(--secondary); color: var(--emerald); border-color: var(--emerald); }
-  .toast.error { background: var(--secondary); color: var(--destructive); border-color: var(--destructive); }
-
-  /* Footer */
-  .footer {
-    text-align: center;
-    padding: 8px 0;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--fg-muted);
-  }
-
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #f5f5f526; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #f5f5f540; }
-
-  /* Selection */
-  ::selection { background: var(--fg); color: var(--bg); }
-
-  /* Onboarding overlay */
-  .onboarding {
-    position: fixed; inset: 0; z-index: 300;
-    background: rgba(4,28,28,0.92);
-    display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(8px);
-  }
-  .onboarding.hidden { display: none; }
-  .onboarding-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 32px 28px;
-    max-width: 420px; width: 90%;
-    text-align: center;
-  }
-  .onboarding-card h2 {
-    font-family: var(--font-sans);
-    font-size: 22px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-  }
-  .onboarding-card p {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--fg-muted);
-    line-height: 1.6;
-    margin-bottom: 8px;
-    letter-spacing: 0.03em;
-  }
-  .onboarding-steps {
-    text-align: left;
-    margin: 16px 0;
-    padding: 12px 16px;
-    background: var(--bg);
-    border-radius: 8px;
-    border: 1px solid var(--border);
-  }
-  .onboarding-step {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 8px 0;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--fg-muted);
-    letter-spacing: 0.03em;
-  }
-  .onboarding-step:last-child { border-bottom: none; }
-  .step-num {
-    width: 20px; height: 20px;
-    border-radius: 50%;
-    background: var(--secondary);
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; color: var(--emerald);
-    flex-shrink: 0;
-    margin-top: -1px;
-  }
-  .step-num.active {
-    background: var(--emerald-dim);
-    border-color: var(--emerald);
-    color: var(--bg);
-  }
-  .onboarding-card .btn { margin-top: 8px; }
-
-
-  
-  /* ─────── Button Styles ─────── */
-
-
-/* ─────── yu.ai aligned shell ─────── */
-  .y-page { position: relative; z-index: 200; max-width: 1100px; margin: 0 auto; padding: 0; overflow-x: hidden; }
-  .y-row { display: grid; grid-template-columns: 1fr; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
-  .y-cell { padding: 16px; border-right: 1px solid var(--border); min-width: 0; display: flex; align-items: center; }
-  .y-cell.s1 { grid-column: span 1; }
-  .y-cell.s2 { grid-column: span 2; }
-  .y-cell.s4 { grid-column: span 4; }
-  .y-cell.s6 { grid-column: 1 / -1; }
-  @media (min-width: 1024px) { .y-row.nav-row { grid-template-columns: 1fr 2fr 1fr 1fr 1fr; } }
-
-  .y-label { font-size: 0.9375rem; letter-spacing: 0.1875rem; text-transform: uppercase; }
-  .y-label-sm { font-size: 0.75rem; letter-spacing: 0.1875rem; text-transform: uppercase; }
-  .y-label-xs { font-size: 0.6875rem; letter-spacing: 0.125rem; text-transform: uppercase; }
-  .y-title { font-family: var(--font-serif); font-size: 2.625rem; font-weight: 700; line-height: 1; letter-spacing: 0.0525rem; }
-  .y-display { font-family: var(--font-serif); font-size: 3.5rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; mix-blend-mode: plus-lighter; }
-  .y-sub { font-size: 1.125rem; line-height: 1.6; opacity: 0.6; }
-  .y-op-5 { opacity: 0.5; } .y-op-7 { opacity: 0.7; }
-
-  @keyframes yblink { 0%,50% { opacity: 1; } 51%,100% { opacity: 0; } }
-  .y-blink { display: inline-block; width: 1ch; height: 1.1em; background: currentColor; vertical-align: text-bottom; animation: yblink 1.2s step-end infinite; }
-  @media (prefers-reduced-motion: reduce) { .y-blink { animation: none; opacity: 1; } }
-
-  .y-nav-link { position: relative; display: flex; align-items: center; width: 100%; height: 100%; color: inherit; text-decoration: none; padding: 16px; cursor: pointer; }
-  .y-nav-link .y-blink { display: none; }
-  .y-nav-link:hover .y-blink, .y-nav-link:focus-visible .y-blink { display: inline-block; }
-  .y-nav-link:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
-  .y-nav-link::before { content: ""; position: absolute; inset: -12px; background: var(--fg); pointer-events: none; opacity: 0; transition: opacity 0.25s; z-index: -1; }
-  .y-nav-link:hover::before { opacity: 0.1; }
-
-  .y-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 60px 20px 44px; width: 100%; }
-  .y-term { width: 100%; max-width: 560px; border: 4px double var(--border); }
-  .y-term-h { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
-  .y-td { width: 10px; height: 10px; border-radius: 50%; }
-  .y-td:nth-child(1) { background: var(--fg); }
-  .y-td:nth-child(2) { background: var(--fg); opacity: 0.6; }
-  .y-td:nth-child(3) { background: var(--fg); opacity: 0.5; }
-  .y-term-label { margin-left: auto; font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.1875rem; opacity: 0.5; }
-  .y-term-b { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.85; padding: 18px 16px; white-space: pre-wrap; min-height: 100px; word-break: break-word; text-align: left; }
-  .y-term-b .p { color: var(--accent); }
-  .y-term-b .t { opacity: 0.6; }
-
-  .y-footer { display: grid; grid-template-columns: 1fr; border-top: 1px solid var(--border); border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-top: 28px; }
-  .y-footer .c { padding: 16px; border-right: 1px solid var(--border); display: flex; align-items: center; }
-  @media (min-width: 1024px) { .y-footer { grid-template-columns: 1fr 1fr 1fr 1fr 1fr; } }
-
-  .y-theme-toggle { background: none; border: none; cursor: pointer; color: var(--fg); opacity: 0.5; padding: 8px; line-height: 0; transition: opacity 0.2s; display: flex; align-items: center; border-radius: 4px; }
-  .y-theme-toggle:hover, .y-theme-toggle:focus-visible { opacity: 1; outline: 1px solid var(--border); }
-  .y-theme-toggle svg { display: block; }
-
-  @media (max-width: 1023px) {
-    .y-row, .y-row.nav-row { grid-template-columns: 1fr; border-left: none; }
-    .y-cell { border-right: none; }
-    .y-footer { grid-template-columns: 1fr; border-left: none; }
-    .y-footer .c { border-right: none; }
-  }
-  @media (max-width: 768px) {
-    .y-display { font-size: 2.2rem; }
-    .y-sub { font-size: 0.95rem; }
-    .y-hero { padding: 40px 16px 28px; }
-    .y-term-b { font-size: 0.72rem; padding: 14px 12px; }
-  }
-  @media (max-width: 640px) {
-    .y-display { font-size: 1.8rem; }
-    .y-hero { padding: 32px 12px 20px; }
-  }
-
-
-  /* ─────── yu.ai-aligned re-skin of functional widgets ─────── */
-  .container { max-width: none; padding: 0 24px 28px; }
-
-  .container > .header,
-  .container > .header > * { background: transparent; border: none; }
-  .container > .header { padding: 16px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin: 0 0 0 0; }
-
-  /* Tabs — flat row, accent on active */
-  .tabs {
-    gap: 0;
-    border: 1px solid var(--border);
-    margin: 24px 0 0;
-  }
-  .tab {
-    background: transparent;
-    border: none;
-    border-right: 1px solid var(--border);
-    border-radius: 0;
-    padding: 14px 22px;
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--fg-muted);
-    cursor: pointer;
-    transition: color 0.2s, background 0.2s;
-  }
-  .tabs > .tab:last-child { border-right: none; }
-  .tab:hover { color: var(--fg); }
-  .tab.active {
-    color: var(--accent);
-    background: rgba(237,255,69,0.04);
-  }
-
-  .tab-panel { padding: 24px 0; }
-  .tab-panel h2, .tab-panel h3 {
-    font-family: var(--font-serif);
-    font-weight: 700;
-    color: var(--fg);
-    mix-blend-mode: plus-lighter;
-    letter-spacing: -0.005em;
-  }
-  .section-label {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--fg-muted);
-  }
-
-  /* Provider grid — flatter buttons */
-  .provider-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 0;
-    border: 1px solid var(--border);
-  }
-  .provider-btn {
-    background: transparent;
-    border: none;
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    border-radius: 0;
-    padding: 16px 14px;
-    text-align: left;
-    cursor: pointer;
-    font-family: var(--font-serif);
-    color: var(--fg);
-    transition: background 0.2s, color 0.2s;
-  }
-  .provider-btn:hover {
-    background: rgba(245,240,232,0.04);
-  }
-  .provider-btn.active {
-    background: rgba(237,255,69,0.06);
-    color: var(--accent);
-  }
-
-  /* Channel cards — flat */
-  .channel-card {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 0;
-    transition: border-color 0.2s, background 0.2s;
-  }
-  .channel-card:hover {
-    border-color: var(--accent);
-    background: rgba(245,240,232,0.02);
-  }
-  .channel-name {
-    font-family: var(--font-serif);
-    font-weight: 600;
-  }
-  .channel-desc {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    letter-spacing: 0.04em;
-    opacity: 0.55;
-  }
-  .channel-status { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; }
-
-  /* Buttons */
-  .btn, .btn-save, .btn-launch {
-    border-radius: 0;
-    font-family: var(--font-mono);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-  .btn-launch, .btn-save {
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    background: transparent;
-    padding: 12px 24px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .btn-launch:hover, .btn-save:hover {
-    background: var(--accent);
-    color: var(--bg);
-  }
-  .btn-launch:disabled, .btn-save:disabled {
-    border-color: var(--border);
-    color: var(--fg-muted);
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
-  /* Inputs / selects */
-  .field input, .field select, .field textarea, .api-key-row input {
-    border-radius: 0;
-    font-family: var(--font-mono);
-    background: transparent;
-  }
-
-  /* Switch (toggle) — keep functional shape but recolor */
-  .switch input:checked + .slider { background-color: var(--accent); }
-
-  /* Toggle rows — flatter */
-  .toggle-row {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 0;
-  }
-  .toggle-label {
-    font-family: var(--font-serif);
-    font-weight: 600;
-  }
-  .toggle-desc {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.04em;
-    opacity: 0.6;
-  }
-
-  /* Onboarding card — yu.ai-styled */
-  .onboarding-card {
-    border: 1px solid var(--border);
-    border-radius: 0;
-    background: var(--card);
-  }
-  .onboarding-card h2 {
-    font-family: var(--font-serif);
-    font-weight: 700;
-    mix-blend-mode: plus-lighter;
-  }
-  .onboarding-step {
-    border-radius: 0;
-  }
-  .step-num {
-    border-radius: 50%;
-    font-family: var(--font-mono);
-  }
-
-  /* Toast */
-  .toast { border-radius: 0; font-family: var(--font-mono); letter-spacing: 0.05em; }
-
-  /* Card class generic */
-  .card {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 0;
-  }
-
-  /* Fields */
-  .field { margin-bottom: 14px; }
-  .field label, .field > strong {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    opacity: 0.6;
-  }
-
-  /* Footer — keep yu.ai version added earlier; make sure it sits below */
-  .footer { display: none; }  /* hide any inherited Hermes footer; y-footer is the canonical one */
-
-
-
-  /* ─────── flatten remaining dark fills (yu.ai aesthetic) ─────── */
-  [style*="background:var(--secondary)"],
-  [style*="background: var(--secondary)"],
-  [style*="background:var(--card)"],
-  [style*="background: var(--card)"],
-  [style*="background:var(--muted)"],
-  [style*="background: var(--muted)"] {
-    background: transparent;
-  }
-
-  /* CSS-rule level: any block that uses --card / --secondary / --muted
-     for its fill becomes transparent. We can't selector-match a CSS
-     property value, so we override the most common offenders by
-     class name. */
-  .api-key-row, .channel-fields, .field {
-    background: transparent;
-  }
-
-  /* Inputs / selects transparent */
-  .container input,
-  .container select,
-  .container textarea {
-    background: transparent;
-    border-color: var(--border);
-    border-radius: 0;
-    font-family: var(--font-mono);
-  }
-  .container input:focus,
-  .container select:focus,
-  .container textarea:focus {
-    border-color: var(--accent);
-    outline: none;
-  }
-
-  /* Toast — flat with accent border */
-  .toast {
-    background: var(--bg);
-    border: 1px solid var(--accent);
-    border-radius: 0;
-    font-family: var(--font-mono);
-    letter-spacing: 0.05em;
-  }
-
-
-.skip-link{position:absolute;top:-40px;left:0;background:var(--accent);color:var(--bg);padding:8px 16px;z-index:1000;transition:top .3s;font-family:var(--font-sans);font-size:13px}
-.skip-link:focus{top:0}
-</style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css" crossorigin />
-<style>
-  /* LXGW WenKai fallback for offline */
-  @font-face {
-    font-family: 'LXGW WenKai';
-    src: local('LXGW WenKai'), local('LXGWWenKai-Regular');
-    font-display: swap;
-  }
-</style>
-</head>
-<body>
-<a href="#main" class="skip-link">跳到主要内容</a>
-<div class="bg-i" aria-hidden="true"><img alt="" src="https://yuai-r.cn/egret-ink.jpg" width="1920" height="1080" loading="lazy" decoding="async" onerror="this.parentNode.style.display='none'"></div>
-<div class="bg-n" aria-hidden="true"></div>
-<div class="bg-g" aria-hidden="true"></div>
-<div class="onboarding" id="onboarding" style="display:none">
-  <div class="onboarding-card">
-    <h2>Hermes Portable</h2>
-    <p>欢迎使用！完成以下步骤即可开始：</p>
-    <div class="onboarding-steps">
-      <div class="onboarding-step">
-        <div class="step-num active" id="step1">1</div>
-        <div>选择一个 LLM 提供商，填入 API Key</div>
-      </div>
-      <div class="onboarding-step">
-        <div class="step-num" id="step2">2</div>
-        <div>点击「测试连接」确认 Key 有效</div>
-      </div>
-      <div class="onboarding-step">
-        <div class="step-num" id="step3">3</div>
-        <div>选择模型 → 保存 → 启动</div>
-      </div>
-    </div>
-    <p style="opacity:0.6">API Key 仅存储在本机 data/.env 中</p>
-    <button class="btn primary btn-launch" style="width:100%;margin-top:12px" onclick="dismissOnboarding()">
-      开始配置
-    </button>
-  </div>
-</div>
-
-<main class="y-page" role="main" id="main">
-
-<nav class="y-row nav-row" aria-label="Primary">
-  <div class="y-cell s2"><a href="https://yuai-r.cn/" class="y-title" style="text-decoration:none;color:inherit">yu.ai</a></div>
-  <div class="y-cell s2" style="padding:0">
-    <a class="y-nav-link" href="https://yuai-r.cn/"><span class="y-label">hermes config</span></a>
-  </div>
-  <div class="y-cell" style="justify-content:flex-end;gap:8px">
-    <button id="webui-btn" class="btn" onclick="toggleWebUI()" style="font-size:11px;padding:4px 8px;">Web UI</button>
-    <button id="y-theme-btn" aria-label="切换主题" class="y-theme-toggle" type="button"><svg class="y-theme-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><svg class="y-theme-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-  </div>
-</nav>
-
-<div class="y-row">
-  <div class="y-cell s6" style="border-right:none;padding:0">
-    <div class="y-hero">
-      <span class="y-label-xs y-op-7" style="letter-spacing:.15rem">hermes portable · config</span>
-      <h1 class="y-display">hermes</h1>
-      <p class="y-sub">成长型 AI 智能体 · 持久记忆 · 跨平台网关</p>
-      <div class="y-term" aria-hidden="true">
-        <div class="y-term-h">
-          <span class="y-td"></span><span class="y-td"></span><span class="y-td"></span>
-          <span class="y-term-label">hermes</span>
-        </div>
-        <div class="y-term-b" id="liveTerm"><span class="p">$ ./hermes serve</span>
-<span class="t" id="liveStatusLine">  · checking hermes…</span>
-<span class="y-blink"></span></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="container">
-  <div class="header">
-    <div id="hermesStatus" style="margin-top:12px;display:none;align-items:center;justify-content:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);">
-      <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:#666;display:inline-block;"></span>
-      <span id="statusText">检测中...</span>
-    </div>
-  </div>
-
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('model',this)">模型</button>
-    <button class="tab" onclick="switchTab('channels',this)">渠道</button>
-    <button class="tab" onclick="switchTab('settings',this)">设置</button>
-  </div>
-
-  <form id="configForm">
-
-    <!-- TAB: Model -->
-    <div id="tab-model" class="tab-panel active">
-      <div class="section-label">API 密钥</div>
-      <div class="card">
-        <div class="provider-grid" id="providerGrid"></div>
-        <div id="apiKeySection"></div>
-      </div>
-
-      <div class="section-label" style="margin-top:12px">模型</div>
-      <div class="card">
-        <div class="field">
-          <label>默认模型</label>
-          <select id="modelSelect"></select>
-          <div class="model-preview" id="modelPreview">current: —</div>
-          <div id="catalogStatus" style="margin-top:4px;font-family:var(--font-mono);font-size:9px;color:var(--fg-muted,#9a968e);letter-spacing:0.04em;display:none"></div>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <div class="field">
-            <label>最大轮数</label>
-            <input type="number" id="maxTurns" value="90" min="10" max="500">
-          </div>
-          <div class="field">
-            <label>超时 (秒)</label>
-            <input type="number" id="timeout" value="180" min="30" max="600">
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB: Channels -->
-    <div id="tab-channels" class="tab-panel">
-      <div class="section-label">消息渠道</div>
-      <div class="card">
-        <p style="font-family:var(--font-mono);font-size:10px;color:var(--fg-muted);margin-bottom:12px;letter-spacing:0.05em;">
-          启用渠道后，Hermes 可通过对应平台收发消息。
-        </p>
-        <div id="channelList"></div>
-      </div>
-    </div>
-
-    <!-- TAB: Settings -->
-    <div id="tab-settings" class="tab-panel">
-      <div class="section-label">偏好设置</div>
-      <div class="card">
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-label">上下文压缩</div>
-            <div class="toggle-desc">自动压缩长对话以节省 token</div>
-          </div>
-          <label class="switch"><input type="checkbox" id="compression" checked><span class="slider"></span></label>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-label">显示费用</div>
-            <div class="toggle-desc">每次回复显示 token 用量和费用</div>
-          </div>
-          <label class="switch"><input type="checkbox" id="showCost" checked><span class="slider"></span></label>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-label">工具进度</div>
-            <div class="toggle-desc">实时显示工具调用进度</div>
-          </div>
-          <label class="switch"><input type="checkbox" id="showToolProgress" checked><span class="slider"></span></label>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-label">持久记忆</div>
-            <div class="toggle-desc">跨会话记住你的偏好设置</div>
-          </div>
-          <label class="switch"><input type="checkbox" id="memoryEnabled" checked><span class="slider"></span></label>
-        </div>
-      </div>
-      <div class="section-label" style="margin-top:12px">版本更新</div>
-      <div class="card">
-        <div id="versionInfo" style="font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);">
-          正在检查版本...
-        </div>
-        <div style="margin-top:10px">
-          <button type="button" class="btn btn-save" style="width:100%" onclick="checkUpdate()">
-            检查更新
-          </button>
-        </div>
-        <div id="updateAction" style="margin-top:8px;display:none">
-          <button type="button" class="btn primary btn-launch" style="width:100%" onclick="runUpdate()">
-            更新到最新版
-          </button>
-        </div>
-        <div id="updateLog" style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--emerald);display:none;white-space:pre-wrap;"></div>
-      </div>
-
-      <div class="section-label" style="margin-top:12px">配置管理</div>
-      <div class="card">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button type="button" class="btn" style="flex:1;min-width:120px" onclick="exportConfig()">导出配置</button>
-          <button type="button" class="btn" style="flex:1;min-width:120px" onclick="startImport()">导入配置</button>
-          <button type="button" class="btn" style="flex:1;min-width:120px" onclick="viewEnv()">查看 .env</button>
-          <button type="button" class="btn destructive" style="flex:1;min-width:120px" onclick="resetConfig()">重置</button>
-        </div>
-        <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="doImport(event)">
-      </div>
-
-      <div class="section-label" style="margin-top:12px">运行日志</div>
-      <div class="card">
-        <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <button type="button" class="btn" style="flex:1" onclick="refreshLogs()">刷新日志</button>
-          <button type="button" class="btn" style="flex:1" onclick="clearLogView()">清空显示</button>
-        </div>
-        <pre id="logContent" style="background:#170d02;color:#f5f5f5;padding:12px;border-radius:8px;font-family:var(--font-mono);font-size:11px;line-height:1.6;max-height:280px;overflow:auto;margin:0;white-space:pre-wrap;word-break:break-all;">点击「刷新日志」查看最近 200 行</pre>
-      </div>
-    </div>
-
-    <div class="actions">
-      <button type="button" class="btn btn-save" onclick="saveConfig()">保存</button>
-      <button type="button" class="btn" id="restartBtn" onclick="restartHermes()" style="display:none">重启 Hermes</button>
-      <button type="button" class="btn primary btn-launch" id="launchBtn" onclick="launchHermes()">启动</button>
-    </div>
-  </form>
-
-  <div class="footer">Hermes Portable · 数据存储在 data/</div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-const PROVIDERS = __PROVIDERS__;
-const CHANNELS  = __CHANNELS__;
-let activeProvider = '__ACTIVE_PROVIDER__';
-let currentEnv = __CURRENT_ENV__;
-let enabledChannels = __ENABLED_CHANNELS__;
-let savedOnce = false;
-let isFirstRun = __FIRST_RUN__;
-
-function escapeHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-function switchTab(name, btn) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  btn.classList.add('active');
-}
-
-// Onboarding
-function showOnboarding() {
-  document.getElementById('onboarding').style.display = 'flex';
-}
-function dismissOnboarding() {
-  document.getElementById('onboarding').style.display = 'none';
-}
-function updateStep(step) {
-  for (let i = 1; i <= 3; i++) {
-    const el = document.getElementById('step' + i);
-    if (el) {
-      el.classList.toggle('active', i <= step);
-    }
-  }
-}
-
-function init() {
-  renderProviders();
-  renderApiKeySection();
-  updateModelSelect();
-  renderChannels();
-  restoreConfig();
-  // First run: show onboarding, disable launch
-  if (isFirstRun) {
-    showOnboarding();
-    document.getElementById('launchBtn').disabled = true;
-  }
-}
-
-function renderProviders() {
-  const iconMap = {custom:'openrouter',nous:'nousresearch'};
-  const g = document.getElementById('providerGrid');
-  g.innerHTML = PROVIDERS.map(p => {
-    const iconName = iconMap[p.id] || p.id;
-    const icon = `<img src="/icons/${iconName}.svg" width="16" height="16" alt="" style="border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.style.display='none'">`;
-    return `<button type="button" class="provider-btn ${p.id===activeProvider?'active':''}"
-            onclick="selectProvider('${p.id}')">${icon}${p.name}</button>`;
-  }).join('');
-}
-
-function selectProvider(id) { activeProvider = id; renderProviders(); renderApiKeySection(); updateModelSelect(); }
-
-function renderApiKeySection() {
-  const s = document.getElementById('apiKeySection');
-  const p = PROVIDERS.find(x => x.id === activeProvider);
-  if (!p) return;
-  const hasKey = currentEnv[p.env] && currentEnv[p.env].length > 0;
-  s.innerHTML = `<div class="field">
-    <label>${p.name} API Key</label>
-    <div class="api-key-row">
-      <input type="password" id="apiKey_${p.env}" placeholder="粘贴你的 ${p.name} API Key"
-             value="${hasKey ? escapeHtml(currentEnv[p.env]) : ''}" oninput="updateKeyStatus(this,'${p.env}')">
-      <div class="api-status ${hasKey?'set':''}" id="status_${p.env}"></div>
-    </div></div>
-    <div style="margin-top:8px">
-      <button type="button" class="btn btn-save" style="width:100%;padding:8px;font-size:10px" onclick="testConnection()">
-        测试连接
-      </button>
-      <div id="testResult" style="margin-top:6px;font-family:var(--font-mono);font-size:10px;display:none"></div>
-    </div>`;
-}
-
-function updateKeyStatus(input, envKey) {
-  const st = document.getElementById('status_' + envKey);
-  if (input.value.length > 10) { st.classList.add('set'); currentEnv[envKey] = input.value; }
-  else { st.classList.remove('set'); delete currentEnv[envKey]; }
-}
-
-function updateModelSelect() {
-  const sel = document.getElementById('modelSelect');
-  const p = PROVIDERS.find(x => x.id === activeProvider);
-  if (!p) return;
-  sel.innerHTML = p.models.map(m => `<option value="${m}">${m}</option>`).join('');
-  updateModelPreview(); sel.onchange = updateModelPreview;
-}
-
-function updateModelPreview() {
-  document.getElementById('modelPreview').textContent = '当前: ' + activeProvider + '/' + document.getElementById('modelSelect').value;
-}
-
-function renderChannels() {
-  const list = document.getElementById('channelList');
-  list.innerHTML = CHANNELS.map(ch => {
-    const enabled = enabledChannels.includes(ch.id);
-    const hasTokens = ch.fields.some(f => currentEnv[f.key]);
-    // WeChat (iLink) gets a special "扫码登录" shortcut that drives
-    // the /api/wechat/* endpoints. The hand-typed Bot Token / Account
-    // ID fields below remain available for users who already have
-    // credentials from `hermes gateway setup` or from a prior session.
-    const wechatExtra = ch.id === 'weixin' ? `
-      <div class="field" style="margin-top:8px;">
-        <button type="button" class="btn primary btn-launch" style="width:100%"
-                onclick="event.stopPropagation(); startWeChatLogin()">
-          📱 扫码登录微信
-        </button>
-        <div style="margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--fg-muted);">
-          扫码后自动写入 WEIXIN_TOKEN / WEIXIN_ACCOUNT_ID。手动配置见下方字段。
-        </div>
-      </div>` : '';
-    return `<div class="channel-card ${enabled ? 'enabled' : ''}" id="ch-card-${ch.id}">
-      <div class="channel-header" onclick="toggleChannelFields('${ch.id}')">
-        <div class="channel-info">
-          <span class="channel-icon">${ch.icon}</span>
-          <div>
-            <div class="channel-name">${ch.name}</div>
-            <div class="channel-desc">${ch.desc}</div>
-          </div>
-        </div>
-        <div class="channel-right">
-          <span class="channel-status ${hasTokens?'on':'off'}">${hasTokens?'已配置':'未配置'}</span>
-          <label class="switch" onclick="event.stopPropagation()">
-            <input type="checkbox" ${enabled?'checked':''} onchange="toggleChannel('${ch.id}', this.checked)">
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-      <div class="channel-fields ${enabled?'show':''}" id="ch-fields-${ch.id}">
-        ${wechatExtra}
-        ${ch.fields.map(f => `<div class="field">
-          <label>${f.label}</label>
-          <input id="ch-input-${f.key}" type="${f.type}" placeholder="${f.placeholder}"
-                 value="${escapeHtml(currentEnv[f.key]||'')}"
-                 oninput="currentEnv['${f.key}']=this.value; updateChannelStatus('${ch.id}')">
-        </div>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function toggleChannel(chId, checked) {
-  if (checked) { if (!enabledChannels.includes(chId)) enabledChannels.push(chId); }
-  else { enabledChannels = enabledChannels.filter(x => x !== chId); }
-  const card = document.getElementById('ch-card-' + chId);
-  card.classList.toggle('enabled', checked);
-  const fields = document.getElementById('ch-fields-' + chId);
-  if (checked) fields.classList.add('show');
-}
-
-function toggleChannelFields(chId) {
-  const fields = document.getElementById('ch-fields-' + chId);
-  fields.classList.toggle('show');
-}
-
-function updateChannelStatus(chId) {
-  const ch = CHANNELS.find(x => x.id === chId);
-  const card = document.getElementById('ch-card-' + chId);
-  const status = card.querySelector('.channel-status');
-  const hasTokens = ch.fields.some(f => currentEnv[f.key]);
-  status.className = 'channel-status ' + (hasTokens ? 'on' : 'off');
-  status.textContent = hasTokens ? '已配置' : '未配置';
-}
-
-function restoreConfig() {
-  fetch('/api/config').then(r => r.json()).then(data => {
-    const cfg = data.config || {};
-    if (cfg.agent) document.getElementById('maxTurns').value = cfg.agent.max_turns || 90;
-    if (cfg.terminal) document.getElementById('timeout').value = cfg.terminal.timeout || 180;
-    if (cfg.compression) document.getElementById('compression').checked = cfg.compression.enabled !== false;
-    if (cfg.display) {
-      document.getElementById('showCost').checked = cfg.display.show_cost !== false;
-      document.getElementById('showToolProgress').checked = cfg.display.tool_progress !== false;
-    }
-    if (cfg.memory) document.getElementById('memoryEnabled').checked = cfg.memory.memory_enabled !== false;
-    if (cfg.model) {
-      const full = cfg.model.default || '';
-      const provider = cfg.model.provider || 'openrouter';
-      selectProvider(provider);
-      const sel = document.getElementById('modelSelect');
-      for (let opt of sel.options) {
-        if (opt.value === full || full.endsWith(opt.value)) { opt.selected = true; break; }
-      }
-      updateModelPreview();
-    }
-    if (cfg.gateway && cfg.gateway.platforms) {
-      enabledChannels = Object.keys(cfg.gateway.platforms).filter(k => cfg.gateway.platforms[k].enabled);
-      renderChannels();
-    }
-    // Surface the upstream model catalog freshness so users know
-    // when the OpenRouter / Nous list was last updated. When the
-    // backend couldn't reach the catalog this just stays hidden.
-    const cs = document.getElementById('catalogStatus');
-    if (cs) {
-      if (data.catalog_updated_at) {
-        cs.style.display = 'block';
-        cs.textContent = '◉ 模型清单 · 上游同步于 ' + data.catalog_updated_at.slice(0,10);
-        cs.style.color = 'var(--emerald,#d4e600)';
-      } else {
-        cs.style.display = 'block';
-        cs.textContent = '◌ 模型清单 · 离线（使用内置快照）';
-        cs.style.color = 'var(--fg-muted,#9a968e)';
-      }
-    }
-  }).catch(() => {});
-}
-
-function saveConfig() {
-  const sel = document.getElementById('modelSelect');
-  const data = {
-    env: currentEnv,
-    model_provider: activeProvider,
-    model_name: sel.value,
-    max_turns: parseInt(document.getElementById('maxTurns').value),
-    timeout: parseInt(document.getElementById('timeout').value),
-    compression: document.getElementById('compression').checked,
-    compression_threshold: 0.50,
-    show_cost: document.getElementById('showCost').checked,
-    show_tool_progress: document.getElementById('showToolProgress').checked,
-    memory_enabled: document.getElementById('memoryEnabled').checked,
-    enabled_channels: enabledChannels,
-    skin: 'default',
-  };
-  const p = PROVIDERS.find(x => x.id === activeProvider);
-  if (p && !currentEnv[p.env]) { toast('请填写 ' + p.name + ' API Key', 'error'); return; }
-
-  fetch('/api/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) })
-    .then(r => r.json()).then(res => {
-      if (res.success) { toast('已保存', 'success'); savedOnce = true; if(isFirstRun) updateStep(3); }
-      else toast(res.error || '错误', 'error');
-    }).catch(() => toast('网络错误', 'error'));
-}
-
-function launchHermes() {
-  if (!savedOnce) { toast('请先保存', 'error'); return; }
-  fetch('/api/launch', { method:'POST' }).then(r => r.json()).then(res => {
-    if (res.success) { toast('Hermes 已启动', 'success'); setTimeout(() => window.close(), 1500); }
-  });
-}
-
-function toast(msg, type) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.className = 'toast ' + type + ' show';
-  setTimeout(() => el.classList.remove('show'), 3000);
-}
-
-function testConnection() {
-  const p = PROVIDERS.find(x => x.id === activeProvider);
-  if (!p) return;
-  const keyInput = document.getElementById('apiKey_' + p.env);
-  const key = keyInput ? keyInput.value : '';
-  if (!key || key.length < 10) {
-    toast('请先填写 API Key', 'error');
-    return;
-  }
-  const result = document.getElementById('testResult');
-  result.style.display = 'block';
-  result.innerHTML = '<span style="color:var(--warning)">正在测试...</span>';
-
-  fetch('/api/test', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({provider: activeProvider, api_key: key, model: ''})
-  }).then(r => r.json()).then(data => {
-    if (data.success) {
-      result.innerHTML = '<span style="color:var(--emerald)">✓ ' + (data.message || '连接成功') + '</span>';
-      // Advance onboarding step
-      if (isFirstRun) {
-        updateStep(2);
-        document.getElementById('launchBtn').disabled = false;
-      }
-    } else {
-      result.innerHTML = '<span style="color:var(--destructive)">✗ ' + (data.error || '连接失败') + '</span>';
-    }
-  }).catch(() => {
-    result.innerHTML = '<span style="color:var(--destructive)">✗ 网络错误</span>';
-  });
-}
-
-function checkUpdate() {
-  const info = document.getElementById('versionInfo');
-  const action = document.getElementById('updateAction');
-  info.innerHTML = '<span style="color:var(--warning)">正在检查...</span>';
-  action.style.display = 'none';
-  fetch('/api/version').then(r => r.json()).then(data => {
-    let html = '';
-    html += '<div style="color:var(--fg);margin-bottom:4px">当前: <span style="color:var(--emerald)">' + data.local + '</span></div>';
-    if (data.remote && data.remote.date) {
-      html += '<div>远程: ' + data.remote.date + ' (' + data.remote.sha + ')</div>';
-      html += '<div style="opacity:0.7;margin-top:2px">' + (data.remote.message || '') + '</div>';
-    } else if (data.remote && data.remote.error) {
-      html += '<div style="color:var(--destructive)">检查失败: ' + data.remote.error + '</div>';
-    }
-    if (!data.has_git) {
-      html += '<div style="color:var(--warning);margin-top:6px">⚠ 非 git 克隆，需要重新构建才能更新</div>';
-    }
-    info.innerHTML = html;
-    if (data.update_available) {
-      action.style.display = 'block';
-    }
-    if (data.portable_update && data.portable_update.tag) {
-      info.innerHTML += '<div style="margin-top:8px;color:var(--emerald)">Portable 更新: ' + data.portable_update.tag + '</div>';
-    }
-  }).catch(() => {
-    info.innerHTML = '<span style="color:var(--destructive)">检查失败</span>';
-  });
-}
-
-function runUpdate() {
-  const log = document.getElementById('updateLog');
-  const action = document.getElementById('updateAction');
-  log.style.display = 'block';
-  log.textContent = '正在更新，请稍候...\n';
-  action.style.display = 'none';
-  fetch('/api/update/run', { method: 'POST' }).then(r => r.json()).then(() => {
-    log.textContent += '正在拉取最新代码并安装依赖...\n';
-    // Poll for completion
-    let checks = 0;
-    const timer = setInterval(() => {
-      checks++;
-      fetch('/api/version').then(r => r.json()).then(data => {
-        if (data.update_available === false || checks > 30) {
-          clearInterval(timer);
-          log.textContent = '更新完成！\n当前版本: ' + data.local + '\n';
-          toast('更新完成', 'success');
-        }
-      }).catch(() => {
-        if (checks > 30) {
-          clearInterval(timer);
-          log.textContent += '更新超时，请手动检查\n';
-          toast('更新超时', 'error');
-        }
-      });
-    }, 3000);
-  }).catch(() => {
-    log.textContent += '更新失败\n';
-    toast('更新失败', 'error');
-  });
-}
-
-// Auto-check version on load
-setTimeout(checkUpdate, 1000);
-
-
-// ====== UX Features: Export/Import/View/Reset ======
-function exportConfig() {
-  window.location.href = '/api/export';
-  toast('配置已下载', 'success');
-}
-
-function startImport() {
-  document.getElementById('importFileInput').click();
-}
-
-function doImport(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const cfg = JSON.parse(e.target.result);
-      fetch('/api/import', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(cfg)
-      }).then(r => r.json()).then(data => {
-        if (data.success) {
-          toast('配置已导入，刷新页面生效', 'success');
-          setTimeout(() => location.reload(), 1000);
-        } else {
-          toast('导入失败: ' + (data.error || '未知错误'), 'error');
-        }
-      });
-    } catch (err) {
-      toast('JSON 格式错误', 'error');
-    }
-  };
-  reader.readAsText(file);
-  event.target.value = '';
-}
-
-function viewEnv() {
-  fetch('/api/config').then(r => r.json()).then(data => {
-    const env = data.env || {};
-    const lines = Object.keys(env).map(k => k + '=' + (env[k].length > 20 ? env[k].slice(0,8)+'...'+env[k].slice(-4) : env[k]));
-    const w = window.open('', '_blank');
-    if (w) {
-      w.document.write('<pre style="font-family:monospace;padding:20px;background:#170d02;color:#f5f5f5;font-size:13px;line-height:1.6;">'+lines.join('\n')+'</pre>');
-      w.document.title = 'Hermes .env';
-    } else {
-      toast('请允许弹窗', 'error');
-    }
-  });
-}
-
-function resetConfig() {
-  if (!confirm('确定要重置所有配置吗？\n当前配置会备份到 data/backups/')) return;
-  fetch('/api/reset', { method: 'POST' }).then(r => r.json()).then(data => {
-    if (data.success) {
-      toast('已重置，刷新页面', 'success');
-      setTimeout(() => location.reload(), 1000);
-    } else {
-      toast('重置失败: ' + (data.error || '未知错误'), 'error');
-    }
-  });
-}
-
-// ====== Status check (Hermes process + Web UI) ======
-function _setLiveStatus(cls, text) {
-  var line = document.getElementById('liveStatusLine');
-  if (line) { line.className = cls; line.textContent = text; }
-}
-function checkStatus() {
-  fetch('/api/status').then(r => r.json()).then(data => {
-    const dot = document.getElementById('statusDot');
-    const text = document.getElementById('statusText');
-    const restartBtn = document.getElementById('restartBtn');
-    if (data.running) {
-      dot.style.background = '#10b981';
-      dot.style.boxShadow = '0 0 6px #10b981';
-      text.textContent = 'Hermes 运行中 (PID ' + data.pid + ')';
-      _setLiveStatus('p', '  ✓ hermes running · pid ' + data.pid);
-      if (restartBtn) restartBtn.style.display = '';
-    } else {
-      dot.style.background = '#666';
-      dot.style.boxShadow = 'none';
-      _setLiveStatus('t', '  · hermes not running — click 启动');
-      text.textContent = 'Hermes 未运行';
-      if (restartBtn) restartBtn.style.display = 'none';
-    }
-  }).catch(() => {});
-}
-
-function restartHermes() {
-  if (!confirm('确定要重启 Hermes？\n你需要在终端中重新启动它。')) return;
-  fetch('/api/restart', { method: 'POST' }).then(r => r.json()).then(data => {
-    if (data.success) {
-      toast('已发送重启信号，请在终端重新启动 Hermes', 'success');
-      setTimeout(checkStatus, 2000);
-    } else {
-      toast('重启失败', 'error');
-    }
-  });
-}
-
-// ====== Log viewer ======
-function refreshLogs() {
-  const el = document.getElementById('logContent');
-  el.textContent = '加载中...';
-  fetch('/api/logs').then(r => r.json()).then(data => {
-    if (data.lines && data.lines.length) {
-      el.textContent = data.lines.join('\n');
-      el.scrollTop = el.scrollHeight;
-    } else {
-      el.textContent = '暂无日志';
-    }
-  }).catch(() => { el.textContent = '加载失败'; });
-}
-
-function clearLogView() {
-  document.getElementById('logContent').textContent = '已清空（仅清空显示，不删除日志文件）';
-}
-
-// Auto-check status every 5s
-checkStatus();
-setInterval(checkStatus, 5000);
-
-// ====== WeChat (iLink) QR login flow ======
-let _wechatSession = null;
-let _wechatPolling = false;
-
-function _wechatModal() {
-  let modal = document.getElementById('wechatModal');
-  if (modal) return modal;
-  modal = document.createElement('div');
-  modal.id = 'wechatModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:8000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);';
-  modal.innerHTML = `
-    <div style="background:var(--card,#1a1208);border:1px solid var(--border,#f5f5f526);padding:28px 24px;max-width:380px;width:90%;text-align:center;font-family:var(--font-sans);">
-      <h3 style="font-family:var(--font-serif);font-size:1.4rem;margin-bottom:8px;color:var(--fg,#f5f5f5);letter-spacing:0;">扫码登录微信</h3>
-      <p id="wechatModalHint" style="font-family:var(--font-mono);font-size:11px;color:var(--fg-muted,#9a968e);letter-spacing:0.04em;margin-bottom:16px;">使用微信扫描下方二维码，完成手机端确认即可</p>
-      <div id="wechatQrBox" style="background:white;padding:12px;min-width:240px;min-height:240px;display:flex;align-items:center;justify-content:center;">
-        <span style="color:#666;font-family:monospace;font-size:12px;">加载中…</span>
-      </div>
-      <div id="wechatStatusLine" style="margin-top:14px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted,#9a968e);min-height:1.4em;letter-spacing:0.04em;"></div>
-      <div style="display:flex;gap:8px;margin-top:18px;">
-        <button type="button" class="btn" style="flex:1" onclick="cancelWeChatLogin()">关闭</button>
-        <button type="button" class="btn primary btn-launch" style="flex:1" id="wechatRetryBtn" onclick="startWeChatLogin()" disabled>重试</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  return modal;
-}
-
-function _setWechatStatus(text, isError) {
-  const el = document.getElementById('wechatStatusLine');
-  if (!el) return;
-  el.textContent = text || '';
-  el.style.color = isError ? 'var(--destructive,#fb2c36)' : 'var(--fg-muted,#9a968e)';
-}
-
-function _renderWechatQr(dataUrl, rawContent) {
-  const box = document.getElementById('wechatQrBox');
-  if (!box) return;
-  if (dataUrl) {
-    box.innerHTML = `<img src="${dataUrl}" alt="WeChat QR" style="width:240px;height:240px;display:block;">`;
-  } else if (rawContent) {
-    // Fallback when both PNG renderers failed — let the user copy
-    // the raw URL into any QR generator app.
-    box.innerHTML = `<pre style="margin:0;padding:8px;color:#333;font-family:monospace;font-size:10px;word-break:break-all;white-space:pre-wrap;max-width:240px;">${escapeHtml(rawContent)}</pre>`;
-  } else {
-    box.innerHTML = '<span style="color:#999;font-family:monospace;font-size:12px;">二维码生成失败</span>';
-  }
-}
-
-async function startWeChatLogin() {
-  const modal = _wechatModal();
-  modal.style.display = 'flex';
-  document.getElementById('wechatRetryBtn').disabled = true;
-  _setWechatStatus('正在请求二维码…');
-  _renderWechatQr('', '');
-  try {
-    const r = await fetch('/api/wechat/start', { method: 'POST' });
-    const data = await r.json();
-    if (!data || !data.success) {
-      _setWechatStatus('启动失败：' + (data && data.error || '未知错误'), true);
-      document.getElementById('wechatRetryBtn').disabled = false;
-      return;
-    }
-    _wechatSession = data.session;
-    _renderWechatQr(data.qr_data_url, data.qr_content);
-    _setWechatStatus('请使用微信扫码并在手机上确认');
-    _pollWeChatStatus();
-  } catch (e) {
-    _setWechatStatus('网络错误：' + e.message, true);
-    document.getElementById('wechatRetryBtn').disabled = false;
-  }
-}
-
-async function _pollWeChatStatus() {
-  if (_wechatPolling || !_wechatSession) return;
-  _wechatPolling = true;
-  try {
-    while (_wechatSession) {
-      let result;
-      try {
-        const r = await fetch('/api/wechat/status?session=' + encodeURIComponent(_wechatSession));
-        result = await r.json();
-      } catch (e) {
-        _setWechatStatus('网络中断，重试中…', true);
-        await new Promise(r => setTimeout(r, 2000));
-        continue;
-      }
-      const s = (result && result.status) || 'wait';
-      if (s === 'wait') {
-        _setWechatStatus('等待扫码…');
-        // The server-side long-poll already takes ~35s, so usually we
-        // wait that long naturally. But if iLink ever returns 'wait'
-        // immediately (or our long-poll times out client-side fast),
-        // pace ourselves so we don't hot-loop.
-        await new Promise(r => setTimeout(r, 1500));
-        continue;
-      }
-      if (s === 'scanned') {
-        _setWechatStatus('已扫码，请在手机上点击确认');
-        await new Promise(r => setTimeout(r, 1500));
-        continue;
-      }
-      if (s === 'refreshed') {
-        _renderWechatQr(result.qr_data_url, result.qr_content);
-        _setWechatStatus('二维码已刷新，请重新扫描');
-        continue;
-      }
-      if (s === 'confirmed') {
-        _setWechatStatus('登录成功！凭据已保存。', false);
-        toast('微信登录成功 ✓ 重启 Hermes 后生效', 'success');
-        // The backend already wrote credentials atomically to data/.env.
-        // We MUST refetch the server-side env instead of injecting
-        // placeholder values into currentEnv — sending a placeholder
-        // back to /api/save would clobber the real token (saveConfig
-        // writes data.env verbatim into .env). Refetch keeps the
-        // in-browser mirror in sync with what's on disk.
-        try {
-          const r2 = await fetch('/api/config');
-          const fresh = await r2.json();
-          if (fresh && fresh.env) {
-            // Replace the env reference so subsequent save_config()
-            // calls send the canonical disk-backed values.
-            for (const k of Object.keys(fresh.env)) {
-              currentEnv[k] = fresh.env[k];
-            }
-          }
-        } catch (_) { /* best effort — backend wrote, that's what matters */ }
-        // Reflect new account_id in the visible input
-        const accountId = (result && result.account_id) || currentEnv['WEIXIN_ACCOUNT_ID'] || '';
-        const aiInput = document.getElementById('ch-input-WEIXIN_ACCOUNT_ID');
-        if (aiInput && accountId) aiInput.value = accountId;
-        // Auto-enable the channel since the user just authenticated.
-        if (!enabledChannels.includes('weixin')) enabledChannels.push('weixin');
-        renderChannels();
-        setTimeout(() => cancelWeChatLogin(false), 1500);
-        break;
-      }
-      if (s === 'expired') {
-        _setWechatStatus('二维码已过期：' + (result.message || ''), true);
-        document.getElementById('wechatRetryBtn').disabled = false;
-        _wechatSession = null;
-        break;
-      }
-      if (s === 'error') {
-        _setWechatStatus('错误：' + (result.message || '未知'), true);
-        document.getElementById('wechatRetryBtn').disabled = false;
-        _wechatSession = null;
-        break;
-      }
-      // Unknown status — keep polling
-    }
-  } finally {
-    _wechatPolling = false;
-  }
-}
-
-function cancelWeChatLogin(closeModal) {
-  if (closeModal === undefined) closeModal = true;
-  const session = _wechatSession;
-  _wechatSession = null;
-  if (session) {
-    fetch('/api/wechat/cancel', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session })
-    }).catch(() => {});
-  }
-  if (closeModal) {
-    const modal = document.getElementById('wechatModal');
-    if (modal) modal.style.display = 'none';
-  }
-}
-
-// ====== Disconnect detection ======
-(function() {
-  let failures = 0;
-  setInterval(() => {
-    fetch('/api/heartbeat').then(r => {
-      if (r.ok) { failures = 0; return; }
-      failures++;
-    }).catch(() => { failures++; });
-    if (failures >= 3) {
-      let overlay = document.getElementById('disconnectOverlay');
-      if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'disconnectOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(4,28,28,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
-        overlay.innerHTML = '<div style="background:#1a1208;padding:32px 40px;border-radius:14px;text-align:center;border:1px solid rgba(237,255,69,0.15);max-width:360px;"><h3 style="color:#f5f5f5;margin-bottom:8px;font-size:1em;">连接已断开</h3><p style="color:#9a968e;font-size:0.85em;line-height:1.6;">Hermes 进程已停止。请重新双击启动器。</p></div>';
-        document.body.appendChild(overlay);
-      }
-    }
-  }, 5000);
-})();
-
-init();
-
-  // Hermes Web UI integration
-  async function toggleWebUI() {
-    const btn = document.getElementById('webui-btn');
-    try {
-      const res = await fetch('/api/webui/status');
-      const data = await res.json();
-      if (data.running) {
-        window.open('http://127.0.0.1:8648', '_blank');
-      } else {
-        btn.textContent = '启动中...';
-        btn.disabled = true;
-        const startRes = await fetch('/api/webui/start');
-        const startData = await startRes.json();
-        if (startData.ok) {
-          setTimeout(() => {
-            window.open('http://127.0.0.1:8648', '_blank');
-            btn.textContent = '打开';
-            btn.disabled = false;
-          }, 2000);
-        } else {
-          btn.textContent = '启动失败';
-          btn.disabled = false;
-        }
-      }
-    } catch (err) {
-      btn.textContent = '错误';
-      btn.disabled = false;
-    }
-  }
-</script>
-
-</main>
-
-<footer class="y-footer">
-  <div class="c"><span class="y-label y-op-7">yu.ai</span></div>
-  <div class="c"><span class="y-label y-op-5">hermes portable</span></div>
-  <div class="c"><span class="y-label y-op-5" style="color:var(--accent)">hermes config</span></div>
-</footer>
-
-<script>
-(function(){
-  function lsGet(k){try{return localStorage.getItem(k);}catch(_){return null;}}
-  function lsSet(k,v){try{localStorage.setItem(k,v);}catch(_){}}
-  var btn=document.getElementById("y-theme-btn");
-  if(!btn) return;
-  var html=document.documentElement;
-  var sun=btn.querySelector(".y-theme-sun");
-  var moon=btn.querySelector(".y-theme-moon");
-  function syncIcons(isLight){sun.style.display=isLight?"none":"block";moon.style.display=isLight?"block":"none";}
-  var saved=lsGet("yuai-theme");
-  if(saved==="light"){html.setAttribute("data-theme","light");syncIcons(true);}
-  else if(saved==="dark"){html.setAttribute("data-theme","dark");syncIcons(false);}
-  else{var mql=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)");syncIcons(mql&&mql.matches);}
-  btn.onclick=function(){
-    var nowLight=html.getAttribute("data-theme")!=="light";
-    if(!html.getAttribute("data-theme")){var sysLight=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches;nowLight=!sysLight;}
-    html.setAttribute("data-theme",nowLight?"light":"dark");
-    lsSet("yuai-theme",nowLight?"light":"dark");
-    syncIcons(nowLight);
-  };
-})();
-
-  // Hermes Web UI integration
-  
-</script>
-</body>
-</html>"""
+# HTML is now in a separate file for easier maintenance
+_html_path = os.path.join(os.path.dirname(__file__), "config", "index.html")
+try:
+    with open(_html_path, "r", encoding="utf-8") as _f:
+        HTML_PAGE = _f.read()
+except FileNotFoundError:
+    HTML_PAGE = """<!DOCTYPE html>
+<html><head><title>Hermes Portable</title></head>
+<body><h1>Hermes Portable</h1>
+<p>Config UI not found. Please check lib/config/index.html</p>
+</body></html>"""
 
 # ═══════════════════════════════════════════════════════════════
 #  HTTP SERVER
@@ -3237,6 +1645,16 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._serve_favicon()
         elif path_only.startswith("/icons/") and path_only.endswith(".svg"):
             self._serve_icon(path_only[7:])  # strip "/icons/"
+        elif path_only == "/api/bootstrap":
+            # Token endpoint (localhost only)
+            origin = self.headers.get("Origin", "")
+            if not origin or not _is_local_origin(origin):
+                self.send_error(403, "Forbidden")
+                return
+            self._json_response({
+                "token": SERVER_TOKEN,
+                "port": actual_port
+            })
         elif path_only == "/api/config":
             self._json_response(read_config())
         elif path_only == "/api/version":
@@ -3255,16 +1673,6 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._serve_wechat_status()
         elif path_only == '/api/webui/status':
             self._json_response({'running': webui_status()})
-        elif path_only == '/api/webui/start':
-            if webui_start():
-                self._json_response({'ok': True, 'port': WEB_UI_PORT})
-            else:
-                self._json_response({'ok': False, 'error': 'Failed to start'}, 500)
-        elif path_only == '/api/webui/stop':
-            if webui_stop():
-                self._json_response({'ok': True})
-            else:
-                self._json_response({'ok': False, 'error': 'Failed to stop'}, 500)
         else:
             self.send_error(404)
 
@@ -3281,6 +1689,30 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 pass
 
     def _dispatch_post(self):
+        # CSRF / 写接口防护:
+        # 1) 要求 Content-Type 为 application/json,挡掉 <form enctype=text/plain>
+        #    构造 JSON 体绕过预检的跨站盲打(POST 简单请求无预检,但 form 不
+        #    能设 Content-Type 为 application/json,故强制该头即可阻断)。
+        # 2) 要求 Origin 为本机同源(127.0.0.1/localhost + 同端口),挡掉恶意网页
+        #    跨站调用。读接口(/api/bootstrap 已单独校验)不在此限。
+        # 注意:更彻底的方案是校验 Authorization: Bearer <SERVER_TOKEN>(token
+        # 已通过 /api/bootstrap 下发),但现有前端未携带该头,强行要求会令 UI
+        # 全废;本轮以 Origin 同源 + Content-Type 强制达成"挡跨站盲打"止血,
+        # 完整 Bearer 方案留待下轮前后端协同改造。
+        ctype = self.headers.get("Content-Type", "")
+        has_body = (int(self.headers.get("Content-Length", 0)) or 0) > 0
+        # Require a JSON content-type only when the request carries a body.
+        # Endpoints like /api/launch / /api/restart / /api/reset have no body
+        # and the frontend issues them without a Content-Type header; rejecting
+        # them with 415 would break the "Start Hermes" button. The CSRF defense
+        # rests primarily on the strict same-origin check below.
+        if has_body and not ctype.startswith("application/json"):
+            self._json_response({"success": False, "error": "unsupported media type"}, 415)
+            return
+        origin = self.headers.get("Origin")
+        if origin and not _is_same_origin(origin):
+            self._json_response({"success": False, "error": "forbidden origin"}, 403)
+            return
         body = self.rfile.read(min(int(self.headers.get("Content-Length", 0)), 1_000_000))
         if self.path == "/api/save":
             try:
@@ -3318,6 +1750,16 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         elif self.path == "/api/restart":
             self._json_response({"success": True})
             threading.Thread(target=self._restart_hermes, daemon=True).start()
+        elif self.path == "/api/webui/start":
+            if webui_start():
+                self._json_response({"ok": True, "port": WEB_UI_PORT})
+            else:
+                self._json_response({"ok": False, "error": "Failed to start (is hermes-web-ui installed?)"}, 500)
+        elif self.path == "/api/webui/stop":
+            if webui_stop():
+                self._json_response({"ok": True})
+            else:
+                self._json_response({"ok": False, "error": "Failed to stop"}, 500)
         elif self.path == "/api/wechat/start":
             try:
                 payload = wechat_start_login()
@@ -3335,19 +1777,19 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self.send_error(404)
 
     def _serve_html(self):
+        # NOTE: The frontend (lib/config/index.html) is fully self-contained — it
+        # inlines PROVIDERS / CHANNELS and drives active provider / env / enabled
+        # channels / first-run detection at runtime via fetch('/api/config'). The
+        # former `__PROVIDERS__` / `__CHANNELS__` / `__ACTIVE_PROVIDER__` /
+        # `__CURRENT_ENV__` / `__ENABLED_CHANNELS__` / `__FIRST_RUN__` template
+        # substitutions were no-ops (those placeholders don't exist in the HTML),
+        # so they've been removed. Don't reintroduce them unless the HTML is
+        # changed to consume server-injected values.
         config = read_config()
         page = HTML_PAGE
-        page = page.replace("__PROVIDERS__", json.dumps(config["providers"]))
-        page = page.replace("__CHANNELS__", json.dumps(config["channels"]))
-        page = page.replace("__ACTIVE_PROVIDER__", config["active_provider"])
-        page = page.replace("__CURRENT_ENV__", json.dumps(config["env"]))
         gw = config["config"].get("gateway", {})
         platforms = gw.get("platforms", {})
         enabled = [k for k, v in platforms.items() if v.get("enabled")]
-        page = page.replace("__ENABLED_CHANNELS__", json.dumps(enabled))
-        # Detect first run: no API key configured
-        has_key = any(config["env"].get(p["env"]) for p in config["providers"])
-        page = page.replace("__FIRST_RUN__", "true" if not has_key else "false")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("X-Content-Type-Options", "nosniff")
@@ -3393,6 +1835,14 @@ class ConfigHandler(SimpleHTTPRequestHandler):
 
     def _get_version(self):
         import urllib.request
+        # Check cache first — avoids hitting GitHub API on every frontend poll.
+        # GitHub allows 60 req/hour unauthenticated; without caching, polling
+        # every 5s exhausts that in 5 minutes.
+        with _version_cache_lock:
+            cached = _version_cache["result"]
+            fetched_at = _version_cache["fetched_at"]
+            if cached is not None and (time.time() - fetched_at) < _VERSION_CACHE_TTL_SEC:
+                return cached
         # Local version
         if sys.platform == "win32":
             hermes_bin = VENV_DIR / "Scripts" / "hermes.exe"
@@ -3467,7 +1917,7 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             and portable_update["tag"].lstrip("v") != current_tag
         )
 
-        return {
+        result = {
             "local": local,
             "local_tag": current_tag,
             "remote": remote,
@@ -3479,16 +1929,20 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             ) if has_git else portable_is_newer,
             "portable_update": portable_update if portable_is_newer else None,
         }
+        # Store in cache
+        with _version_cache_lock:
+            _version_cache["result"] = result
+            _version_cache["fetched_at"] = time.time()
+        return result
 
     def _run_update(self):
         import urllib.request
         import zipfile
         import tempfile
-        import socket
-        # 局部超时管理：保存原值，函数结束后恢复
-        # 防止影响其他线程的 urllib 调用（如 _get_version 已有自己的 timeout）
-        _orig_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(60)
+        # NOTE: We do NOT use socket.setdefaulttimeout() here because it sets
+        # a GLOBAL default that affects all other threads (including the HTTP
+        # server threads and the config watcher). Instead, we pass explicit
+        # timeout= parameters to each urllib call below.
         try:
 
             update_script = PORTABLE_ROOT / "lib" / "update.py"
@@ -3539,8 +1993,16 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                     tmp_zip = Path(tempfile.gettempdir()) / "hermes-portable-update.zip"
                     tmp_extract = Path(tempfile.gettempdir()) / "hermes-portable-extract"
 
-                    # Download
-                    urllib.request.urlretrieve(download_url, str(tmp_zip))
+                    # Download (with explicit timeout — urlretrieve doesn't
+                    # accept a timeout parameter, and we removed the global
+                    # socket.setdefaulttimeout to avoid affecting other threads)
+                    req = urllib.request.Request(
+                        download_url,
+                        headers={"User-Agent": "HermesPortable/1.0"},
+                    )
+                    with urllib.request.urlopen(req, timeout=60) as resp:
+                        with open(str(tmp_zip), "wb") as f:
+                            f.write(resp.read())
 
                     # Extract — with zip-slip protection.
                     # zipfile.extractall doesn't reject members with
@@ -3654,8 +2116,9 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             except Exception:
                 pass
 
-        finally:
-            socket.setdefaulttimeout(_orig_timeout)
+        except Exception:
+            pass
+        # No finally block needed — we never set socket.setdefaulttimeout.
 
     def _get_status(self):
         """Detect if hermes process is running via process listing + Web UI.
@@ -3773,6 +2236,14 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         kill_succeeded = False
         try:
             pid = int(lock_file.read_text().strip())
+            # Verify the PID is actually a hermes process before killing.
+            # Without this check, a stale lock file with a reused PID could
+            # cause us to kill an unrelated process.
+            if not _is_hermes_pid(pid):
+                print(f"Restart: PID {pid} is not a hermes process, skipping kill",
+                      file=sys.stderr)
+                lock_file.unlink(missing_ok=True)
+                return
             if sys.platform == "win32":
                 r = subprocess.run(["taskkill", "/F", "/PID", str(pid)],
                                    capture_output=True, timeout=5)
@@ -3845,37 +2316,42 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         """Import config from uploaded JSON. 事务性写入：全部成功或全部回滚。"""
         from datetime import datetime
         import shutil
-        backup_dir = DATA_DIR / "backups"
-        backup_dir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        cfg_path = DATA_DIR / "config.yaml"
+        # Acquire the config lock to prevent racing with _save_config_locked.
+        # Without this, a concurrent /api/save could overwrite the imported
+        # data (or vice versa), and the backup/rollback could restore a file
+        # that a concurrent save just modified.
+        with _save_config_lock:
+            backup_dir = DATA_DIR / "backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            cfg_path = DATA_DIR / "config.yaml"
 
-        # Phase 1: 备份现有文件
-        env_backup = None
-        cfg_backup = None
-        try:
-            if ENV_FILE.exists():
-                env_backup = backup_dir / f".env.before-import.{ts}"
-                shutil.copy(ENV_FILE, env_backup)
-            if cfg_path.exists():
-                cfg_backup = backup_dir / f"config.yaml.before-import.{ts}"
-                shutil.copy(cfg_path, cfg_backup)
-        except Exception as e:
-            raise RuntimeError(f"Backup failed before import: {e}")
-
-        # Phase 2: 写入新文件，失败时从备份恢复
-        try:
-            self._write_imported(data)
-        except Exception as e:
-            # 回滚
+            # Phase 1: 备份现有文件
+            env_backup = None
+            cfg_backup = None
             try:
-                if env_backup and env_backup.exists():
-                    shutil.copy(env_backup, ENV_FILE)
-                if cfg_backup and cfg_backup.exists():
-                    shutil.copy(cfg_backup, cfg_path)
-            except Exception:
-                pass
-            raise RuntimeError(f"Import failed, rolled back: {e}")
+                if ENV_FILE.exists():
+                    env_backup = backup_dir / f".env.before-import.{ts}"
+                    shutil.copy(ENV_FILE, env_backup)
+                if cfg_path.exists():
+                    cfg_backup = backup_dir / f"config.yaml.before-import.{ts}"
+                    shutil.copy(cfg_path, cfg_backup)
+            except Exception as e:
+                raise RuntimeError(f"Backup failed before import: {e}")
+
+            # Phase 2: 写入新文件，失败时从备份恢复
+            try:
+                self._write_imported(data)
+            except Exception as e:
+                # 回滚
+                try:
+                    if env_backup and env_backup.exists():
+                        shutil.copy(env_backup, ENV_FILE)
+                    if cfg_backup and cfg_backup.exists():
+                        shutil.copy(cfg_backup, cfg_path)
+                except Exception:
+                    pass
+                raise RuntimeError(f"Import failed, rolled back: {e}")
 
     def _write_imported(self, data):
         """实际写入逻辑，可能抛出异常。
@@ -3956,7 +2432,10 @@ class ConfigHandler(SimpleHTTPRequestHandler):
         api_key = data.get("api_key", "")
         model = data.get("model", "")
 
-        if not api_key:
+        # A user-supplied base_url (custom / bedrock / vertex / azure-foundry
+        # style providers) is itself enough to attempt a connection test even
+        # when no api_key is configured (e.g. AWS SDK / OAuth2 flows).
+        if not api_key and not data.get("base_url"):
             return {"success": False, "error": "No API key provided"}
 
         # Provider-specific test endpoints
@@ -3988,9 +2467,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 "headers": {"x-goog-api-key": api_key},
             },
             "xiaomi": {
-                # Xiaomi MiMo uses api.xiaomimimo.com (NOT api.xiaoai.mi.com —
-                # that's Xiaomi's smart-home assistant, unrelated).
-                "url": "https://api.xiaomimimo.com/v1/models",
+                # Xiaomi MiMo official API endpoint.
+                "url": "https://api.xiaomi.com/v1/models",
                 "headers": {"Authorization": f"Bearer {api_key}"},
             },
             "nous": {
@@ -4051,16 +2529,35 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 "method": "POST",
                 "body": json.dumps({"model": model or "sonar", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}).encode(),
             },
-            # Custom / proxy gateway — caller supplies base_url; if not provided, fail clearly
+            # Custom / proxy gateway — caller supplies base_url; if not provided, fail clearly.
+            # NOTE: Do NOT pre-set an Authorization header here. When a custom
+            # base_url is present the caller is an arbitrary endpoint and we must
+            # not leak the API key to it; the Authorization header is added only
+            # at request time when there is NO custom base_url (see below).
             "custom": {
                 "url": (data.get("base_url") or "").rstrip("/") + "/models" if data.get("base_url") else "",
-                "headers": {"Authorization": f"Bearer {api_key}"},
+                "headers": {},
             },
         }
 
         cfg = PROVIDER_CONFIGS.get(provider_id)
         if not cfg:
-            return {"success": False, "error": f"Unknown provider: {provider_id}"}
+            # Fall back to the provider's base URL supplied by the frontend
+            # (from its PROVIDERS definition) so every provider with a known
+            # base is testable, not just the 18 hard-coded entries above.
+            # Prefer an explicit user-supplied base_url (custom / bedrock /
+            # vertex / azure-foundry), then the static base from PROVIDERS.
+            base = (data.get("base_url") or data.get("base") or "").rstrip("/")
+            if base:
+                # No Authorization here — see custom branch note; it's added
+                # only when there is no custom base_url (an attacker-controlled
+                # endpoint must not receive the user's key).
+                cfg = {
+                    "url": base + "/models",
+                    "headers": {},
+                }
+            else:
+                return {"success": False, "error": f"Unknown provider: {provider_id}"}
         if not cfg.get("url"):
             return {"success": False, "error": "Missing base URL for custom provider"}
 
@@ -4081,29 +2578,67 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 "error": f"Refusing non-http(s) URL scheme: {scheme!r}",
             }
 
+        # Host / IP guard for user-supplied base_url: refuse to connect to
+        # loopback / link-local (cloud metadata) / private / multicast ranges.
+        # Without this, /api/test is a read-type SSRF: a malicious or careless
+        # base_url (e.g. http://169.254.169.254/...) would let the server fetch
+        # internal resources and the response body is echoed back to the caller.
+        try:
+            from urllib.parse import urlsplit
+            _host = urlsplit(cfg["url"]).hostname or ""
+        except Exception:
+            _host = ""
+        if _host and _is_blocked_test_ip(_host):
+            return {"success": False, "error": "Refusing connection to non-public host"}
+
         try:
             method = cfg.get("method", "GET")
+            # Only forward the user's API key to hosts we control / know about.
+            # For user-supplied base_url (custom / bedrock / vertex / etc.) we
+            # must NOT send `Authorization: Bearer <api_key>` to an arbitrary
+            # attacker-owned endpoint — that would leak the key. We send the
+            # key only when there is NO custom base_url (i.e. a built-in
+            # provider whose url is hardcoded to a known-good domain).
+            req_headers = {"User-Agent": "HermesPortable/1.0"}
+            if not data.get("base_url") and api_key:
+                req_headers["Authorization"] = f"Bearer {api_key}"
             req = urllib.request.Request(
                 cfg["url"],
-                headers={**cfg["headers"], "User-Agent": "HermesPortable/1.0"},
+                headers={**cfg["headers"], **req_headers},
                 method=method,
             )
             if "body" in cfg:
                 req.data = cfg["body"]
 
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            # NoRedirect handler: urllib follows 30x by default, which would let
+            # a public URL 302 to an internal one (and bypass the IP guard on
+            # the *initial* URL). Reject redirects so every hop is checked.
+            class _NoRedirect(urllib.request.HTTPRedirectHandler):
+                def redirect_request(self, req, fp, code, msg, headers, newurl):
+                    return None
+            opener = urllib.request.build_opener(_NoRedirect)
+            with opener.open(req, timeout=15) as resp:
                 status = resp.status
-                body = resp.read(2000).decode("utf-8", errors="replace")
+                # Per D#2: do NOT echo the response body back (it could contain
+                # secrets from an internal service). Only surface the status
+                # code and a model count derived from a local parse.
+                raw = resp.read(2000)
+                try:
+                    body_text = raw.decode("utf-8", errors="replace")
+                except Exception:
+                    body_text = ""
+                model_count = ""
+                if status >= 200 and status < 300:
+                    try:
+                        models_data = json.loads(body_text)
+                        if isinstance(models_data, dict) and "data" in models_data:
+                            model_count = f" ({len(models_data['data'])} models)"
+                    except Exception:
+                        pass
+                elif status in (301, 302, 303, 307, 308):
+                    return {"success": False, "error": f"HTTP {status}: redirects not allowed for test endpoint"}
 
             if status >= 200 and status < 300:
-                # Try to count available models
-                model_count = ""
-                try:
-                    models_data = json.loads(body)
-                    if isinstance(models_data, dict) and "data" in models_data:
-                        model_count = f" ({len(models_data['data'])} models)"
-                except Exception:
-                    pass
                 return {
                     "success": True,
                     "message": f"Connection OK{model_count}",
@@ -4113,14 +2648,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 return {"success": False, "error": f"HTTP {status}"}
 
         except urllib.error.HTTPError as e:
-            error_body = ""
-            try:
-                error_body = e.read(500).decode("utf-8", errors="replace")
-                err_json = json.loads(error_body)
-                error_body = err_json.get("error", {}).get("message", error_body[:200])
-            except Exception:
-                error_body = error_body[:200] if error_body else str(e)
-            return {"success": False, "error": f"HTTP {e.code}: {error_body}"}
+            # Don't echo upstream error bodies (may leak internal data).
+            return {"success": False, "error": f"HTTP {e.code}"}
         except Exception as e:
             return {"success": False, "error": str(e)[:200]}
 
@@ -4204,12 +2733,27 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                                      creationflags=subprocess.CREATE_NEW_CONSOLE)
                 else:
                     subprocess.Popen([str(hermes_bin)], env=env, cwd=str(PORTABLE_ROOT))
+        # Bring up the web UI alongside Hermes when it's installed, so launching
+        # from the config center also exposes the browser UI on WEB_UI_PORT
+        # (previously the web UI only came up via the external launcher).
+        try:
+            import shutil
+            if shutil.which('hermes-web-ui') is not None:
+                webui_start()
+        except Exception:
+            pass
 
     def log_message(self, format, *args):
         pass
 
 
+# Global variables for token and port
+SERVER_TOKEN = ""
+actual_port = PORT
+
+
 def main():
+    global SERVER_TOKEN, actual_port
     os.environ["HERMES_HOME"] = str(DATA_DIR)
     env = parse_env()
     has_key = any(env.get(p["env"]) for p in PROVIDERS)
@@ -4218,6 +2762,11 @@ def main():
     for try_port in range(PORT, PORT + 10):
         try:
             server = ThreadingHTTPServer(("127.0.0.1", try_port), ConfigHandler)
+            # Allow non-daemon threads to be killed on shutdown. Without this,
+            # a handler stuck in a long-poll (e.g. wechat QR status with 35s
+            # timeout) would delay process exit by up to 35 seconds after
+            # Ctrl+C.
+            server.daemon_threads = True
             actual_port = try_port
             break
         except OSError as e:
@@ -4229,12 +2778,74 @@ def main():
         sys.exit(1)
     url = f"http://127.0.0.1:{actual_port}"
 
+    # Generate Token for authentication
+    SERVER_TOKEN = secrets.token_hex(32)
+
+    # Write runtime.json for process communication
+    import json
+    from datetime import datetime
+    runtime = {
+        "configServerPort": actual_port,
+        "configServerToken": SERVER_TOKEN,
+        "configServerUpdatedAt": datetime.now().isoformat(),
+        "pid": os.getpid()
+    }
+    runtime_path = DATA_DIR / "runtime.json"
+    try:
+        # Create with restrictive permissions from the start (0o600)
+        # to avoid a window where the file has default umask permissions
+        # (often 0o644, world-readable). On Windows, os.chmod only sets
+        # the read-only flag, not Unix permission bits — we warn below.
+        fd = os.open(str(runtime_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(runtime, indent=2))
+        os.chmod(runtime_path, 0o600)
+        # On Windows, verify the file isn't world-readable
+        if sys.platform == "win32":
+            try:
+                import stat as _stat
+                mode = _stat.S_IMODE(os.stat(runtime_path).st_mode)
+                if mode & 0o044:
+                    print(f"  Warning: runtime.json is world-readable on Windows "
+                          f"(mode={oct(mode)}). Consider running on a secure account.",
+                          file=sys.stderr)
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"  Warning: Could not write runtime.json: {e}", file=sys.stderr)
+
+    # Hot config support - watch for config changes
+    def watch_config():
+        """Watch for config file changes and notify"""
+        last_mtime = 0
+        config_files = [DATA_DIR / ".env", DATA_DIR / "config.yaml"]
+        
+        while True:
+            try:
+                current_mtime = max(
+                    (f.stat().st_mtime for f in config_files if f.exists()),
+                    default=0
+                )
+                if current_mtime > last_mtime:
+                    last_mtime = current_mtime
+                    # Config changed - could notify hermes here
+                    # For now, just log
+                    pass
+                time.sleep(1)
+            except Exception:
+                pass
+    
+    # Start config watcher in background
+    config_watcher = threading.Thread(target=watch_config, daemon=True)
+    config_watcher.start()
+
     print(f"""
   ╦ ╦╔═╗╦═╗╔═╗╔═╗╔═╗╔╦╗╔═╗
   ╠═╣╠═╣╠╦╝╠═╝║╣ ║   ║ ║ ║
   ╩ ╩╩ ╩╩╚═╩  ╚═╝╚═╝╩ ╩╚═╝  Portable
 
   Config: {url}
+  Token:  {SERVER_TOKEN[:8]}...
 """)
 
     # Only open the browser if the launcher didn't already. All four
