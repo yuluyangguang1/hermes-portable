@@ -259,7 +259,14 @@
   }
 
   .tab-panel { display: none; }
-  .tab-panel.active { display: block; }
+  .tab-panel.active { display: block; animation: fadeIn 0.25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  /* modal card pop-in (audit #5) */
+  #envModal > div, #wechatModal > div { animation: modalPop 0.22s ease-out; }
+  @keyframes modalPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+  @media (prefers-reduced-motion: reduce) {
+    .tab-panel.active, #envModal > div, #wechatModal > div { animation: none; }
+  }
 
   /* Provider grid */
   .provider-grid {
@@ -396,6 +403,10 @@
   }
   .switch input:checked + .slider { background: var(--emerald-dim); border-color: var(--emerald); }
   .switch input:checked + .slider:before { transform: translateX(18px); background: var(--fg); }
+  /* Keyboard focus visibility (audit #8) */
+  .switch input:focus-visible + .slider { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* keep the visually-hidden input focusable */
+  .switch input { position: absolute; }
 
   /* Channel cards */
   .channel-card {
@@ -1167,25 +1178,25 @@ select:focus-visible {
       <div class="section-label" style="margin-top:12px">模型</div>
       <div class="card">
         <div id="quickSwitch" style="margin-bottom:12px;display:none;">
-          <label style="display:block;font-size:0.78em;color:var(--fg-muted);margin-bottom:6px;font-family:var(--font-mono);">快速切换模型</label>
+          <label for="quickModel" style="display:block;font-size:0.78em;color:var(--fg-muted);margin-bottom:6px;font-family:var(--font-mono);">快速切换模型</label>
           <div style="display:flex;gap:8px;">
             <select id="quickModel" style="flex:1;padding:9px 12px;background:var(--secondary);color:var(--fg);border:1px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:0.85em;"></select>
             <button onclick="quickSwitchModel()" style="padding:9px 16px;background:var(--accent);color:var(--bg);border:none;border-radius:6px;font-family:var(--font-mono);font-size:0.85em;cursor:pointer;">切换</button>
           </div>
         </div>
         <div class="field">
-          <label>默认模型</label>
+          <label for="modelSelect">默认模型</label>
           <span id="modelSelectHost"><select id="modelSelect"></select></span>
           <div class="model-preview" id="modelPreview">current: —</div>
           <div id="catalogStatus" style="margin-top:4px;font-family:var(--font-mono);font-size:9px;color:var(--fg-muted,#9a968e);letter-spacing:0.04em;display:none"></div>
         </div>
         <div class="row" style="margin-top:10px">
           <div class="field">
-            <label>最大轮数</label>
+            <label for="maxTurns">最大轮数</label>
             <input type="number" id="maxTurns" value="90" min="10" max="500">
           </div>
           <div class="field">
-            <label>超时 (秒)</label>
+            <label for="timeout">超时 (秒)</label>
             <input type="number" id="timeout" value="180" min="30" max="600">
           </div>
         </div>
@@ -1730,7 +1741,7 @@ function renderApiKeySection() {
   let extraHtml = '';
   if (bue) {
     extraHtml += `<div class="field" style="margin-top:8px">
-      <label>Base URL (自定义端点)</label>
+      <label for="baseUrl_${bue}">Base URL (自定义端点)</label>
       <input type="text" id="baseUrl_${bue}" placeholder="https://your-endpoint.example.com/v1"
              value="${escapeHtml(baseVal)}"
              oninput="currentEnv['${bue}']=this.value; if(!this.value) delete currentEnv['${bue}'];">
@@ -1739,14 +1750,14 @@ function renderApiKeySection() {
   for (const ef of (p.extra_fields || [])) {
     const ev = currentEnv[ef.key] || '';
     extraHtml += `<div class="field" style="margin-top:8px">
-      <label>${ef.label}</label>
-      <input type="${ef.type || 'text'}" id="extra_${ef.key}" placeholder="${ef.placeholder || ''}"
+    <label for="extra_${ef.key}">${ef.label}</label>
+    <input type="${ef.type || 'text'}" id="extra_${ef.key}" placeholder="${ef.placeholder || ''}"
              value="${escapeHtml(ev)}"
              oninput="currentEnv['${ef.key}']=this.value; if(!this.value) delete currentEnv['${ef.key}'];">
     </div>`;
   }
   s.innerHTML = (p.env ? `<div class="field">
-    <label>${p.name} API Key</label>
+    <label for="apiKey_${p.env}">${p.name} API Key</label>
     <div class="api-key-row">
       <input type="password" id="apiKey_${p.env}" placeholder="粘贴你的 ${p.name} API Key"
              value="${hasKey ? escapeHtml(currentEnv[p.env]) : ''}" oninput="updateKeyStatus(this,'${p.env}')">
@@ -1888,7 +1899,7 @@ function renderChannels() {
       <div class="channel-fields ${enabled?'show':''}" id="ch-fields-${ch.id}">
         ${wechatExtra}
         ${ch.fields.map(f => `<div class="field">
-          <label>${f.label}</label>
+          <label for="ch-input-${f.key}">${f.label}</label>
           <input id="ch-input-${f.key}" type="${f.type}" placeholder="${f.placeholder}"
                  value="${escapeHtml(currentEnv[f.key]||'')}"
                  oninput="currentEnv['${f.key}']=this.value; updateChannelStatus('${ch.id}')">
@@ -2249,6 +2260,34 @@ function doImport(event) {
   event.target.value = '';
 }
 
+// Accessible modal: Esc to close, focus trap, focus restore (audit #6)
+function _bindModalA11y(modal) {
+  if (modal._a11yBound) return;
+  modal._a11yBound = true;
+  const closeBtn = modal.querySelector('[id$="ModalClose"], #envModalClose, #wechatModalClose, button');
+  const prevFocus = document.activeElement;
+  // move focus into the dialog
+  (closeBtn || modal).focus && (closeBtn || modal).focus();
+  modal._escHandler = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      modal.style.display = 'none';
+      if (prevFocus && prevFocus.focus) prevFocus.focus();
+    }
+  };
+  document.addEventListener('keydown', modal._escHandler);
+  // simple focus trap
+  modal._trapHandler = (e) => {
+    if (e.key !== 'Tab') return;
+    const focusables = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!focusables.length) return;
+    const first = focusables[0], last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+  document.addEventListener('keydown', modal._trapHandler);
+}
+
 function viewEnv() {
   fetch('/api/config').then(r => r.json()).then(data => {
     const env = data.env || {};
@@ -2257,19 +2296,23 @@ function viewEnv() {
     if (!modal) {
       modal = document.createElement('div');
       modal.id = 'envModal';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      modal.setAttribute('aria-labelledby', 'envModalTitle');
       modal.style.cssText = 'position:fixed;inset:0;background:rgba(23,13,2,0.92);z-index:8000;display:none;align-items:center;justify-content:center;';
       document.body.appendChild(modal);
     }
     modal.innerHTML = `
       <div style="background:var(--bg,#170d02);border:1px solid var(--border,#3a3327);border-radius:10px;padding:18px 20px;max-width:90vw;width:560px;box-shadow:0 12px 40px rgba(0,0,0,0.5);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <span style="font-size:12px;color:var(--emerald,#9bbc00);letter-spacing:0.06em;">Hermes .env</span>
-          <button type="button" class="btn" style="padding:4px 10px;font-size:11px;" onclick="document.getElementById('envModal').style.display='none'">关闭</button>
+          <span id="envModalTitle" style="font-size:12px;color:var(--emerald,#9bbc00);letter-spacing:0.06em;">Hermes .env</span>
+          <button type="button" id="envModalClose" class="btn" style="padding:4px 10px;font-size:11px;" onclick="document.getElementById('envModal').style.display='none'">关闭</button>
         </div>
         <pre style="font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg,#f5f5f5);background:rgba(0,0,0,0.25);border-radius:6px;padding:12px;overflow:auto;max-height:60vh;margin:0;white-space:pre-wrap;word-break:break-all;">${lines.join('\n') || '(暂无已配置的 API Key)'}</pre>
       </div>`;
     modal.style.display = 'flex';
     modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    _bindModalA11y(modal);
   }).catch(() => { toast('读取配置失败', 'error'); });
 }
 
@@ -2354,21 +2397,25 @@ function _wechatModal() {
   if (modal) return modal;
   modal = document.createElement('div');
   modal.id = 'wechatModal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'wechatModalTitle');
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(23,13,2,0.92);z-index:8000;display:flex;align-items:center;justify-content:center;';
   modal.innerHTML = `
     <div style="background:var(--card,#1a1208);border:1px solid var(--border,#f5f5f526);padding:28px 24px;max-width:380px;width:90%;text-align:center;font-family:var(--font-sans);">
-      <h3 style="font-family:var(--font-serif);font-size:1.4rem;margin-bottom:8px;color:var(--fg,#f5f5f5);letter-spacing:0;">扫码登录微信</h3>
+      <h3 id="wechatModalTitle" style="font-family:var(--font-serif);font-size:1.4rem;margin-bottom:8px;color:var(--fg,#f5f5f5);letter-spacing:0;">扫码登录微信</h3>
       <p id="wechatModalHint" style="font-family:var(--font-mono);font-size:11px;color:var(--fg-muted,#9a968e);letter-spacing:0.04em;margin-bottom:16px;">使用微信扫描下方二维码，完成手机端确认即可</p>
       <div id="wechatQrBox" style="background:white;padding:12px;min-width:240px;min-height:240px;display:flex;align-items:center;justify-content:center;">
         <span style="color:var(--fg-muted);font-family:monospace;font-size:12px;">加载中…</span>
       </div>
       <div id="wechatStatusLine" style="margin-top:14px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted,#9a968e);min-height:1.4em;letter-spacing:0.04em;"></div>
       <div style="display:flex;gap:8px;margin-top:18px;">
-        <button type="button" class="btn" style="flex:1" onclick="cancelWeChatLogin()">关闭</button>
+        <button type="button" id="wechatModalClose" class="btn" style="flex:1" onclick="cancelWeChatLogin()">关闭</button>
         <button type="button" class="btn primary btn-launch" style="flex:1" id="wechatRetryBtn" onclick="startWeChatLogin()" disabled>重试</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
+  _bindModalA11y(modal);
   return modal;
 }
 
