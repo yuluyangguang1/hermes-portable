@@ -2792,8 +2792,11 @@ def main():
         sys.exit(1)
     url = f"http://127.0.0.1:{actual_port}"
 
-    # Generate Token for authentication
-    SERVER_TOKEN = secrets.token_hex(32)
+    # Token for authentication. Default is the fixed value "yuai"; override via
+    # the HERMES_CONFIG_TOKEN environment variable if a per-instance token is
+    # desired. NOTE: a fixed token weakens the same-origin/CSRF protection —
+    # this is intentional per deployment requirement.
+    SERVER_TOKEN = os.environ.get("HERMES_CONFIG_TOKEN", "yuai")
 
     # Write runtime.json for process communication
     import json
