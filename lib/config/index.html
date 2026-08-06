@@ -84,7 +84,7 @@
     --bg-base: 245 245 245;
     --mid-base: 23 13 2;
     --dim-base: 80 70 60;
-    --accent-base: 0 0 200;
+    --accent-base: 122 110 0;
     --border: rgb(var(--mid-base) / .18);
     --border-strong: rgb(var(--mid-base) / .3);
     --hover: rgb(var(--mid-base) / .06);
@@ -95,7 +95,7 @@
       --bg-base: 245 245 245;
       --mid-base: 23 13 2;
       --dim-base: 80 70 60;
-      --accent-base: 0 0 200;
+      --accent-base: 122 110 0;
       --border: rgb(var(--mid-base) / .18);
       --border-strong: rgb(var(--mid-base) / .3);
       --hover: rgb(var(--mid-base) / .04);
@@ -1133,7 +1133,7 @@ select:focus-visible {
 <div class="container">
   <div class="header">
     <div id="hermesStatus" style="margin-top:12px;display:none;align-items:center;justify-content:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--fg-muted);">
-      <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:#666;display:inline-block;"></span>
+      <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:var(--fg-muted);display:inline-block;"></span>
       <span id="statusText">检测中...</span>
     </div>
   </div>
@@ -2132,17 +2132,17 @@ function testConnection() {
     body: JSON.stringify({provider: activeProvider, api_key: key, model: modelName, base: p.base || '', base_url: baseUrl})
   }).then(r => r.json()).then(data => {
     if (data.success) {
-      result.innerHTML = '<span style="color:var(--emerald)">✓ ' + (data.message || '连接成功') + '</span>';
+      result.innerHTML = '<span style="color:var(--emerald)"><i class="ti ti-circle-check"></i> ' + (data.message || '连接成功') + '</span>';
       // Advance onboarding step
       if (isFirstRun) {
         updateStep(2);
         document.getElementById('launchBtn').disabled = false;
       }
     } else {
-      result.innerHTML = '<span style="color:var(--destructive)">✗ ' + (data.error || '连接失败') + '</span>';
+      result.innerHTML = '<span style="color:var(--destructive)"><i class="ti ti-circle-x"></i> ' + (data.error || '连接失败') + '</span>';
     }
   }).catch(() => {
-    result.innerHTML = '<span style="color:var(--destructive)">✗ 网络错误</span>';
+    result.innerHTML = '<span style="color:var(--destructive)"><i class="ti ti-circle-x"></i> 网络错误</span>';
   });
 }
 
@@ -2161,7 +2161,7 @@ function checkUpdate() {
       html += '<div style="color:var(--destructive)">检查失败: ' + data.remote.error + '</div>';
     }
     if (!data.has_git) {
-      html += '<div style="color:var(--warning);margin-top:6px">⚠ 非 git 克隆，需要重新构建才能更新</div>';
+      html += '<div style="color:var(--warning);margin-top:6px"><i class="ti ti-alert-triangle"></i> 非 git 克隆，需要重新构建才能更新</div>';
     }
     info.innerHTML = html;
     if (data.update_available) {
@@ -2295,13 +2295,13 @@ function checkStatus() {
     const text = document.getElementById('statusText');
     const restartBtn = document.getElementById('restartBtn');
     if (data.running) {
-      dot.style.background = '#10b981';
-      dot.style.boxShadow = '0 0 6px #10b981';
+      dot.style.background = 'var(--accent)';
+      dot.style.boxShadow = '0 0 6px rgb(var(--accent-base) / .5)';
       text.textContent = 'Hermes 运行中 (PID ' + data.pid + ')';
-      _setLiveStatus('p', '  ✓ hermes running · pid ' + data.pid);
+      _setLiveStatus('p', '  hermes running · pid ' + data.pid);
       if (restartBtn) restartBtn.style.display = '';
     } else {
-      dot.style.background = '#666';
+      dot.style.background = 'var(--fg-muted)';
       dot.style.boxShadow = 'none';
       _setLiveStatus('t', '  · hermes not running — click 启动');
       text.textContent = 'Hermes 未运行';
@@ -2452,7 +2452,7 @@ async function _pollWeChatStatus() {
       }
       if (s === 'confirmed') {
         _setWechatStatus('登录成功！凭据已保存。', false);
-        toast('微信登录成功 ✓ 重启 Hermes 后生效', 'success');
+        toast('微信登录成功 重启 Hermes 后生效', 'success');
         // The backend already wrote credentials atomically to data/.env.
         // We MUST refetch the server-side env instead of injecting
         // placeholder values into currentEnv — sending a placeholder
