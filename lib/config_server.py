@@ -1726,6 +1726,11 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._json_response({"success": False, "error": "forbidden: same-origin or valid token required"}, 403)
             return
         body = self.rfile.read(min(int(self.headers.get("Content-Length", 0)), 1_000_000))
+        # Strip any query string so write routes still match when a client
+        # appends ?_=cachebust (e.g. GET-side habit). GET routing already
+        # does this via urlsplit; keep POST consistent to avoid 404s.
+        from urllib.parse import urlsplit as _us
+        self.path = _us(self.path).path
         if self.path == "/api/save":
             try:
                 data = json.loads(body)
