@@ -1069,6 +1069,31 @@ def main():
         except FileNotFoundError:
             warn("xattr not found — skipping quarantine cleanup")
 
+    # Ensure all launcher / interpreter / node binaries are executable so the
+    # shipped zip preserves +x after extraction. upload-artifact and some zip
+    # round-trips drop the Unix exec bit, and relying on the CI chmod glob
+    # alone left python3 without +x on macOS (Preflight "Python not found").
+    info("Final step: ensuring binaries are executable …")
+    made_exec = 0
+    for bindir in (ROOT / "venv" / "bin", ROOT / "venv" / "Scripts",
+                   ROOT / "python", ROOT / "node" / "bin"):
+        if bindir.exists():
+            for f in bindir.rglob("*"):
+                if f.is_file():
+                    try:
+                        f.chmod(f.stat().st_mode | 0o111)
+                        made_exec += 1
+                    except OSError:
+                        pass
+    for pdir in ROOT.glob("python-*"):
+        if pdir.is_dir():
+            for f in pdir.rglob("*"):
+                if f.is_file():
+                    try:
+                        f.chmod(f.stat().st_mode | 0o111)
+                    except OSError:
+                        pass
+    ok(f"Ensured {made_exec}+ binaries executable (exec bit set)")
     print(f"{G}{B}  ✓ Build complete{X}")
     print(f"  Location: {C}{ROOT}{X}")
     print(f"  Size    : {C}{total_bytes / 1e6:.0f} MB{X}")
