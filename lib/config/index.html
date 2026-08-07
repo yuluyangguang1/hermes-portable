@@ -267,6 +267,10 @@
   @media (prefers-reduced-motion: reduce) {
     .tab-panel.active, #envModal > div, #wechatModal > div { animation: none; }
   }
+  /* Button loading spinner (test/launch) */
+  .btn-spin { animation: btnSpin 0.8s linear infinite; }
+  @keyframes btnSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .btn-spin { animation: none; } }
   /* Terminal-themed .env preview panel (audit #2: extend terminal motif) */
   .env-term {
     background: var(--bg, #170d02);
@@ -514,16 +518,16 @@
     font-size: 13px;
     letter-spacing: 0.02em;
     cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn i { font-size: 15px; line-height: 1; }
+  .btn {
     transition: transform 200ms ease-out, opacity 200ms ease-out;
     text-align: center;
     font-weight: 600;
     background: var(--hover);
     color: var(--mid);
     min-height: 40px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
   }
   .btn:hover {
     border-color: var(--accent);
@@ -1313,9 +1317,9 @@ select:focus-visible {
     </div>
 
     <div class="actions">
-      <button type="button" class="btn btn-save" id="saveBtn" onclick="saveConfig()">保存</button>
-      <button type="button" class="btn" id="restartBtn" onclick="restartHermes()" style="display:none">重启 Hermes</button>
-      <button type="button" class="btn primary btn-launch" id="launchBtn" onclick="launchHermes()">启动</button>
+      <button type="button" class="btn" id="testBtn" onclick="testConnection()"><i class="ti ti-plug"></i> 测试连接</button>
+      <button type="button" class="btn btn-save" id="saveBtn" onclick="saveConfig()"><i class="ti ti-device-floppy"></i> 保存</button>
+      <button type="button" class="btn primary btn-launch" id="launchBtn" onclick="launchHermes()"><i class="ti ti-rocket"></i> 启动</button>
     </div>
   </form>
 
@@ -2116,13 +2120,14 @@ function saveConfig() {
 function launchHermes() {
   if (!savedOnce) { toast('请先保存配置', 'error'); return; }
   const btn = document.getElementById('launchBtn');
+  if (btn) { btn.disabled = true; btn.dataset.label = btn.innerHTML; btn.innerHTML = '<i class="ti ti-loader-2 btn-spin"></i> 启动中...'; }
   fetch('/api/launch', { method:'POST' }).then(r => r.json()).then(res => {
     if (res.success) {
       toast('Hermes 已启动，可关闭此页', 'success');
       flash(btn, 'ok');
       try { if (window.opener || window.history.length === 1) window.close(); } catch (e) {}
-    } else { toast(res.error || '启动失败', 'error'); flash(btn, 'err'); }
-  }).catch(() => { toast('网络错误', 'error'); flash(btn, 'err'); });
+    } else { toast(res.error || '启动失败', 'error'); flash(btn, 'err'); if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.label || '启动'; } }
+  }).catch(() => { toast('网络错误', 'error'); flash(btn, 'err'); if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.label || '启动'; } });
 }
 
 // Brief success/error highlight on a button (auto-clears, button stays usable).
@@ -2160,6 +2165,8 @@ function testConnection() {
     return;
   }
   const result = document.getElementById('testResult');
+  const tbtn = document.getElementById('testBtn');
+  if (tbtn) { tbtn.disabled = true; tbtn.dataset.label = tbtn.innerHTML; tbtn.innerHTML = '<i class="ti ti-loader-2 btn-spin"></i> 测试中...'; }
   result.style.display = 'block';
   result.innerHTML = '<span style="color:var(--warning)">正在测试...</span>';
   const modelName = (document.getElementById('modelSelect') || {}).value || currentEnv['__model_' + activeProvider] || '';
@@ -2181,6 +2188,8 @@ function testConnection() {
     }
   }).catch(() => {
     result.innerHTML = '<span style="color:var(--destructive)"><i class="ti ti-circle-x"></i> 网络错误</span>';
+  }).finally(() => {
+    if (tbtn) { tbtn.disabled = false; tbtn.innerHTML = tbtn.dataset.label || '<i class="ti ti-plug"></i> 测试连接'; }
   });
 }
 
