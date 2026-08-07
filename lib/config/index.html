@@ -952,8 +952,9 @@
     transition: transform 200ms ease-out, opacity 200ms ease-out;
   }
   .btn-launch:hover, .btn-save:hover {
-    background: var(--accent);
-    color: var(--bg);
+    background: var(--hover-strong, var(--hover));
+    color: var(--accent);
+    border-color: var(--accent);
   }
   .btn-launch:disabled, .btn-save:disabled {
     border-color: var(--border);
