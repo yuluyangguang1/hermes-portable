@@ -154,6 +154,7 @@ jobs:
           done
           for bindir in HermesPortable/venv-*/bin \
                         HermesPortable/python-*/*/bin \
+                        HermesPortable/python/*/*/bin \
                         HermesPortable/node-*/bin; do
             [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} +
           done

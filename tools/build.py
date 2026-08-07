@@ -327,21 +327,18 @@ def step_hermes(ctx):
 
 
 def _fix_editable_paths(venv, system, src):
-    """Rewrite absolute paths in editable finder files to be relative.
+    """Rewrite absolute paths in editable finder files to be relocatable.
 
-    uv creates __editable___<package>_<version>_finder.py files with
-    absolute paths in the MAPPING dict. We rewrite them to use relative
-    paths (relative to the venv's site-packages directory) so the
-    portable bundle remains relocatable.
+    uv creates __editable___<package>_<version>_finder.py with absolute
+    paths in BOTH the MAPPING dict and the NAMESPACES dict. We rewrite them
+    to resolve relative to the finder file's own location (via __file__),
+    so the portable bundle works no matter where it is extracted
+    (USB key, /Volumes, any user path).
 
-    The editable finder uses a MAPPING dict like:
-        MAPPING = {'package': '/absolute/path/to/src/package', ...}
-
-    We convert each path to a relative path from site-packages to the
-    hermes-agent source directory.
+    Previously only MAPPING was fixed and the relative path was resolved
+    against CWD, which broke on user machines with
+    "ModuleNotFoundError: No module named 'hermes_cli'".
     """
-    import re
-
     if system == "Windows":
         site_packages = venv / "Lib" / "site-packages"
     else:
@@ -351,44 +348,62 @@ def _fix_editable_paths(venv, system, src):
         warn(f"Site-packages not found at {site_packages}")
         return
 
-    # Find all editable finder files
     finder_files = sorted(site_packages.glob("__editable__*_finder.py"))
     if not finder_files:
         return
 
-    src_abs = str(src.resolve())
+    src_abs = str(src.resolve()).rstrip("/")
+    prefix = src_abs + "/"
+
+    # Base dir derived from this finder file's own location. site-packages is
+    # 4 levels below HermesPortable (lib/pythonX.Y/site-packages), so walking
+    # up 4 dirs lands on HermesPortable; hermes-agent lives directly under it.
+    inject = (
+        "import os as _os\n"
+        "_BASE = _os.path.dirname(_os.path.dirname(_os.path.dirname("
+        "_os.path.dirname(_os.path.abspath(__file__)))))\n"
+        '_HERMES_AGENT = _os.path.join(_BASE, "hermes-agent")\n\n'
+    )
+    old = "'" + prefix
+    new = "_HERMES_AGENT + '/"
 
     for finder_file in finder_files:
         content = finder_file.read_text(encoding="utf-8")
-        modified = False
+        if prefix not in content:
+            continue
+        if "MAPPING:" in content:
+            content = content.replace("MAPPING:", inject + "MAPPING:", 1)
+        else:
+            content = inject + content
+        new_content = content.replace(old, new)
+        new_content = new_content.replace(inject + inject, inject)
+        finder_file.write_text(new_content, encoding="utf-8")
+        ok(f"Fixed editable paths in {finder_file.name}")
 
-        # Replace absolute paths to hermes-agent source with relative paths
-        # The MAPPING dict has entries like: 'package': '/abs/path/to/hermes-agent/package'
-        # We need to convert '/abs/path/to/hermes-agent' to a relative path from site-packages
-        try:
-            rel_src = os.path.relpath(src_abs, str(site_packages))
-        except ValueError:
-            # On Windows, relative path across drives fails
-            rel_src = src_abs
 
-        # Replace absolute source paths with relative paths
-        # Pattern matches: '/abs/path/to/hermes-agent/package_name'
-        pattern = re.compile(
-            r"'([^']+)':\s*'" + re.escape(src_abs) + r"/([^']+)'"
+def _fix_hermes_shim(venv, system):
+    """Make the uv-generated hermes launcher relocatable on macOS.
+
+    uv writes a shim whose second line uses `realpath`, which is absent on a
+    stock macOS Terminal. That makes Hermes fail with
+    "realpath: command not found" and never start. Rewrite it to use $0's
+    own dirname instead.
+    """
+    if system == "Windows":
+        shim = venv / "Scripts" / "hermes.exe"
+    else:
+        shim = venv / "bin" / "hermes"
+    if not shim.exists():
+        return
+    content = shim.read_text(encoding="utf-8", errors="replace")
+    # The uv shim's exec line; replace the realpath-based variant with a
+    # dirname-based one (no realpath dependency).
+    if "realpath -- " in content:
+        content = content.replace(
+            "realpath -- ", "dirname -- ", 1
         )
-
-        def replacer(m):
-            package_name = m.group(1)
-            sub_path = m.group(2)
-            return f"'{package_name}': '{rel_src}/{sub_path}'"
-
-        new_content = pattern.sub(replacer, content)
-        if new_content != content:
-            finder_file.write_text(new_content, encoding="utf-8")
-            modified = True
-
-        if modified:
-            ok(f"Fixed editable paths in {finder_file.name}")
+        shim.write_text(content, encoding="utf-8")
+        ok(f"Fixed hermes launcher shim in {shim}")
 
 
 def ctx_python_version(venv):
@@ -441,6 +456,7 @@ def step_venv(ctx):
     # absolute paths in the MAPPING dict. We rewrite them to use
     # relative paths so the bundle is relocatable.
     _fix_editable_paths(venv, system, src)
+    _fix_hermes_shim(venv, system)
 
 def step_data(ctx):
     ROOT = ctx["ROOT"]

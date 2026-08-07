@@ -108,7 +108,7 @@ jobs:
               for f in Hermes.command Hermes.sh lib/update.sh tools/mac-rebuild.sh tools/linux-rebuild.sh uv; do
                 [ -f "$f" ] && chmod +x "$f"
               done
-              for bindir in venv-*/bin venv/bin python-*/*/bin python/bin node-*/bin node/bin; do
+              for bindir in venv-*/bin venv/bin python-*/*/bin python/*/*/bin python/bin node-*/bin node/bin; do
                 [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} + 2>/dev/null || true
               done
               # Create HermesPortable/ directory with all contents
