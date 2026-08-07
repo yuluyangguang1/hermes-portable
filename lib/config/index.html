@@ -1498,12 +1498,6 @@ const CHANNELS = [
         "label": "Bot Token",
         "placeholder": "MTIz...",
         "type": "password"
-      },
-      {
-        "key": "DISCORD_APP_ID",
-        "label": "Application ID",
-        "placeholder": "Application ID",
-        "type": "text"
       }
     ]
   },
@@ -1520,9 +1514,9 @@ const CHANNELS = [
         "type": "password"
       },
       {
-        "key": "SLACK_APP_TOKEN",
-        "label": "App Token (xapp-...)",
-        "placeholder": "xapp-...",
+        "key": "SLACK_SIGNING_SECRET",
+        "label": "签名密钥",
+        "placeholder": "abc123...",
         "type": "password"
       }
     ]
@@ -1534,15 +1528,9 @@ const CHANNELS = [
     "desc": "WhatsApp 消息",
     "fields": [
       {
-        "key": "WHATSAPP_ACCESS_TOKEN",
-        "label": "Access Token",
-        "placeholder": "Access Token",
-        "type": "password"
-      },
-      {
-        "key": "WHATSAPP_PHONE_NUMBER_ID",
-        "label": "Phone Number ID",
-        "placeholder": "Phone Number ID",
+        "key": "WHATSAPP_ENABLED",
+        "label": "启用 (填 true 启用)",
+        "placeholder": "true",
         "type": "text"
       }
     ]
@@ -1560,10 +1548,10 @@ const CHANNELS = [
         "type": "password"
       },
       {
-        "key": "WEIXIN_ENCODING_AES_KEY",
-        "label": "EncodingAESKey",
-        "placeholder": "EncodingAESKey",
-        "type": "password"
+        "key": "WEIXIN_ACCOUNT_ID",
+        "label": "Account ID",
+        "placeholder": "WeChat Account ID",
+        "type": "text"
       }
     ]
   },
@@ -1598,8 +1586,8 @@ const CHANNELS = [
         "type": "text"
       },
       {
-        "key": "EMAIL_USERNAME",
-        "label": "用户名",
+        "key": "EMAIL_ADDRESS",
+        "label": "邮箱地址",
         "placeholder": "your@email.com",
         "type": "text"
       },
@@ -1624,9 +1612,9 @@ const CHANNELS = [
         "type": "text"
       },
       {
-        "key": "SIGNAL_API_URL",
-        "label": "API URL",
-        "placeholder": "http://localhost:8080",
+        "key": "SIGNAL_CLI_PATH",
+        "label": "signal-cli 路径",
+        "placeholder": "/usr/local/bin/signal-cli",
         "type": "text"
       }
     ]
@@ -1644,15 +1632,15 @@ const CHANNELS = [
         "type": "text"
       },
       {
-        "key": "MATRIX_USER_ID",
-        "label": "User ID",
+        "key": "MATRIX_USER",
+        "label": "用户名",
         "placeholder": "@user:matrix.org",
         "type": "text"
       },
       {
-        "key": "MATRIX_PASSWORD",
-        "label": "Password",
-        "placeholder": "密码",
+        "key": "MATRIX_TOKEN",
+        "label": "访问令牌",
+        "placeholder": "syt_...",
         "type": "password"
       }
     ]
@@ -1776,7 +1764,7 @@ function renderProviders() {
 
 function onProviderSearch(v) {
   providerSearch = v || '';
-  renderProviderGrid();
+  renderProviders();
 }
 
 function onProviderTag(tag) {
@@ -1784,7 +1772,7 @@ function onProviderTag(tag) {
   document.querySelectorAll('.pf-btn').forEach(b => {
     b.classList.toggle('active', b.getAttribute('data-tag') === tag);
   });
-  renderProviderGrid();
+  renderProviders();
 }
 
 function selectProvider(id) { activeProvider = id; renderProviders(); renderApiKeySection(); updateModelSelect(); }
@@ -2003,7 +1991,7 @@ function toggleChannel(chId, checked) {
   const card = document.getElementById('ch-card-' + chId);
   card.classList.toggle('enabled', checked);
   const fields = document.getElementById('ch-fields-' + chId);
-  if (checked) fields.classList.add('show');
+  fields.classList.toggle('show', checked);
 }
 
 function toggleChannelFields(chId) {
@@ -2692,7 +2680,7 @@ init();
       } else {
         btn.textContent = '启动中...';
         btn.disabled = true;
-        const startRes = await fetch('/api/webui/start');
+        const startRes = await fetch('/api/webui/start', { method: 'POST' });
         const startData = await startRes.json();
         if (startData.ok) {
           // Poll status instead of a fixed 2s wait — npm cold start can exceed
