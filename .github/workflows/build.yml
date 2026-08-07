@@ -108,8 +108,11 @@ jobs:
               for f in Hermes.command Hermes.sh lib/update.sh tools/mac-rebuild.sh tools/linux-rebuild.sh uv; do
                 [ -f "$f" ] && chmod +x "$f"
               done
-              for bindir in venv-*/bin venv/bin python-*/*/bin python/*/*/bin python/bin node-*/bin node/bin; do
-                [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} + 2>/dev/null || true
+              # Restore exec bits dropped by upload-artifact (it strips +x on
+              # transfer). Use find on whole dirs instead of a glob guard, which
+              # silently skipped dirs whose names didn't match the patterns.
+              for d in venv python node; do
+                [ -d "$d" ] && find "$d" -type f -exec chmod +x {} + 2>/dev/null || true
               done
               # Create HermesPortable/ directory with all contents
               mkdir -p HermesPortable

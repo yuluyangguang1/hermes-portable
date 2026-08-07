@@ -152,11 +152,8 @@ jobs:
                    HermesPortable/uv; do
             [ -f "$f" ] && chmod +x "$f"
           done
-          for bindir in HermesPortable/venv-*/bin \
-                        HermesPortable/python-*/*/bin \
-                        HermesPortable/python/*/*/bin \
-                        HermesPortable/node-*/bin; do
-            [ -d "$bindir" ] && find "$bindir" -type f -exec chmod +x {} +
+          for d in HermesPortable/venv HermesPortable/python HermesPortable/node; do
+            [ -d "$d" ] && find "$d" -type f -exec chmod +x {} + 2>/dev/null || true
           done
           # zip -y preserves symlinks inside node-*/bin (npm → ../lib/…)
           # and records Unix mode from the filesystem, so macOS Archive
