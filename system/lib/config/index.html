@@ -509,6 +509,16 @@
     gap: 8px;
     padding: 16px 0 24px;
   }
+  .test-result {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    background: rgb(var(--bg-base) / 0.4);
+    border: 1px solid var(--border);
+    margin-bottom: 4px;
+    line-height: 1.5;
+  }
   .btn {
     flex: 1;
     padding: 10px 16px;
@@ -1316,6 +1326,7 @@ select:focus-visible {
       </div>
     </div>
 
+    <div id="testResult" class="test-result" style="display:none"></div>
     <div class="actions">
       <button type="button" class="btn" id="testBtn" onclick="testConnection()"><i class="ti ti-plug"></i> 测试连接</button>
       <button type="button" class="btn btn-save" id="saveBtn" onclick="saveConfig()"><i class="ti ti-device-floppy"></i> 保存</button>
@@ -1798,12 +1809,7 @@ function renderApiKeySection() {
       该 provider 使用下方字段配置的凭证 / 端点，无需 API Key。
     </div></div>`) + `
     ${extraHtml}
-    <div style="margin-top:8px">
-      <button type="button" class="btn btn-save" style="width:100%;padding:8px;font-size:10px" onclick="testConnection()">
-        测试连接
-      </button>
-      <div id="testResult" style="margin-top:6px;font-family:var(--font-mono);font-size:10px;display:none"></div>
-    </div>`;
+    <div style="margin-top:8px"></div>`;
 }
 
 function updateKeyStatus(input, envKey) {
