@@ -386,7 +386,7 @@ if defined TOKEN (
 )
 
 rem Record our own PID in the lock file for future stale-lock detection.
-rem We use PowerShell to get the current process PID — this is far more
+rem We use PowerShell to get the current process PID - this is far more
 rem reliable than the window-title approach (which fails if the window
 rem title changes, if the process isn't a console app, or if tasklist
 rem output format differs across Windows locales).
@@ -411,7 +411,7 @@ del "%LOCK_FILE%.tmp" >nul 2>&1
 
 rem Kill background config_server by PID (not by port scan).
 rem The old approach scanned ports 17520-17529 and killed whatever was
-rem listening — which could kill unrelated processes. Now we track the
+rem listening - which could kill unrelated processes. Now we track the
 rem PID when we start the config server.
 if defined CONFIG_PID (
     taskkill /F /PID !CONFIG_PID! >nul 2>&1
