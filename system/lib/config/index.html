@@ -970,6 +970,22 @@
     background: transparent;
   }
 
+  /* Model-name search box (sits above the model <select>) */
+  .model-search {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-strong, var(--border));
+    border-radius: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--fg);
+    background: var(--hover, transparent);
+  }
+  .model-search::placeholder { color: var(--fg-muted); }
+  .model-search:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+
   /* Switch (toggle) — keep functional shape but recolor */
   .switch input:checked + .slider { background-color: var(--accent); }
 
@@ -1447,6 +1463,7 @@ const GROUP_OF = {
 };
 let providerSearch = '';
 let providerTag = '';
+let currentModels = [];
 
 
 const CHANNELS = [
@@ -1825,9 +1842,13 @@ function updateModelSelect() {
   let sel = document.getElementById('modelSelect');
   if (!p.models || p.models.length === 0) {
     // #4: providers without a static model list (custom / bedrock / vertex /
-    // azure-foundry) let the user type a model name directly. If the element is
-    // currently a <select> (we previously swapped it for an <input> and the
-    // user switched back), restore the <input> first.
+    // azure-foundry) let the user type a model name directly. The model-name
+    // search box only makes sense for the <select> branch below, so remove it
+    // when we switch to a free-text provider.
+    const ms = document.getElementById('modelSearch');
+    if (ms) ms.remove();
+    // If the element is currently a <select> (we previously swapped it for an
+    // <input> and the user switched back), restore the <input> first.
     if (!sel || sel.tagName !== 'INPUT') {
       const input = document.createElement('input');
       input.type = 'text';
@@ -1846,6 +1867,7 @@ function updateModelSelect() {
   }
   // Provider has models: ensure the element is a <select> (not a leftover
   // <input> from a previous provider), then populate options.
+  currentModels = p.models;
   if (!sel || sel.tagName !== 'SELECT') {
     const select = document.createElement('select');
     select.id = 'modelSelect';
@@ -1854,8 +1876,37 @@ function updateModelSelect() {
     if (host) host.appendChild(select);
     sel = select;
   }
+  // Model-name search box (only for providers with a static model list).
+  const host = document.getElementById('modelSelectHost');
+  let searchBox = document.getElementById('modelSearch');
+  if (!searchBox && host) {
+    searchBox = document.createElement('input');
+    searchBox.type = 'search';
+    searchBox.id = 'modelSearch';
+    searchBox.className = 'model-search';
+    searchBox.placeholder = '搜索模型名…';
+    searchBox.setAttribute('aria-label', '搜索模型名');
+    searchBox.setAttribute('oninput', 'filterModelOptions(this.value)');
+    host.insertBefore(searchBox, sel);
+  }
+  if (searchBox) searchBox.value = '';
   sel.innerHTML = p.models.map(m => `<option value="${m}">${m}</option>`).join('');
   updateModelPreview(); sel.onchange = updateModelPreview;
+}
+
+// Filter the model <select> by a substring of the model name. Keeps the
+// currently selected value when it still matches; otherwise selects the
+// first match so the preview never goes blank.
+function filterModelOptions(q) {
+  const sel = document.getElementById('modelSelect');
+  if (!sel || !currentModels.length) return;
+  q = (q || '').trim().toLowerCase();
+  const prev = sel.value;
+  const matched = currentModels.filter(m => !q || m.toLowerCase().includes(q));
+  sel.innerHTML = matched.map(m => `<option value="${m}">${m}</option>`).join('');
+  if (matched.includes(prev)) sel.value = prev;
+  else if (matched.length) sel.value = matched[0];
+  updateModelPreview();
 }
 
 function updateModelPreview() {
