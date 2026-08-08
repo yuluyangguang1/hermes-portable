@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -725,15 +726,20 @@ def step_nodejs(ctx):
             # Mitigate with: (a) up to 3 retries, and (b) a China mirror
             # (npmmirror.com) as a fallback registry — both raise the odds of
             # a successful install on flaky runners.
+            # Windows CI runners intermittently fail DNS resolution of
+            # npm registries (EAI_FAIL) — often an IPv6 timeout. Force IPv4
+            # resolution and retry across multiple registries with backoff.
             registries = ["https://registry.npmjs.org/",
-                          "https://registry.npmmirror.com/"]
+                          "https://registry.npmmirror.com/",
+                          "https://npmjs.org/"]
             installed = False
             last_err = None
-            for attempt in range(1, 4):
+            for attempt in range(1, 6):
                 for reg in registries:
                     try:
                         run([str(npm), "install", "-g", "hermes-web-ui@latest",
-                             "--force", "--registry", reg], env=env)
+                             "--force", "--registry", reg,
+                             "--dns-result-order=ipv4first"], env=env)
                         installed = True
                         ok(f"hermes-web-ui installed (attempt {attempt}, {reg})")
                         break
@@ -742,7 +748,7 @@ def step_nodejs(ctx):
                         info(f"  npm install attempt {attempt} via {reg} failed: {e}")
                 if installed:
                     break
-                time.sleep(5 * attempt)
+                time.sleep(10 * attempt)
             if not installed:
                 fail(f"hermes-web-ui install failed after retries: {last_err}")
         except Exception as e:

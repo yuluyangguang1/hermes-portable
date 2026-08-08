@@ -153,7 +153,11 @@ jobs:
                    HermesPortable/uv; do
             [ -f "$f" ] && chmod +x "$f"
           done
-          for d in HermesPortable/venv HermesPortable/python HermesPortable/node; do
+          # Universal layout uses platform-suffixed dirs (venv-macos-x64,
+          # python-macos-x64, node-windows-x64, ...); plain venv/python/node
+          # only exist in the per-platform (non-universal) build. Cover both.
+          for d in HermesPortable/venv HermesPortable/python HermesPortable/node \
+                   HermesPortable/venv-* HermesPortable/python-* HermesPortable/node-*; do
             [ -d "$d" ] && find "$d" -type f -exec chmod +x {} + 2>/dev/null || true
           done
           # zip -y preserves symlinks inside node-*/bin (npm → ../lib/…)
