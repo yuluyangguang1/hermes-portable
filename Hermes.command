@@ -493,7 +493,11 @@ if [ "$NODE_OK" = "true" ]; then
     export HERMES_WEB_UI_HOME="$HERE/data/.hermes-web-ui"
     mkdir -p "$HERMES_WEB_UI_HOME"
     echo "  Starting Hermes Web UI on port 8648..."
-    "$WEBUI_BIN" start 8648 >> "$HERE/data/webui.log" 2>&1
+    # Run via the bundled node explicitly (not just "$WEBUI_BIN") so that
+    # process.execPath inside hermes-web-ui resolves to the portable node,
+    # not the host's system node. Using the bare .js relies on shebang/PATH
+    # resolution which silently falls back to /usr/local/bin/node.
+    "$NODE_DIR/bin/node" "$WEBUI_BIN" start 8648 >> "$HERE/data/webui.log" 2>&1
     sleep 2
     if curl -s -o /dev/null "http://127.0.0.1:8648/" 2>/dev/null; then
       echo "  Hermes Web UI: http://127.0.0.1:8648"
