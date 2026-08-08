@@ -47,7 +47,12 @@ HERMES_TAG = None  # None = latest release, or set to specific tag like "v2026.7
 PYTHON_VERSION = "3.12"
 EXTRAS = "cron,messaging,cli,mcp,web,tts-premium"
 # Node 24 LTS (active LTS until 2026-10, maintenance until 2028-04).
-NODE_VERSION = "24.15.0"
+# Pinned to Node 22 LTS: Node 24.15.0 crashes on Windows with
+# "Assertion failed: ncrypto::CSPRNG(nullptr, 0)" during npm install, and
+# Node 24's npm also needs a working `sh` on the PATH (see step_nodejs).
+# Node 22 LTS is stable across macOS/Linux/Windows and its npm tarball
+# ships the same bin/npm -> ../lib/node_modules/npm/bin/npm-cli.js symlink.
+NODE_VERSION = "22.15.0"
 
 # ─── ANSI colors ───────────────────────────────────────────────
 G, R, Y, C, B, X = "\033[92m", "\033[91m", "\033[93m", "\033[96m", "\033[1m", "\033[0m"
@@ -641,7 +646,13 @@ def step_nodejs(ctx):
         info("Installing hermes-web-ui (latest from npm) …")
         try:
             path_sep = ";" if system == "Windows" else ":"
-            env = {**ctx.get("env", {}), "PATH": str(node_dir / "bin") + path_sep + ctx.get("env", {}).get("PATH", "")}
+            # Prepend node/bin BUT inherit the real system PATH so that npm
+            # lifecycle scripts (e.g. node-pty's postinstall `spawn sh`) can
+            # find /bin/sh, make, cc, etc. Using only node/bin here made npm
+            # fail with ENOENT "spawn sh" and exit 254, silently shipping a
+            # package without hermes-web-ui.
+            env = {**ctx.get("env", {}),
+                   "PATH": str(node_dir / "bin") + path_sep + os.environ.get("PATH", "")}
             # Install latest hermes-web-ui globally. We intentionally do NOT
             # run `npm cache clean --force` first: it is an optional optimisation
             # that segfaults (exit 134) on some CI Node builds and must not
