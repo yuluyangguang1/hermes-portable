@@ -114,7 +114,6 @@ jobs:
     needs:
       - build-macos-arm64
       - build-macos-x64
-      - build-windows-x64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
