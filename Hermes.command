@@ -403,14 +403,12 @@ cleanup() {
   if [ -n "${WATCHDOG_PID:-}" ] && kill -0 "$WATCHDOG_PID" 2>/dev/null; then
     kill_tree "$WATCHDOG_PID"
   fi
-  # Kill config server if still alive — but NOT in desktop mode.
-  # In desktop mode, the config server must keep running as long as
-  # the desktop app is alive; killing it here would break the app's
-  # ability to access the config panel and model catalog.
-  # Read the PID from .config_pid file — the watchdog updates this
-  # file when it restarts the config server, so we always get the
-  # current PID even if the watchdog restarted it.
-  if [ "$DESKTOP_MODE" = "0" ]; then
+  # Kill config server if still alive — but NOT in desktop mode OR cli mode.
+  # The config panel must stay reachable after the launcher exits (terminal
+  # closed / hermes gateway stopped), so it is launched with setsid and is
+  # intentionally left running. It is only stopped via the config panel UI
+  # or an explicit kill.
+  if [ "$DESKTOP_MODE" = "0" ] && false; then
     _CLEANUP_CONFIG_PID="$CONFIG_PID"
     if [ -f "$HERE/data/.config_pid" ]; then
       _CLEANUP_CONFIG_PID=$(cat "$HERE/data/.config_pid" 2>/dev/null || echo "$CONFIG_PID")
@@ -488,13 +486,23 @@ if [ -n "$NODE_DIR" ] && [ -x "$NODE_DIR/bin/node" ]; then
   fi
 fi
 if [ "$NODE_OK" = "true" ]; then
-  if command -v hermes-web-ui >/dev/null 2>&1 || [ -x "$NODE_DIR/bin/hermes-web-ui" ]; then
+  WEBUI_BIN="$NODE_DIR/bin/hermes-web-ui"
+  if [ -x "$WEBUI_BIN" ]; then
+    # Isolate webui data inside the bundle so it never reads the host's
+    # global ~/.hermes-web-ui or session history.
+    export HERMES_WEB_UI_HOME="$HERE/data/.hermes-web-ui"
+    mkdir -p "$HERMES_WEB_UI_HOME"
     echo "  Starting Hermes Web UI on port 8648..."
-    hermes-web-ui start 8648 >/dev/null 2>&1 || true
-    echo "  Hermes Web UI: http://127.0.0.1:8648"
+    "$WEBUI_BIN" start 8648 >> "$HERE/data/webui.log" 2>&1
+    sleep 2
+    if curl -s -o /dev/null "http://127.0.0.1:8648/" 2>/dev/null; then
+      echo "  Hermes Web UI: http://127.0.0.1:8648"
+    else
+      echo "  [WARN] Hermes Web UI did not come up — see $HERE/data/webui.log"
+    fi
   fi
 else
-  echo "  Hermes Web UI: skipped (Node.js >= 23 required)"
+  echo "  Hermes Web UI: skipped (Node.js >= 20 required)"
 fi
 
 # ── Desktop mode launch ────────────────────────────────────────
@@ -650,7 +658,10 @@ CONFIG_PID=""
 export HERMES_BROWSER_OPENED=1
 
 start_config_server() {
-  "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" >> "$HERE/data/config_server.log" 2>&1 &
+  # setsid detaches config_server from this shell's process group so it
+  # survives the terminal closing / hermes exiting — the config panel stays
+  # reachable at http://127.0.0.1:17520 until the user explicitly stops it.
+  setsid "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" >> "$HERE/data/config_server.log" 2>&1 &
   CONFIG_PID=$!
 }
 

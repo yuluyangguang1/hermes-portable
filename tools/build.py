@@ -682,6 +682,35 @@ def step_nodejs(ctx):
             # working Web UI. Fail loudly — a silent warn let v1.20.x
             # ship zips where `npm install` had died on the bad shim.
             fail(f"hermes-web-ui install failed: {e}")
+            fail(f"hermes-web-ui install failed: {e}")
+
+    # ── Fix hermes-web-ui CLI path resolution for portable layout ──
+    # The `hermes-web-ui` bin script (node/bin/hermes-web-ui) resolves its
+    # server entry as  resolve(__dirname, "..", "dist", "server", "index.js"),
+    # i.e. node/dist/server/index.js. But `npm install -g` puts the package at
+    # node/lib/node_modules/hermes-web-ui/dist, so the CLI can't find its
+    # server (MODULE_NOT_FOUND → Web UI silently never starts).
+    # Also: the CLI bin is ESM (import …), so node/ needs a package.json with
+    # "type":"module" or Node refuses to parse it as a module.
+    webui_pkg = node_dir / "lib" / "node_modules" / "hermes-web-ui"
+    dist_src = webui_pkg / "dist"
+    # Create node/dist (copy, not symlink — zip may not preserve symlinks).
+    dist_dst = node_dir / "dist"
+    if dist_src.exists() and not dist_dst.exists():
+        try:
+            shutil.copytree(str(dist_src), str(dist_dst))
+            ok("linked node/dist -> hermes-web-ui/dist (portable webui fix)")
+        except Exception as e:
+            warn(f"could not copy node/dist: {e}")
+    # Write node/package.json with type:module so the ESM bin script parses.
+    pkg_json = node_dir / "package.json"
+    if not pkg_json.exists():
+        try:
+            pkg_json.write_text(
+                '{"name":"hermes-web-ui-portable","version":"0.0.0","type":"module"}\n')
+            ok("wrote node/package.json (type:module)")
+        except Exception as e:
+            warn(f"could not write node/package.json: {e}")
 # Paths are relative to the repo root. Directory structure is preserved
 # in the dist (e.g. "lib/config_server.py" → ROOT/lib/config_server.py).
 _STATIC_ASSETS = [
