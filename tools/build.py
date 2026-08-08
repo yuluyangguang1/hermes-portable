@@ -360,13 +360,21 @@ def _fix_editable_paths(venv, system, src):
     src_abs = str(src.resolve()).rstrip("/")
     prefix = src_abs + "/"
 
-    # Base dir derived from this finder file's own location. site-packages is
-    # 4 levels below HermesPortable (lib/pythonX.Y/site-packages), so walking
-    # up 4 dirs lands on HermesPortable; hermes-agent lives directly under it.
+    # Base dir: the portable bundle root that contains both `venv/` and
+    # `hermes-agent/`. Walk UP from this finder file until we find the dir
+    # that actually contains `hermes-agent/` (site-packages depth varies
+    # between the CI build tree `dist/HermesPortable/...` and a user's
+    # arbitrary extract path, so we search instead of hard-coding a level
+    # count — a fixed count of 4 was off by one and resolved to `venv/`,
+    # breaking `import hermes_cli` on user machines).
     inject = (
         "import os as _os\n"
-        "_BASE = _os.path.dirname(_os.path.dirname(_os.path.dirname("
-        "_os.path.dirname(_os.path.abspath(__file__)))))\n"
+        "_CUR = _os.path.dirname(_os.path.abspath(__file__))\n"
+        "while _CUR and _CUR != _os.path.dirname(_CUR):\n"
+        "    if _os.path.isdir(_os.path.join(_CUR, 'hermes-agent')):\n"
+        "        break\n"
+        "    _CUR = _os.path.dirname(_CUR)\n"
+        "_BASE = _CUR\n"
         '_HERMES_AGENT = _os.path.join(_BASE, "hermes-agent")\n\n'
     )
     old = "'" + prefix
