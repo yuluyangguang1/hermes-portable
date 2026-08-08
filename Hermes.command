@@ -483,7 +483,7 @@ echo ""
 NODE_OK=false
 if [ -n "$NODE_DIR" ] && [ -x "$NODE_DIR/bin/node" ]; then
   NODE_VER=$("$NODE_DIR/bin/node" -v 2>/dev/null | sed 's/v//' | cut -d. -f1)
-  if [ -n "$NODE_VER" ] && [ "$NODE_VER" -ge 23 ] 2>/dev/null; then
+  if [ -n "$NODE_VER" ] && [ "$NODE_VER" -ge 20 ] 2>/dev/null; then
     NODE_OK=true
   fi
 fi

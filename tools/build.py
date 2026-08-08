@@ -389,10 +389,13 @@ def _fix_editable_paths(venv, system, src):
 def _fix_hermes_shim(venv, system):
     """Make the uv-generated hermes launcher relocatable on macOS.
 
-    uv writes a shim whose second line uses `realpath`, which is absent on a
-    stock macOS Terminal. That makes Hermes fail with
-    "realpath: command not found" and never start. Rewrite it to use $0's
-    own dirname instead.
+    uv's relocatable venv writes a shim whose exec line points at
+    `$VENV/python` (one level above bin/), e.g.:
+        '''exec' "$(dirname -- "$(dirname -- "$0")")"/'python' "$0" "$@"
+    but the actual interpreter lives at `$VENV/bin/python` (uv also drops a
+    real 18MB binary there that redirects via pyvenv.cfg's `home`). On a
+    stock macOS, `$VENV/python` does not exist, so hermes dies with
+    "No such file or directory". Rewrite the exec line to use the bin/ copy.
     """
     if system == "Windows":
         shim = venv / "Scripts" / "hermes.exe"
@@ -401,12 +404,18 @@ def _fix_hermes_shim(venv, system):
     if not shim.exists():
         return
     content = shim.read_text(encoding="utf-8", errors="replace")
-    # The uv shim's exec line; replace the realpath-based variant with a
-    # dirname-based one (no realpath dependency).
+    orig = content
+    # Case 1: realpath-based (older uv)
     if "realpath -- " in content:
+        content = content.replace("realpath -- ", "dirname -- ", 1)
+    # Case 2: dirname(dirname($0))/python — points one level too high.
+    # Rewrite to dirname($0)/python (i.e. $VENV/bin/python, which exists).
+    if "$(dirname -- \"$(dirname -- \"$0\")\")" in content:
         content = content.replace(
-            "realpath -- ", "dirname -- ", 1
+            "$(dirname -- \"$(dirname -- \"$0\")\")",
+            "$(dirname -- \"$0\")",
         )
+    if content != orig:
         shim.write_text(content, encoding="utf-8")
         ok(f"Fixed hermes launcher shim in {shim}")
 
