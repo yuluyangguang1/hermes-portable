@@ -1,5 +1,37 @@
 # 更新说明 (Changelog)
 
+## v1.20.15 (2026-08-08)
+
+### 新增
+- 配置中心顶栏新增「桌面版」启动按钮
+  - 后端 `/api/desktop/status` / `/api/desktop/start`（返回 launched / missing / wrong-arch / error）
+  - 点击即有提示：未打包 → 明确告知；架构不匹配 → 提示装 Rosetta 2 / 下对应架构包；启动成功 → "桌面版已启动"
+  - `desktop_start()` 加架构检查，避免 `open` 命令"假成功"（arm64 App 在 x86_64 主机返回 wrong-arch）
+
+### 变更
+- `Hermes.command` 默认启动模式由 `desktop` 改回 `cli`（桌面版需单独构建且为单一架构，不再默认去找不符的 App）
+
+## v1.20.14 (2026-08-08)
+- macOS / Linux 的 Node.js 升回 24 LTS（满足 24+ 预期）；Windows 因 CI runner 崩溃暂用 22
+
+## v1.20.13 (2026-08-08)
+- Web UI 强制使用包内 Node.js：启动改为显式 `$NODE_DIR/bin/node`，不再静默回退系统 Node
+
+## v1.20.12 (2026-08-08)
+- Web UI 真正启动：修复 `node/package.json` 缺 type:module 与 server 路径（`node/dist` 软链），Web UI(:8648) 由静默失败变 HTTP 200
+- 配置中心常驻：config_server 加 `setsid` 脱离进程组，退出终端 / Hermes 后配置中心仍在 :17520
+
+## v1.20.11 (2026-08-08)
+- 修复 editable finder `_BASE` 路径计算（×4 落到 `venv/` 而非包根），解决 `hermes_cli` 找不到导致 Hermes 网关起不来
+
+## v1.20.9 / v1.20.10 (2026-08-08)
+- 修复启动脚本 `set -u` 下 `HERMES_FIRST_LAUNCH_LOG` 未定义崩溃
+- 修复 webui Node 版本判断（>=23 改 >=20）与 venv shim 路径
+
+---
+
+# 更新说明 (Changelog)
+
 ## v1.20.2 (2026-08-07)
 
 配置中心多轮审计 + 修复,重点解决「能配置但配不对」的真实阻断 bug。

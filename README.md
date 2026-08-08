@@ -1,47 +1,47 @@
 # Hermes Portable
 
-便携版 Hermes Agent — 零安装、单目录、U盘即走
+> 便携版 Hermes Agent — 零安装、单目录、U 盘即走。内置 Python / Node.js / Web UI，开箱即用。
+
+[![GitHub Release](https://img.shields.io/github/v/release/yuluyangguang1/hermes-portable?label=release)](https://github.com/yuluyangguang1/hermes-portable/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+---
 
 ## ✨ 特性
 
-- 🚀 **零安装** — 解压即用，无需安装
-- 📁 **单目录** — 所有文件在一个目录
-- 💾 **U盘即走** — 拷贝到 U盘，插上就能用
-- 🔒 **数据隔离** — 所有数据存储在 data/ 目录
-- 🌐 **跨平台** — 支持 macOS 和 Windows
-- 🎨 **配置中心** — Web 界面配置，简单易用
+- 🚀 **零安装** — 解压即用，所有依赖（Python 3.12、Node.js 24、Hermes Agent、hermes-web-ui）已打包
+- 📁 **单目录** — 整个运行时在一个文件夹，拷贝即迁移
+- 💾 **U 盘即走** — 插上就能用，数据全在 `data/`
+- 🔒 **数据隔离** — 配置、会话、历史全部存于包内 `data/`，不污染宿主 `~/.hermes`
+- 🌐 **跨平台** — macOS (arm64 / x64) · Windows (x64) · Linux
+- 🎛️ **配置中心** — Web 界面（:17520）管理 API Key / 模型 / 渠道，常驻后台
+- 🖥️ **多模式** — 终端 CLI（默认）· Web UI（:8648）· 桌面版（Electron，可选）
+
+---
 
 ## 📦 下载
 
-从 [GitHub Releases](https://github.com/yuluyangguang1/hermes-portable/releases) 下载最新版本。
+从 [GitHub Releases](https://github.com/yuluyangguang1/hermes-portable/releases) 下载对应平台：
 
-### macOS
-```bash
-# 下载 Universal 版本
-HermesPortable-Universal.zip
+| 平台 | 文件 | 启动方式 |
+|------|------|----------|
+| macOS (Apple Silicon) | `HermesPortable-macos-arm64.zip` | 双击 `Hermes.command` |
+| macOS (Intel) | `HermesPortable-macos-x64.zip` | 双击 `Hermes.command` |
+| Windows (x64) | `HermesPortable-Windows-x64.zip` | 双击 `Hermes.bat` |
+| Linux | 自行构建（见下） | `./Hermes.sh` |
 
-# 解压后双击 Hermes.command 启动
-```
+> macOS 首次运行若被 Gatekeeper 拦截：右键 → 打开，或在终端执行一次 `xattr -cr /path/to/HermesPortable` 即可解除隔离（启动脚本也会自动处理）。
 
-### Windows
-```bash
-# 下载 Windows 版本
-HermesPortable-Windows-x64.zip
-
-# 解压后双击 Hermes.bat 启动
-```
+---
 
 ## 🚀 快速开始
 
-### 1. 下载并解压
+### 1. 解压
 
 ```bash
 # macOS
-unzip HermesPortable-Universal.zip
+unzip HermesPortable-macos-x64.zip
 cd HermesPortable
-
-# Windows
-# 解压 HermesPortable-Windows-x64.zip
 ```
 
 ### 2. 启动
@@ -52,146 +52,123 @@ cd HermesPortable
 
 # Windows
 Hermes.bat
+
+# Linux
+./Hermes.sh
 ```
 
-### 3. 配置
+启动后：
+- **配置中心**自动在后台常驻：`http://127.0.0.1:17520`（关掉终端也不会关闭）
+- 浏览器自动打开配置中心，填入 API Key、选模型、保存
+- 默认进入**终端模式**（CLI），可直接对话
 
-启动后会自动打开配置中心：
-- 访问 http://127.0.0.1:17520
-- 选择 LLM 提供商
-- 输入 API Key
-- 选择模型
-- 点击保存
+### 3. 三种使用模式
 
-### 4. 启动 Hermes
+| 模式 | 说明 | 如何进入 |
+|------|------|----------|
+| **终端 CLI** | 默认模式，终端内对话 | 直接双击启动 |
+| **Web UI** | 图形界面 `http://127.0.0.1:8648` | 配置中心顶栏点「Web UI」按钮启动 |
+| **桌面版** | Electron 独立窗口 | 配置中心顶栏点「桌面版」按钮（需包内含桌面运行时） |
 
-配置完成后，点击"启动"按钮。
+> 桌面版运行时体积较大、需单独构建，并非每个发行包都包含。若包内无桌面版，点按钮会**明确提示**"此便携包未包含桌面版运行时"或"架构不匹配，请装 Rosetta 2"。
+
+---
+
+## 🎛️ 配置中心（:17520）
+
+Web 界面管理 Hermes 配置，支持：
+
+- ✅ **74+ LLM 提供商**：OpenRouter、Anthropic、OpenAI、DeepSeek、Google Gemini、xAI Grok、智谱 GLM、通义千问、Kimi、豆包、MiniMax、Mistral…（真实品牌 SVG 图标）
+- ✅ **API Key / 模型管理**，一键快速切换模型
+- ✅ **渠道配置**：Telegram、Discord、Slack、WhatsApp、WeChat、Email、Signal、Matrix
+- ✅ **偏好设置、版本更新、配置导入/导出**
+- ✅ **启动 Web UI / 桌面版**（顶栏按钮，点击即有反馈提示）
+
+配置存于包内 `data/.env` 与 `data/config.yaml`，与宿主全局 `~/.hermes` 完全隔离。
+
+---
 
 ## 📁 目录结构
 
 ```
 HermesPortable/
 ├── Hermes.command          # macOS 启动器
-├── Hermes.bat              # Windows 启动器
+├── Hermes.bat             # Windows 启动器
+├── Hermes.sh              # Linux 启动器
 ├── lib/
-│   ├── config_server.py    # 配置服务器
+│   ├── config_server.py    # 配置中心后端（:17520）
 │   ├── config/
 │   │   ├── index.html      # 配置中心前端
-│   │   └── index-standalone.html  # 自包含版
-│   └── fix_shims.py        # 修复脚本
+│   │   └── index-standalone.html
+│   ├── chat_viewer.py
+│   ├── update.py / update.sh
+│   └── fix_shims.py        # 启动修复脚本
 ├── tools/
-│   └── build.py            # 构建脚本
-├── data/
+│   └── build.py            # 构建脚本（CI 用）
+├── hermes-agent/           # Hermes Agent 源码（可编辑安装）
+├── venv/                   # Python 虚拟环境（含 hermes CLI）
+├── python/                 # 独立 Python 运行时（python-build-standalone）
+├── node/                   # 独立 Node.js 运行时（v24 LTS）
+├── runtime/desktop/        # 桌面版 Electron 运行时（可选，dist/mac 或 dist/mac-arm64）
+├── data/                   # 用户数据（隔离区）
 │   ├── .env                # API Keys
 │   ├── config.yaml         # 模型配置
-│   └── runtime.json        # 运行时信息
-├── venv-macos-arm64/       # macOS ARM64 虚拟环境
-├── venv-macos-x64/         # macOS x64 虚拟环境
-├── venv-windows-x64/       # Windows x64 虚拟环境
-├── python-macos-arm64/     # macOS ARM64 Python
-├── python-macos-x64/       # macOS x64 Python
-├── python-windows-x64/     # Windows x64 Python
-├── node-macos-arm64/       # macOS ARM64 Node.js
-├── node-macos-x64/         # macOS x64 Node.js
-├── node-windows-x64/       # Windows x64 Node.js
-├── hermes-agent/           # Hermes Agent 源码
-├── uv                      # uv 包管理器
-├── VERSION                 # 版本号
-└── README.md               # 本文件
+│   ├── runtime.json        # 运行时信息
+│   ├── .hermes-web-ui/     # Web UI 隔离数据
+│   └── desktop-userdata/   # 桌面版用户数据
+├── _home/                  # 沙箱 HOME（.hermes 软链指向 data/）
+├── icons/                  # 72 个品牌 SVG
+├── fonts/                  # 字体（霞鹜文楷 / Tabler Icons）
+├── VERSION
+└── README.md
 ```
 
-## 🔧 配置中心
+---
 
-配置中心提供 Web 界面管理 Hermes 配置：
-
-### 功能
-- ✅ LLM 提供商管理
-- ✅ API Key 管理
-- ✅ 模型选择
-- ✅ 快速切换模型（v0.24.0+）
-- ✅ 渠道配置
-- ✅ 偏好设置
-- ✅ 版本更新
-- ✅ 配置导入/导出
-
-### 支持的 LLM 提供商
-- OpenRouter
-- Anthropic (Claude)
-- OpenAI (GPT)
-- DeepSeek
-- Google (Gemini)
-- xAI (Grok)
-- Mistral
-- 智谱 (GLM)
-- 通义千问 (Qwen)
-- Kimi
-- MiniMax
-- 小米 (MiMo)
-- 豆包 (Doubao)
-- 等 74+ 个提供商
-
-### 支持的渠道
-- Telegram
-- Discord
-- Slack
-- WhatsApp
-- WeChat
-- Email
-- Signal
-- Matrix
-
-## 🛠️ 开发
-
-### 构建
+## 🛠️ 构建（开发者）
 
 ```bash
-# 构建 Universal 版本
+# 构建当前平台发行包
 python3 tools/build.py
 
-# 构建特定平台
+# 指定平台
 python3 tools/build.py --platform macos-arm64
 python3 tools/build.py --platform macos-x64
 python3 tools/build.py --platform windows-x64
-```
 
-### 测试
-
-```bash
-# 测试配置服务器
+# 本地验证配置中心
 python3 lib/config_server.py
-
-# 测试 Hermes Agent
-./venv-macos-arm64/bin/hermes --version
 ```
 
-## 📝 更新日志
+CI 工作流（`.github/workflows/`）：
+- `build.yml` — 按平台构建并发布 Release
+- `build-universal.yml` — 合并多平台 zip 并创建 Release
 
-### v0.24.0 (2026-07-27)
-- 新增快速切换模型功能（参考 OpenClaw，配置中心内一键切换）
-- 修复启动脚本 4 类严重 Bug（缩进/未定义函数/作用域/文件不存在）
-- 修复 open_url() 函数作用域（不再定义在 if 块内）
-- 修复 watchdog 子 shell 变量隔离（改用 PID 文件通信）
-- 优化 PYTHONHOME 检测（支持任意 python3.x，不再硬编码 3.12）
-- 修复 macOS `open` 非阻塞问题（desktop mode 增加等待）
-- 新增远程构建工作流（build.yml）
+> 构建会自动下载并打包 Python / Node.js / hermes-web-ui，并对 `python3`、`node`、`npm` 做可执行权限与启动验证，避免发布坏包。
 
-### v0.23.0 (2026-07-21)
-- 配置中心全面优化
-- 渠道配置更新
-- 前端设计优化
-- 无障碍支持
-- 动画优化
+---
 
-### v0.22.0 (2026-07-20)
-- Token 生成 + runtime.json
-- Preflight 自检
-- kill_tree 子进程清理
-- 浏览器带 Token 打开
+## 🐛 已知限制
 
-### v0.21.5 (2026-07-17)
-- PYTHONHOME 修复
-- hermes-web-ui 安装
-- 全面优化
+- **Windows 包**：当前 CI 的 Windows runner 存在网络/DNS 偶发故障（EAI_FAIL），Windows 包可能暂未随 Mac 包同步发布。Windows 用户可本地 `tools/build.py --platform windows-x64` 自行构建。
+- **桌面版架构**：macOS 发行包内的桌面版 App 为单一架构（arm64 或 x64）。在相反架构的 Mac 上点「桌面版」按钮会提示"架构不匹配，请安装 Rosetta 2 或下载对应架构包"。
+- **Node 版本**：macOS / Linux 用 Node.js 24 LTS；Windows 因 CI runner 的已知崩溃暂用 22 LTS。两者均兼容 hermes-web-ui。
+
+---
+
+## 📝 更新日志（近期）
+
+完整历史见 [CHANGELOG.md](CHANGELOG.md) 与 [Releases](https://github.com/yuluyangguang1/hermes-portable/releases)。
+
+### v1.20.x 关键修复
+- **v1.20.15** — 配置中心新增「桌面版」启动按钮（含架构检查与提示）；默认启动模式改回终端 CLI
+- **v1.20.14** — macOS / Linux Node.js 升回 24 LTS（满足 24+ 预期）
+- **v1.20.13** — Web UI 强制使用包内 Node.js（不再静默回退系统 Node）
+- **v1.20.12** — Web UI 真正启动（修复 `node/package.json` 与 server 路径）+ 配置中心常驻（关终端不关闭）
+- **v1.20.11** — 修复 editable finder 路径计算（`hermes_cli` 找不到导致 Hermes 网关起不来）
+- **v1.20.9 / v1.20.10** — 修复启动脚本 `set -u` 变量未定义、Node 版本判断、shim 路径
+
+---
 
 ## 🔗 相关链接
 

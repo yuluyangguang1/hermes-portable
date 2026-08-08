@@ -1,3 +1,30 @@
+# Hermes Portable v1.20.15 发版说明
+
+## 🎯 本期重点
+
+### 配置中心新增「桌面版」启动按钮
+- ✅ 配置中心（:17520）顶栏新增「桌面版」按钮
+- ✅ 后端 `/api/desktop/status`（探测包内是否含桌面版运行时）
+- ✅ 后端 `/api/desktop/start`（启动，返回 launched / missing / wrong-arch / error）
+- ✅ **点击即有提示**：未打包 → "此便携包未包含桌面版运行时"；架构不匹配 → "请安装 Rosetta 2 或下载对应架构包"；启动成功 → "桌面版已启动"
+- ✅ `desktop_start()` 增加**架构检查**：arm64 App 在 x86_64 主机返回 `wrong-arch`，避免 `open` 命令"假成功"（命令立即返回但 App 实际打不开）
+
+### 默认启动模式改回终端 CLI
+- ✅ `Hermes.command` 的 `LAUNCH_MODE` 由 `desktop` 改回 `cli`
+- 原因：桌面版 App 需单独 electron 构建、且为单一架构，双击不应默认去找不存在/架构不符的 App。桌面版改为可选（配置中心按钮或 `--desktop` 参数显式启用）
+
+### 配套修复（v1.20.9 ~ v1.20.14 累积）
+- ✅ **Web UI 真正启动**：修复 `node/package.json` 缺失（type:module）与 server 路径（`node/dist` 软链），Web UI（:8648）从静默失败变 HTTP 200
+- ✅ **配置中心常驻**：`start_config_server` 加 `setsid` 脱离进程组，退出终端 / 退出 Hermes 后配置中心仍在
+- ✅ **Web UI 强制包内 Node.js**：显式用 `$NODE_DIR/bin/node` 启动，不再静默回退系统 Node（实测所有 webui 进程 node 路径均为包内 v24）
+- ✅ **Node.js 升回 24 LTS**：macOS / Linux 用 Node 24（满足 24+ 预期）；Windows 因 CI runner 崩溃暂用 22
+- ✅ **Hermes 网关可启动**：修复 editable finder `_BASE` 路径计算（×4 落到 `venv/` 而非包根，导致 `hermes_cli` 找不到）
+
+## 📦 文件结构
+（同 v1.20.0，运行时目录为 `venv/` `python/` `node/` `runtime/` 扁平结构）
+
+---
+
 # Hermes Portable v1.20.0 发版说明
 
 ## 🎉 主要更新
