@@ -185,6 +185,7 @@ else
 fi
 
 # ── 防御性权限自检(最早执行, 兜底 CI/解压/杀软丢 exec 位) ──
+HERMES_FIRST_LAUNCH_LOG="$HERE/data/.first-launch.log"
 if [ "$OS" = "Darwin" ]; then
   # Clear quarantine attributes silently
   if command -v xattr >/dev/null 2>&1; then
@@ -337,7 +338,6 @@ export PYTHONUTF8=1
 # 2. Lose execute permissions (zip doesn't always preserve them)
 # We fix both issues automatically on every launch so the package works
 # out-of-the-box without manual intervention.
-HERMES_FIRST_LAUNCH_LOG="$HERE/data/.first-launch.log"
 # Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
 # Find the dir containing lib/python3.12 inside PYTHON_DIR
 # Handles: install/ layout (old uv), cpython-3.12-xxx/ layout (new uv)
