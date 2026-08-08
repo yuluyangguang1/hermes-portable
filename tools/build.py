@@ -52,7 +52,13 @@ EXTRAS = "cron,messaging,cli,mcp,web,tts-premium"
 # Node 24's npm also needs a working `sh` on the PATH (see step_nodejs).
 # Node 22 LTS is stable across macOS/Linux/Windows and its npm tarball
 # ships the same bin/npm -> ../lib/node_modules/npm/bin/npm-cli.js symlink.
-NODE_VERSION = "22.15.0"
+# Per-platform Node.js versions.
+# macOS/Linux ship Node 24 LTS (matches "24+" expectation, supports the
+# hermes-web-ui runtime). Windows CI runners hit a ncrypto::CSPRNG crash on
+# Node 24.15.0 (exit 134, "Assertion failed: ncrypto::CSPRNG(nullptr, 0)"),
+# so Windows stays on 22 LTS until that build is fixed.
+NODE_VERSION = "24.15.0"          # default (macOS/Linux)
+NODE_VERSION_WINDOWS = "22.15.0"  # Windows CI workaround
 
 # ─── ANSI colors ───────────────────────────────────────────────
 G, R, Y, C, B, X = "\033[92m", "\033[91m", "\033[93m", "\033[96m", "\033[1m", "\033[0m"
@@ -545,19 +551,19 @@ def step_nodejs(ctx):
     # Node.js uses x64 / arm64 (same as our label suffixes).
     node_arch = {"x64": "x64", "arm64": "arm64"}.get(arch, arch)
     if system == "Darwin":
-        url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-darwin-{node_arch}.tar.gz"
+        url = f"https://nodejs.org/dist/v{node_ver}/node-v{node_ver}-darwin-{node_arch}.tar.gz"
     elif system == "Linux":
         # Prebuilt Linux tarballs require glibc ≥ 2.28 (no change from
         # v22 → v24). On older hosts (RHEL 7, Debian 9, Ubuntu 18.04 and
         # earlier) the binary fails with GLIBC_2.xx-not-found — that's
         # a target-side issue we can't paper over here; document it in
         # README.txt instead.
-        url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-linux-{node_arch}.tar.gz"
+        url = f"https://nodejs.org/dist/v{node_ver}/node-v{node_ver}-linux-{node_arch}.tar.gz"
     elif system == "Windows":
         # Node.js v24+ does ship Windows arm64 prebuilt, but the launcher
         # bat file currently only knows about x64; sticking with x64 keeps
         # behavior identical on ARM hardware (runs under Prism emulation,
-        url = f"https://nodejs.org/dist/v{NODE_VERSION}/node-v{NODE_VERSION}-win-x64.zip"
+        url = f"https://nodejs.org/dist/v{node_ver}/node-v{node_ver}-win-x64.zip"
     else:
         warn(f"Unsupported system for Node.js fetch: {system}"); return
 
@@ -573,7 +579,7 @@ def step_nodejs(ctx):
     if system == "Windows":
         with zipfile.ZipFile(archive) as z:
             z.extractall(node_dir)
-        nested = node_dir / f"node-v{NODE_VERSION}-win-x64"
+        nested = node_dir / f"node-v{node_ver}-win-x64"
         if nested.exists():
             for item in nested.iterdir():
                 shutil.move(str(item), str(node_dir / item.name))
@@ -605,7 +611,7 @@ def step_nodejs(ctx):
                 safe.append(m)
             t.extractall(node_dir, members=safe)
         # Nested dir name differs per platform; handle both forms.
-        nested = node_dir / f"node-v{NODE_VERSION}-{system.lower()}-{node_arch}"
+        nested = node_dir / f"node-v{node_ver}-{system.lower()}-{node_arch}"
         if nested.exists():
             for item in nested.iterdir():
                 shutil.move(str(item), str(node_dir / item.name))
@@ -650,7 +656,7 @@ def step_nodejs(ctx):
         except subprocess.CalledProcessError as e:
             fail(f"npm is present but broken (cannot run --version): {e}")
 
-    ok(f"Node.js v{NODE_VERSION} ready")
+    ok(f"Node.js v{node_ver} ready ({system})")
 
     # Install hermes-web-ui globally (includes both server and client)
     # Using @latest + --force to ensure the newest version is always installed
