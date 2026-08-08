@@ -1176,6 +1176,7 @@ select:focus-visible {
   </div>
   <div class="y-cell" style="justify-content:flex-end;gap:8px">
     <button id="webui-btn" class="btn" onclick="toggleWebUI()" style="font-size:11px;padding:4px 8px;">Web UI</button>
+    <button id="desktop-btn" class="btn" onclick="toggleDesktop()" style="font-size:11px;padding:4px 8px;">桌面版</button>
     <button id="y-theme-btn" aria-label="切换主题" class="y-theme-toggle" type="button"><svg class="y-theme-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><svg class="y-theme-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
   </div>
 </nav>
@@ -2710,6 +2711,40 @@ init();
     } catch (err) {
       btn.textContent = '错误';
       btn.disabled = false;
+    }
+  }
+  // Desktop app (Electron) launcher — only works if the portable
+  // package was built with the desktop runtime bundled.
+  async function toggleDesktop() {
+    const btn = document.getElementById('desktop-btn');
+    try {
+      const statusRes = await fetch('/api/desktop/status');
+      const statusData = await statusRes.json();
+      if (!statusData.bundled) {
+        toast('此便携包未包含桌面版运行时。请下载包含桌面版的构建，或继续使用终端 / Web UI 模式。', 'error');
+        return;
+      }
+      btn.textContent = '启动中...';
+      btn.disabled = true;
+      const startRes = await fetch('/api/desktop/start', { method: 'POST' });
+      const startData = await startRes.json();
+      if (startData.ok && startData.result === 'launched') {
+        toast('桌面版已启动', 'success');
+        btn.textContent = '已启动';
+        setTimeout(() => { btn.textContent = '桌面版'; btn.disabled = false; }, 1500);
+      } else if (startData.result === 'wrong-arch') {
+        toast(startData.error || '桌面版架构与当前主机不匹配，请安装 Rosetta 2 或下载对应架构的便携包', 'error');
+        btn.textContent = '桌面版'; btn.disabled = false;
+      } else if (startData.result === 'missing') {
+        toast(startData.error || '此便携包未包含桌面版运行时', 'error');
+        btn.textContent = '桌面版'; btn.disabled = false;
+      } else {
+        toast('桌面版启动失败' + (startData.error ? '：' + startData.error : ''), 'error');
+        btn.textContent = '桌面版'; btn.disabled = false;
+      }
+    } catch (err) {
+      btn.textContent = '桌面版'; btn.disabled = false;
+      toast('桌面版启动出错：' + err, 'error');
     }
   }
   function openWebUI() {

@@ -8,7 +8,7 @@
 set -u
 
 # ── Parse command line arguments ──────────────────────────────
-LAUNCH_MODE="desktop"  # 默认启动桌面版
+LAUNCH_MODE="cli"  # 默认启动终端; 桌面版需显式 --desktop 或在配置中心启动
 for arg in "$@"; do
   case "$arg" in
     --cli)

@@ -769,6 +769,105 @@ def webui_stop():
         return result.returncode == 0
     except Exception:
         return False
+def webui_stop():
+    """Stop hermes-web-ui. Reports failure when the stop command errors or
+    exits non-zero (previously any result was treated as success)."""
+    import subprocess
+    try:
+        result = subprocess.run(['hermes-web-ui', 'stop'], capture_output=True, timeout=5)
+        return result.returncode == 0
+    except Exception:
+        return False
+
+# ───────────────────────────────────────────────────────────────
+# Desktop app (Electron) — optional, only present if the portable
+# package was built with the desktop runtime bundled.
+# ───────────────────────────────────────────────────────────────
+def desktop_app_path():
+    """Return the path to the bundled desktop app, or None if not bundled."""
+    import sys
+    candidates = []
+    if sys.platform == "darwin":
+        candidates = [
+            PORTABLE_ROOT / "runtime" / "desktop" / "dist" / "mac-arm64" / "Hermes.app",
+            PORTABLE_ROOT / "runtime" / "desktop" / "dist" / "mac" / "Hermes.app",
+        ]
+    elif sys.platform == "linux":
+        candidates = [
+            PORTABLE_ROOT / "runtime" / "desktop" / "dist" / "linux-unpacked" / "Hermes",
+        ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return None
+
+def _desktop_app_arch_label():
+    app = desktop_app_path()
+    archs = _app_bin_arch(app) if app else []
+    if "universal" in archs: return "universal"
+    if archs: return "/".join(archs)
+    return "未知"
+
+def _host_arch_label():
+    h = _host_arch()
+    return {"x86_64": "x86_64", "arm64": "arm64"}.get(h, h)
+
+def desktop_status():
+    """True if the desktop app is bundled (can be launched)."""
+    return desktop_app_path() is not None
+
+def _app_bin_arch(app):
+    """Return the Mach-O arch slice set for a .app's main binary (macOS only)."""
+    import subprocess, plistlib
+    try:
+        plist = app / "Contents" / "Info.plist"
+        exe = subprocess.check_output(
+            ["/usr/libexec/PlistBuddy", "-c", "Print :CFBundleExecutable", str(plist)],
+            text=True, timeout=5).strip()
+        bin_path = app / "Contents" / "MacOS" / exe
+        out = subprocess.check_output(["file", "-b", str(bin_path)], text=True, timeout=5)
+        archs = []
+        if "arm64" in out: archs.append("arm64")
+        if "x86_64" in out: archs.append("x86_64")
+        if "universal" in out: archs.append("universal")
+        return archs
+    except Exception:
+        return []
+
+def _host_arch():
+    import platform
+    m = platform.machine().lower()
+    if m in ("x86_64", "amd64"): return "x86_64"
+    if m in ("arm64", "aarch64"): return "arm64"
+    return m
+
+def desktop_start():
+    """Launch the bundled desktop app. Returns one of:
+      'launched'     — app opened
+      'missing'      — desktop runtime not bundled into this package
+      'wrong-arch'   — bundled app arch doesn't match this CPU (needs Rosetta)
+      'error'        — launch failed
+    """
+    import subprocess, sys, platform
+    app = desktop_app_path()
+    if app is None:
+        return "missing"
+    # Architecture guard (macOS): don't report success when the app can't
+    # actually run on this CPU (e.g. arm64 app on an x86_64 Mac without
+    # Rosetta). The `open` syscall returns immediately, so we must check.
+    if sys.platform == "darwin":
+        archs = _app_bin_arch(app)
+        host = _host_arch()
+        if archs and "universal" not in archs and host not in archs:
+            return "wrong-arch"
+    try:
+        if sys.platform == "darwin" and str(app).endswith(".app"):
+            subprocess.Popen(["open", str(app)])
+        else:
+            subprocess.Popen([str(app)])
+        return "launched"
+    except Exception:
+        return "error"
 
 # ═══════════════════════════════════════════════════════════════
 # ═══════════════════════════════════════════════════════════════
@@ -1687,6 +1786,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._serve_wechat_status()
         elif path_only == '/api/webui/status':
             self._json_response({'running': webui_status()})
+        elif path_only == '/api/desktop/status':
+            self._json_response({'bundled': desktop_status()})
         else:
             self.send_error(404)
 
@@ -1777,6 +1878,22 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 self._json_response({"ok": True})
             else:
                 self._json_response({"ok": False, "error": "Failed to stop"}, 500)
+        elif self.path == "/api/desktop/start":
+            result = desktop_start()
+            if result == "launched":
+                self._json_response({"ok": True, "result": "launched",
+                                     "message": "桌面版已启动"})
+            elif result == "missing":
+                self._json_response({"ok": False, "result": "missing",
+                                     "error": "此便携包未包含桌面版运行时。请用包含桌面版的构建，或继续使用终端/Web UI 模式。"}, 409)
+            elif result == "wrong-arch":
+                self._json_response({"ok": False, "result": "wrong-arch",
+                                     "error": "桌面版为 " + _desktop_app_arch_label() +
+                                     " 架构，与当前 " + _host_arch_label() +
+                                     " 主机不匹配。请安装 Rosetta 2，或下载对应架构的便携包。"}, 409)
+            else:
+                self._json_response({"ok": False, "result": "error",
+                                     "error": "启动桌面版失败"}, 500)
         elif self.path == "/api/wechat/start":
             try:
                 payload = wechat_start_login()
