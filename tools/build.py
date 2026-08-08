@@ -58,7 +58,7 @@ EXTRAS = "cron,messaging,cli,mcp,web,tts-premium"
 # Node 24.15.0 (exit 134, "Assertion failed: ncrypto::CSPRNG(nullptr, 0)"),
 # so Windows stays on 22 LTS until that build is fixed.
 NODE_VERSION = "24.15.0"          # default (macOS/Linux)
-NODE_VERSION_WINDOWS = "22.15.0"  # Windows CI workaround
+NODE_VERSION_WINDOWS = os.environ.get("HERMES_NODE_VERSION_WINDOWS", "22.15.0")  # Windows CI workaround; override via env
 
 # ─── ANSI colors ───────────────────────────────────────────────
 G, R, Y, C, B, X = "\033[92m", "\033[91m", "\033[93m", "\033[96m", "\033[1m", "\033[0m"
@@ -363,8 +363,10 @@ def _fix_editable_paths(venv, system, src):
     if not finder_files:
         return
 
-    src_abs = str(src.resolve()).rstrip("/")
-    prefix = src_abs + "/"
+    src_abs = str(src.resolve())
+    # Normalize: on Windows uv writes backslashes; match both / and \.
+    src_norm = src_abs.replace("\\", "/").rstrip("/")
+    prefix = src_norm + "/"
 
     # Base dir: the portable bundle root that contains both `venv/` and
     # `hermes-agent/`. Walk UP from this finder file until we find the dir
@@ -385,18 +387,32 @@ def _fix_editable_paths(venv, system, src):
     )
     old = "'" + prefix
     new = "_HERMES_AGENT + '/"
+    # Windows: uv writes the absolute path with backslashes, escaped as
+    # double backslashes inside the Python finder source ('C:\\repo\\...').
+    # Match both the forward-slash (POSIX) and the backslash (Windows) forms.
+    bs = chr(92)  # backslash
+    prefix_bs = src_abs.rstrip("/") + bs + bs
+    prefix_bs_single = src_abs.rstrip("/") + bs
 
     for finder_file in finder_files:
         content = finder_file.read_text(encoding="utf-8")
-        if prefix not in content:
+        hit = (prefix in content) or (prefix_bs in content) or (prefix_bs_single in content)
+        if not hit:
             continue
         if "MAPPING:" in content:
             content = content.replace("MAPPING:", inject + "MAPPING:", 1)
         else:
             content = inject + content
-        new_content = content.replace(old, new)
+        new_content = content.replace("'" + prefix, new)
+        new_content = new_content.replace("'" + prefix_bs, new)
+        new_content = new_content.replace("'" + prefix_bs_single, new)
         new_content = new_content.replace(inject + inject, inject)
         finder_file.write_text(new_content, encoding="utf-8")
+        ok(f"Fixed editable paths in {finder_file.name}")
+        new_content = new_content.replace("'" + prefix_bs_single, new)
+        new_content = new_content.replace(inject + inject, inject)
+        finder_file.write_text(new_content, encoding="utf-8")
+        ok(f"Fixed editable paths in {finder_file.name}")
         ok(f"Fixed editable paths in {finder_file.name}")
 
 
@@ -412,9 +428,15 @@ def _fix_hermes_shim(venv, system):
     "No such file or directory". Rewrite the exec line to use the bin/ copy.
     """
     if system == "Windows":
+        # uv's Windows launcher is a binary .exe that embeds the interpreter
+        # path via `uv venv --relocatable` + pyvenv.cfg; it is NOT a POSIX
+        # shell shim, so text rewriting would corrupt it. Just verify it
+        # exists; relocatability is handled by pyvenv.cfg (`home`).
         shim = venv / "Scripts" / "hermes.exe"
-    else:
-        shim = venv / "bin" / "hermes"
+        if not shim.exists():
+            warn("Windows venv/Scripts/hermes.exe missing")
+        return
+    shim = venv / "bin" / "hermes"
     if not shim.exists():
         return
     content = shim.read_text(encoding="utf-8", errors="replace")
@@ -536,12 +558,19 @@ def step_data(ctx):
     hermes_link = home_dir / ".hermes"
     if hermes_link.exists() or hermes_link.is_symlink():
         hermes_link.unlink()
-    hermes_link.symlink_to("../../data")
+    try:
+        hermes_link.symlink_to("../../data")
+    except (OSError, NotImplementedError):
+        # Windows: symlinks need admin / Developer Mode. The runtime still
+        # reaches data/ via HOME -> _home, so skip instead of failing build.
+        warn("无法创建 _home/.hermes 软链 (Windows 需管理员/开发者模式)，已跳过")
     ok("data/ ready")
+
 
 
 def step_nodejs(ctx):
     ROOT, system, arch = ctx["ROOT"], ctx["system"], ctx["arch"]
+    node_ver = NODE_VERSION_WINDOWS if system == "Windows" else NODE_VERSION
     node_dir = ROOT / ctx["node_name"]
     src = ROOT / "hermes-agent"
     exe = "node.exe" if system == "Windows" else "node"
@@ -649,7 +678,14 @@ def step_nodejs(ctx):
     # Actually run npm --version: exists() can't catch a symlink whose
     # target was clobbered by a bad write_text (the v1.20.x webui bug).
     # Fail the build loudly instead of shipping a broken npm.
-    if system != "Windows":
+    if system == "Windows":
+        try:
+            run([str(node_dir / "npm.cmd"), "--version"],
+                env={**os.environ,
+                     "PATH": str(node_dir) + ";" + os.environ.get("PATH", "")})
+        except subprocess.CalledProcessError as e:
+            fail(f"npm is present but broken (cannot run --version): {e}")
+    else:
         try:
             run([str(node_dir / "bin" / "node"),
                  str(node_dir / "bin" / "npm"), "--version"])
@@ -669,13 +705,14 @@ def step_nodejs(ctx):
         info("Installing hermes-web-ui (latest from npm) …")
         try:
             path_sep = ";" if system == "Windows" else ":"
+            node_bin = node_dir if system == "Windows" else (node_dir / "bin")
             # Prepend node/bin BUT inherit the real system PATH so that npm
             # lifecycle scripts (e.g. node-pty's postinstall `spawn sh`) can
             # find /bin/sh, make, cc, etc. Using only node/bin here made npm
             # fail with ENOENT "spawn sh" and exit 254, silently shipping a
             # package without hermes-web-ui.
             env = {**ctx.get("env", {}),
-                   "PATH": str(node_dir / "bin") + path_sep + os.environ.get("PATH", "")}
+                   "PATH": str(node_bin) + path_sep + os.environ.get("PATH", "")}
             # Install latest hermes-web-ui globally. We intentionally do NOT
             # run `npm cache clean --force` first: it is an optional optimisation
             # that segfaults (exit 134) on some CI Node builds and must not
@@ -713,7 +750,6 @@ def step_nodejs(ctx):
             # working Web UI. Fail loudly — a silent warn let v1.20.x
             # ship zips where `npm install` had died on the bad shim.
             fail(f"hermes-web-ui install failed: {e}")
-            fail(f"hermes-web-ui install failed: {e}")
 
     # ── Fix hermes-web-ui CLI path resolution for portable layout ──
     # The `hermes-web-ui` bin script (node/bin/hermes-web-ui) resolves its
@@ -723,25 +759,38 @@ def step_nodejs(ctx):
     # server (MODULE_NOT_FOUND → Web UI silently never starts).
     # Also: the CLI bin is ESM (import …), so node/ needs a package.json with
     # "type":"module" or Node refuses to parse it as a module.
-    webui_pkg = node_dir / "lib" / "node_modules" / "hermes-web-ui"
-    dist_src = webui_pkg / "dist"
-    # Create node/dist (copy, not symlink — zip may not preserve symlinks).
-    dist_dst = node_dir / "dist"
-    if dist_src.exists() and not dist_dst.exists():
-        try:
-            shutil.copytree(str(dist_src), str(dist_dst))
-            ok("linked node/dist -> hermes-web-ui/dist (portable webui fix)")
-        except Exception as e:
-            warn(f"could not copy node/dist: {e}")
-    # Write node/package.json with type:module so the ESM bin script parses.
-    pkg_json = node_dir / "package.json"
-    if not pkg_json.exists():
-        try:
-            pkg_json.write_text(
-                '{"name":"hermes-web-ui-portable","version":"0.0.0","type":"module"}\n')
-            ok("wrote node/package.json (type:module)")
-        except Exception as e:
-            warn(f"could not write node/package.json: {e}")
+    if system == "Windows":
+        webui_candidates = [
+            node_dir / "node_modules" / "hermes-web-ui",
+            node_dir / "lib" / "node_modules" / "hermes-web-ui",
+        ]
+    else:
+        webui_candidates = [node_dir / "lib" / "node_modules" / "hermes-web-ui"]
+    webui_pkg = next((p for p in webui_candidates if p.exists()), None)
+    if webui_pkg is None:
+        fail("hermes-web-ui package dir not found after npm -g install "
+             "(looked: %s)" % ", ".join(str(c) for c in webui_candidates))
+    if system != "Windows":
+        dist_src = webui_pkg / "dist"
+        dist_dst = node_dir / "dist"
+        if dist_src.exists() and not dist_dst.exists():
+            try:
+                shutil.copytree(str(dist_src), str(dist_dst))
+                ok("linked node/dist -> hermes-web-ui/dist (portable webui fix)")
+            except Exception as e:
+                warn(f"could not copy node/dist: {e}")
+        pkg_json = node_dir / "package.json"
+        if not pkg_json.exists():
+            try:
+                pkg_json.write_text(
+                    '{"name":"hermes-web-ui-portable","version":"0.0.0","type":"module"}\n')
+                ok("wrote node/package.json (type:module)")
+            except Exception as e:
+                warn(f"could not write node/package.json: {e}")
+    else:
+        ok("Windows webui: npm -g layout resolves dist locally (no copy needed)")
+
+
 # Paths are relative to the repo root. Directory structure is preserved
 # in the dist (e.g. "lib/config_server.py" → ROOT/lib/config_server.py).
 _STATIC_ASSETS = [
