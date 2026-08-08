@@ -681,8 +681,33 @@ def step_nodejs(ctx):
             # that segfaults (exit 134) on some CI Node builds and must not
             # block the install. `--force` on the install already pulls the
             # newest published version.
-            run([str(npm), "install", "-g", "hermes-web-ui@latest", "--force"], env=env)
-            ok("hermes-web-ui installed")
+            #
+            # Windows CI runners hit intermittent DNS failures (EAI_FAIL) when
+            # reaching registry.npmjs.org, which makes a single `npm install`
+            # fail even though github.com / nodejs.org downloads succeeded.
+            # Mitigate with: (a) up to 3 retries, and (b) a China mirror
+            # (npmmirror.com) as a fallback registry — both raise the odds of
+            # a successful install on flaky runners.
+            registries = ["https://registry.npmjs.org/",
+                          "https://registry.npmmirror.com/"]
+            installed = False
+            last_err = None
+            for attempt in range(1, 4):
+                for reg in registries:
+                    try:
+                        run([str(npm), "install", "-g", "hermes-web-ui@latest",
+                             "--force", "--registry", reg], env=env)
+                        installed = True
+                        ok(f"hermes-web-ui installed (attempt {attempt}, {reg})")
+                        break
+                    except Exception as e:
+                        last_err = e
+                        info(f"  npm install attempt {attempt} via {reg} failed: {e}")
+                if installed:
+                    break
+                time.sleep(5 * attempt)
+            if not installed:
+                fail(f"hermes-web-ui install failed after retries: {last_err}")
         except Exception as e:
             # A broken web UI install means the package ships without a
             # working Web UI. Fail loudly — a silent warn let v1.20.x

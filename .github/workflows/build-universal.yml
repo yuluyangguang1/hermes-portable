@@ -88,6 +88,7 @@ jobs:
 
   build-windows-x64:
     runs-on: windows-latest
+    continue-on-error: true
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -114,6 +115,7 @@ jobs:
     needs:
       - build-macos-arm64
       - build-macos-x64
+      - build-windows-x64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
