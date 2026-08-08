@@ -62,10 +62,13 @@ preflight_check() {
     fi
   fi
 
-  # Check Python
+  # Check Python (匹配 python/cpython-*/bin/python3; 若缺 +x 就地补回)
   local py_found=false
   for cand in "$PYTHON_DIR"/*/bin/python3 "$PYTHON_DIR"/*/bin/python3.*; do
-    if [ -x "$cand" ]; then py_found=true; break; fi
+    if [ -f "$cand" ]; then
+      chmod +x "$cand" 2>/dev/null || true
+      py_found=true; break
+    fi
   done
   if [ "$py_found" = "false" ]; then
     echo "  [ERROR] Python not found in $PYTHON_DIR" >&2
@@ -102,6 +105,9 @@ preflight_check() {
 kill_tree() {
   local pid="$1"
   [ -z "$pid" ] && return
+  case "$pid" in
+    ''|*[!0-9]*) return ;;
+  esac
   [ "$pid" -le 1 ] 2>/dev/null && return
   # Try process-group kill first: send SIGTERM to the entire group.
   # This catches all descendants, including reparented ones.
@@ -143,8 +149,10 @@ cleanup_stale_ports() {
       pid=$(fuser $port/tcp 2>/dev/null | tr -d ' ')
     fi
     if [ -n "$pid" ]; then
-      echo "  Cleaning stale process on port $port (PID $pid)"
-      kill_tree $pid
+      for _p in $pid; do
+        echo "  Cleaning stale process on port $port (PID $_p)"
+        kill_tree "$_p"
+      done
     fi
   done
 }
@@ -176,13 +184,44 @@ else
   NODE_DIR=""
 fi
 
+# ── 防御性权限自检(最早执行, 兜底 CI/解压/杀软丢 exec 位) ──
+if [ "$OS" = "Darwin" ]; then
+  # Clear quarantine attributes silently
+  if command -v xattr >/dev/null 2>&1; then
+    xattr -rc "$HERE" 2>/dev/null || true
+  fi
+  # Ensure execute permissions on all binaries
+  find "$HERE/venv/bin" "$HERE/python" -type f -name "python*" -exec chmod +x {} + 2>/dev/null || true
+  find "$HERE/venv/bin" -type f \( -name "hermes" -o -name "hermes_cli" -o -name "python*" -o -name "python3*" \) -exec chmod +x {} + 2>/dev/null || true
+  # Node.js: fix bin scripts and npm/npx CLI wrappers
+  if [ -n "$NODE_DIR" ]; then
+    find "$NODE_DIR" -type f -name "*.js" -path "*/bin/*" -exec chmod +x {} + 2>/dev/null || true
+    # npm/npx CLI scripts in node_modules (not in a bin/ subdir)
+    find "$NODE_DIR/lib/node_modules" -type f \( -name "npm" -o -name "npx" \) -exec chmod +x {} + 2>/dev/null || true
+    # npm/npx shell scripts in node/bin/ (e.g. npm, npx, corepack)
+    if [ -d "$NODE_DIR/bin" ]; then
+      find "$NODE_DIR/bin" -type f \( -name "npm" -o -name "npx" -o -name "corepack" \) -exec chmod +x {} + 2>/dev/null || true
+    fi
+    # Also fix any executable in node/.bin/
+    if [ -d "$NODE_DIR/.bin" ]; then
+      find "$NODE_DIR/.bin" -type f -exec chmod +x {} + 2>/dev/null || true
+    fi
+  fi
+  # hermes-agent Python scripts
+  if [ -d "$HERE/hermes-agent" ]; then
+    find "$HERE/hermes-agent" -type f -name "*.py" -exec chmod +x {} + 2>/dev/null || true
+  fi
+  # Log first-launch attempt for debugging permission issues
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Self-heal completed on macOS startup" >> "$HERMES_FIRST_LAUNCH_LOG" 2>/dev/null || true
+fi
+
 # Run preflight check
 if ! preflight_check; then
   echo "  Preflight check failed. Exiting."
   exit 1
 fi
 
-# Clean stale ports
+# Clean stale ports (在 preflight 之后, 避免"杀完就退"误伤已存活服务)
 cleanup_stale_ports
 
 # ── Architecture sanity check ─────────────────────────────────
@@ -299,36 +338,6 @@ export PYTHONUTF8=1
 # We fix both issues automatically on every launch so the package works
 # out-of-the-box without manual intervention.
 HERMES_FIRST_LAUNCH_LOG="$HERE/data/.first-launch.log"
-if [ "$OS" = "Darwin" ]; then
-  # Clear quarantine attributes silently
-  if command -v xattr >/dev/null 2>&1; then
-    xattr -rc "$HERE" 2>/dev/null || true
-  fi
-  # Ensure execute permissions on all binaries
-  find "$HERE/venv/bin" "$HERE/python" -type f -name "python*" -exec chmod +x {} + 2>/dev/null || true
-  find "$HERE/venv/bin" -type f \( -name "hermes" -o -name "hermes_cli" -o -name "python*" -o -name "python3*" \) -exec chmod +x {} + 2>/dev/null || true
-  # Node.js: fix bin scripts and npm/npx CLI wrappers
-  if [ -n "$NODE_DIR" ]; then
-    find "$NODE_DIR" -type f -name "*.js" -path "*/bin/*" -exec chmod +x {} + 2>/dev/null || true
-    # npm/npx CLI scripts in node_modules (not in a bin/ subdir)
-    find "$NODE_DIR/lib/node_modules" -type f \( -name "npm" -o -name "npx" \) -exec chmod +x {} + 2>/dev/null || true
-    # npm/npx shell scripts in node/bin/ (e.g. npm, npx, corepack)
-    if [ -d "$NODE_DIR/bin" ]; then
-      find "$NODE_DIR/bin" -type f \( -name "npm" -o -name "npx" -o -name "corepack" \) -exec chmod +x {} + 2>/dev/null || true
-    fi
-    # Also fix any executable in node/.bin/
-    if [ -d "$NODE_DIR/.bin" ]; then
-      find "$NODE_DIR/.bin" -type f -exec chmod +x {} + 2>/dev/null || true
-    fi
-  fi
-  # hermes-agent Python scripts
-  if [ -d "$HERE/hermes-agent" ]; then
-    find "$HERE/hermes-agent" -type f -name "*.py" -exec chmod +x {} + 2>/dev/null || true
-  fi
-  # Log first-launch attempt for debugging permission issues
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Self-heal completed on macOS startup" >> "$HERMES_FIRST_LAUNCH_LOG" 2>/dev/null || true
-fi
-
 # Set PYTHONHOME for python-build-standalone (fixes "No module named encodings")
 # Find the dir containing lib/python3.12 inside PYTHON_DIR
 # Handles: install/ layout (old uv), cpython-3.12-xxx/ layout (new uv)
@@ -641,7 +650,7 @@ CONFIG_PID=""
 export HERMES_BROWSER_OPENED=1
 
 start_config_server() {
-  "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" >/dev/null 2>&1 &
+  "$VENV_DIR/bin/python" "$HERE/lib/config_server.py" >> "$HERE/data/config_server.log" 2>&1 &
   CONFIG_PID=$!
 }
 

@@ -159,6 +159,13 @@ jobs:
           # and records Unix mode from the filesystem, so macOS Archive
           # Utility unpacks everything with exec bits intact.
           zip -yrq HermesPortable-Universal.zip HermesPortable/
+          # Verify python3 has exec bit after round-trip (catches the
+          # v1.20.x "Preflight: Python not found" regression).
+          rm -rf /tmp/hp_uvz && unzip -q HermesPortable-Universal.zip -d /tmp/hp_uvz
+          PY_BIN=$(find /tmp/hp_uvz -path '*/bin/python3*' -type f | head -1)
+          [ -n "$PY_BIN" ] || { echo "::error::python3 missing in Universal zip"; exit 1; }
+          [ -x "$PY_BIN" ] || { echo "::error::python3 not executable in Universal zip: $PY_BIN"; exit 1; }
+          echo "  OK: $PY_BIN is executable"
 
       # NOTE: per-platform zips (macOS-arm64/macOS-x64/Linux-x64/Linux-arm64/
       # Windows-x64) are produced by .github/workflows/build.yml, which uses

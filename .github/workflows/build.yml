@@ -124,6 +124,13 @@ jobs:
               zip -yrq "../../HermesPortable-$platform.zip" HermesPortable/
               cd ../..
               echo "  Created HermesPortable-$platform.zip"
+              # Verify python3 has exec bit after round-trip (catches the
+              # v1.20.x "Preflight: Python not found" regression).
+              rm -rf /tmp/hp_vz && unzip -q "HermesPortable-$platform.zip" -d /tmp/hp_vz
+              PY_BIN=$(find /tmp/hp_vz -path '*/bin/python3*' -type f | head -1)
+              [ -n "$PY_BIN" ] || { echo "::error::python3 missing in zip"; exit 1; }
+              [ -x "$PY_BIN" ] || { echo "::error::python3 not executable in zip: $PY_BIN"; exit 1; }
+              echo "  OK: $PY_BIN is executable"
             else
               echo "  ! $platform missing — skipping"
             fi

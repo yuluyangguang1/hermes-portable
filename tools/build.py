@@ -596,19 +596,12 @@ def step_nodejs(ctx):
 
     archive.unlink(missing_ok=True)
 
-    # Fix npm/npx binary paths for Node.js v24+ portable installations.
-    # Node.js v24's npm CLI script references '../lib/cli.js' which is
-    # incorrect for portable installs where npm is in lib/node_modules/npm/.
-    # Without this fix, `npm install` fails with MODULE_NOT_FOUND.
-    if system != "Windows":
-        npm_bin = node_dir / "bin" / "npm"
-        npx_bin = node_dir / "bin" / "npx"
-        if npm_bin.exists():
-            npm_bin.write_text('#!/usr/bin/env node\nrequire("../lib/node_modules/npm/lib/cli.js")(process)\n')
-            npm_bin.chmod(0o755)
-        if npx_bin.exists():
-            npx_bin.write_text('#!/usr/bin/env node\nrequire("../lib/node_modules/npm/lib/cli.js")(process)\n')
-            npx_bin.chmod(0o755)
+    # NOTE: Do NOT hand-rewrite bin/npm / bin/npx here. The Node.js tarball
+    # ships them as symlinks (bin/npm -> ../lib/node_modules/npm/bin/npm-cli.js)
+    # which already work for portable installs. Path.write_text() follows
+    # symlinks and would overwrite the link TARGET (npm-cli.js) with a broken
+    # require("../lib/node_modules/npm/lib/cli.js") — breaking npm itself and
+    # making `npm install` fail with MODULE_NOT_FOUND (the v1.20.x webui bug).
 
     # Verify node / npm / npx actually made it out of the archive.
     # This is cheap defense-in-depth: if any future change (tarfile
@@ -624,6 +617,16 @@ def step_nodejs(ctx):
     if missing:
         fail("Node.js extraction incomplete — missing:\n  "
              + "\n  ".join(str(p) for p in missing))
+
+    # Actually run npm --version: exists() can't catch a symlink whose
+    # target was clobbered by a bad write_text (the v1.20.x webui bug).
+    # Fail the build loudly instead of shipping a broken npm.
+    if system != "Windows":
+        try:
+            run([str(node_dir / "bin" / "node"),
+                 str(node_dir / "bin" / "npm"), "--version"])
+        except subprocess.CalledProcessError as e:
+            fail(f"npm is present but broken (cannot run --version): {e}")
 
     ok(f"Node.js v{NODE_VERSION} ready")
 
@@ -647,12 +650,10 @@ def step_nodejs(ctx):
             run([str(npm), "install", "-g", "hermes-web-ui@latest", "--force"], env=env)
             ok("hermes-web-ui installed")
         except Exception as e:
-            # A broken web UI install is a real problem downstream (every
-            # webui_* call raises and is swallowed, so a package can ship
-            # without a working Web UI). We warn rather than hard-fail so a
-            # transient npm hiccup doesn't kill the whole portable build, but
-            # the message makes the root cause obvious for a manual retry.
-            warn(f"hermes-web-ui install failed: {e}")
+            # A broken web UI install means the package ships without a
+            # working Web UI. Fail loudly — a silent warn let v1.20.x
+            # ship zips where `npm install` had died on the bad shim.
+            fail(f"hermes-web-ui install failed: {e}")
 # Paths are relative to the repo root. Directory structure is preserved
 # in the dist (e.g. "lib/config_server.py" → ROOT/lib/config_server.py).
 _STATIC_ASSETS = [
