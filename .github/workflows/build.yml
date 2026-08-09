@@ -68,7 +68,6 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 40
     continue-on-error: true
-    retry: 2
     steps:
       - uses: actions/checkout@v4
         with:

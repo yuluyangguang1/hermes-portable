@@ -89,7 +89,6 @@ jobs:
   build-windows-x64:
     runs-on: windows-latest
     continue-on-error: true
-    retry: 2
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
