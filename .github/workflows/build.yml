@@ -35,6 +35,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
+      - name: Preinstall Windows webui (DNS-bypass)
+        run: python3 tools/preinstall_windows_webui.py --out dist/windows-webui
       - name: Build
         run: python3 tools/build.py
       - name: Upload
@@ -42,6 +44,12 @@ jobs:
         with:
           name: macos-arm64
           path: dist/HermesPortable/
+          retention-days: 7
+      - name: Upload Windows webui (cross-preinstalled)
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-webui
+          path: dist/windows-webui/
           retention-days: 7
 
   build-macos-x64:
@@ -74,8 +82,15 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
+      - name: Download cross-preinstalled Windows webui
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-webui
+          path: dist/windows-webui
       - name: Build
         shell: bash
+        env:
+          HERMES_WIN_WEBUI_DIR: dist/windows-webui
         run: python tools/build.py
       - name: Upload
         uses: actions/upload-artifact@v4

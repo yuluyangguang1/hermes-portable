@@ -695,6 +695,38 @@ def step_nodejs(ctx):
 
     ok(f"Node.js v{node_ver} ready ({system})")
 
+    # ── Cross-platform webui preinstall (DNS-bypass for Windows CI) ──
+    # When HERMES_WIN_WEBUI_DIR points at a directory produced by
+    # tools/preinstall_windows_webui.py (a Windows-flavored node_modules
+    # built on a Mac/Linux runner that CAN reach npm), consume it directly
+    # and skip `npm install` — this avoids the Windows runner's EAI_FAIL DNS
+    # failure that otherwise blocks the entire Windows package.
+    preinstalled = os.environ.get("HERMES_WIN_WEBUI_DIR")
+    if preinstalled:
+        src_node_modules = Path(preinstalled) / "node_modules"
+        if (src_node_modules / "hermes-web-ui" / "dist" / "server" / "index.js").exists():
+            info(f"Using cross-preinstalled Windows webui from {preinstalled} (skipping npm install)")
+            dest_nm = node_dir / "node_modules"
+            dest_nm.mkdir(parents=True, exist_ok=True)
+            for item in src_node_modules.iterdir():
+                tgt = dest_nm / item.name
+                if tgt.exists():
+                    if tgt.is_dir() and item.is_dir():
+                        shutil.copytree(str(item), str(tgt), dirs_exist_ok=True)
+                else:
+                    if item.is_dir():
+                        shutil.copytree(str(item), str(tgt))
+                    else:
+                        shutil.copy2(str(item), str(tgt))
+            src_pkg = Path(preinstalled) / "package.json"
+            if src_pkg.exists():
+                shutil.copy2(str(src_pkg), str(node_dir / "package.json"))
+            ok("merged cross-preinstalled Windows webui into node/")
+            preinstalled = "__consumed__"
+        else:
+            warn(f"HERMES_WIN_WEBUI_DIR set but no hermes-web-ui dist found; "
+                 f"falling back to npm install (may fail on broken DNS)")
+
     # Install hermes-web-ui globally (includes both server and client)
     # Using @latest + --force to ensure the newest version is always installed
     # Note: We don't use --omit=optional as it skips important UI components
@@ -702,7 +734,7 @@ def step_nodejs(ctx):
         npm = node_dir / "npm.cmd"
     else:
         npm = node_dir / "bin" / "npm"
-    if npm.exists():
+    if preinstalled != "__consumed__" and npm.exists():
         info("Installing hermes-web-ui (latest from npm) …")
         try:
             path_sep = ";" if system == "Windows" else ":"
