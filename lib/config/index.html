@@ -1821,6 +1821,12 @@ function renderApiKeySection() {
              value="${escapeHtml(baseVal)}"
              oninput="currentEnv['${bue}']=this.value; if(!this.value) delete currentEnv['${bue}'];">
     </div>`;
+    extraHtml += `<div class="field" style="margin-top:8px">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:normal">
+        <input type="checkbox" id="allowLocalChk" onchange="onAllowLocalChange(this.checked)">
+        允许连接本地地址（127.0.0.1 / localhost，用于 llama.cpp / ollama 等本地模型）
+      </label>
+    </div>`;
   }
   for (const ef of (p.extra_fields || [])) {
     const ev = currentEnv[ef.key] || '';
@@ -2037,7 +2043,7 @@ function updateChannelStatus(chId) {
 }
 
 function restoreConfig() {
-  fetch('/api/config').then(r => r.json()).then(data => {
+  fetch('/api/config').then(r => r.json()).then(async (data) => {
     // #3: inject env/base_url_env/extra_fields from the backend PROVIDERS so the
     // frontend never renders a "ghost" apiKey_undefined box (the frontend
     // PROVIDERS list omits `env`). This keeps the two lists in sync without
@@ -2140,6 +2146,15 @@ function restoreConfig() {
       const lb = document.getElementById('launchBtn');
       if (lb) lb.disabled = true;
     }
+    // Restore the "allow local hosts" switch state (for local llama.cpp / ollama).
+    try {
+      const sr = await fetch('/api/settings');
+      if (sr.ok) {
+        const sd = await sr.json();
+        const chk = document.getElementById('allowLocalChk');
+        if (chk && typeof sd.allow_local_hosts === 'boolean') chk.checked = sd.allow_local_hosts;
+      }
+    } catch (e) { /* settings optional; ignore */ }
   }).catch((err) => {
     // #10: never silently swallow a failed load. If /api/config fails, currentEnv
     // stays empty — saving now would wipe data/.env. Disable the save button and
@@ -2218,6 +2233,16 @@ function toast(msg, type) {
   setTimeout(() => el.classList.remove('show'), 3000);
 }
 
+function onAllowLocalChange(checked) {
+  fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({allow_local_hosts: !!checked})
+  }).then(r => r.json()).then(res => {
+    if (!res.success) toast(res.error || '保存开关失败', 'error');
+  }).catch(() => { toast('网络错误', 'error'); });
+}
+
 function testConnection() {
   const p = PROVIDERS.find(x => x.id === activeProvider);
   if (!p) return;
@@ -2248,7 +2273,7 @@ function testConnection() {
   fetch('/api/test', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({provider: activeProvider, api_key: key, model: modelName, base: p.base || '', base_url: baseUrl})
+    body: JSON.stringify({provider: activeProvider, api_key: key, model: modelName, base: p.base || '', base_url: baseUrl, allow_local: document.getElementById('allowLocalChk') ? document.getElementById('allowLocalChk').checked : false})
   }).then(r => r.json()).then(data => {
     if (data.success) {
       result.innerHTML = '<span style="color:var(--emerald)"><i class="ti ti-circle-check"></i> ' + (data.message || '连接成功') + '</span>';

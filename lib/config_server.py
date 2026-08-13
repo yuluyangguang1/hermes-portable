@@ -1038,16 +1038,46 @@ def _is_same_origin(origin: str) -> bool:
 
 
 import ipaddress
-def _is_blocked_test_ip(host: str) -> bool:
+
+# Allow-loopback switch for local model servers (llama.cpp / ollama on
+# 127.0.0.1 / localhost). Default OFF so the SSRF host guard stays strict.
+# When ON, ONLY loopback is allowed through /api/test's host guard; RFC1918
+# private ranges, link-local cloud metadata (169.254.x), multicast and
+# reserved addresses remain blocked. This is NOT a general "allow LAN" switch.
+ALLOW_LOCAL_HOSTS = False
+_ALLOW_LOCAL_FILE = DATA_DIR / ".allow_local_hosts"
+
+def _load_allow_local() -> bool:
+    global ALLOW_LOCAL_HOSTS
+    try:
+        ALLOW_LOCAL_HOSTS = bool(_ALLOW_LOCAL_FILE.read_text(encoding="utf-8").strip()) if _ALLOW_LOCAL_FILE.exists() else False
+    except Exception:
+        ALLOW_LOCAL_HOSTS = False
+    return ALLOW_LOCAL_HOSTS
+
+def _save_allow_local(value: bool) -> None:
+    global ALLOW_LOCAL_HOSTS
+    ALLOW_LOCAL_HOSTS = bool(value)
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        _ALLOW_LOCAL_FILE.write_text("1" if value else "0", encoding="utf-8")
+    except Exception:
+        pass
+
+_load_allow_local()
+
+def _is_blocked_test_ip(host: str, allow_local: bool = False) -> bool:
     """Reject hosts that resolve to a non-public IP for /api/test.
 
     Prevents the Test button from being used as an SSRF vector against
     loopback (127.0.0.1/::1), link-local cloud metadata (169.254.0.0/16),
     RFC1918 private ranges, or multicast. The caller passes the hostname
-    extracted from the user-supplied base_url; we resolve it (DNS rebinding
-    is mitigated only insofar as we check the resolution result here — a
-    TTL=0 rebinding attack would need connection-time pinning, which is a
-    follow-up hardening) and block any non-global IP.
+    extracted from the user-supplied base_url; we resolve it and block any
+    non-global IP.
+
+    When `allow_local` is True, loopback addresses are permitted (so a user
+    can point Hermes at a local llama.cpp / ollama server) but private /
+    link-local / multicast / reserved ranges stay blocked.
     """
     try:
         import socket
@@ -1059,7 +1089,15 @@ def _is_blocked_test_ip(host: str) -> bool:
             except ValueError:
                 # Unparseable — treat as blocked (fail closed).
                 return True
-            if (addr.is_loopback or addr.is_link_local \
+            if addr.is_loopback:
+                # loopback is only permitted when the allow-local switch is on
+                # (local llama.cpp / ollama). Note: ipaddress also reports
+                # loopback as is_private=True, so we must short-circuit here
+                # BEFORE the is_private check below, otherwise it would still block.
+                if allow_local:
+                    return False
+                return True
+            if (addr.is_link_local \
                or addr.is_multicast or addr.is_reserved or addr.is_unspecified \
                or (not addr.is_global and addr.is_private)):
                 return True
@@ -1790,6 +1828,8 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             self._json_response({'running': webui_status()})
         elif path_only == '/api/desktop/status':
             self._json_response({'bundled': desktop_status()})
+        elif path_only == '/api/settings':
+            self._json_response({'allow_local_hosts': ALLOW_LOCAL_HOSTS})
         else:
             self.send_error(404)
 
@@ -1852,6 +1892,14 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 data = json.loads(body)
                 result = self._test_provider(data)
                 self._json_response(result)
+            except Exception as e:
+                self._json_response({"success": False, "error": str(e)})
+        elif self.path == "/api/settings":
+            try:
+                data = json.loads(body) if body else {}
+                if isinstance(data, dict) and "allow_local_hosts" in data:
+                    _save_allow_local(bool(data["allow_local_hosts"]))
+                self._json_response({"success": True, "allow_local_hosts": ALLOW_LOCAL_HOSTS})
             except Exception as e:
                 self._json_response({"success": False, "error": str(e)})
         elif self.path == "/api/import":
@@ -2773,7 +2821,7 @@ class ConfigHandler(SimpleHTTPRequestHandler):
             _host = urlsplit(cfg["url"]).hostname or ""
         except Exception:
             _host = ""
-        if _host and _is_blocked_test_ip(_host):
+        if _host and _is_blocked_test_ip(_host, allow_local=bool(data.get("allow_local"))):
             return {"success": False, "error": "Refusing connection to non-public host"}
 
         try:
