@@ -205,6 +205,27 @@
     margin-top: 4px;
   }
 
+  /* Key distribution banner (free key from yuai site) */
+  .key-banner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 var(--space-4);
+    padding: 12px 16px;
+    border: 1px solid rgb(var(--accent-base) / .4);
+    background: rgb(var(--accent-base) / .06);
+    border-radius: var(--radius-md);
+    color: var(--fg);
+    font-size: 0.92rem;
+    text-decoration: none;
+    transition: border-color .2s, background .2s;
+  }
+  .key-banner:hover {
+    border-color: var(--accent);
+    background: rgb(var(--accent-base) / .1);
+  }
+  .key-banner strong { color: var(--accent); }
+
   /* Section labels like 9119 */
   .section-label {
     font-family: var(--font-serif);
@@ -1149,20 +1170,23 @@ select:focus-visible {
     <div class="onboarding-steps">
       <div class="onboarding-step">
         <div class="step-num active" id="step1">1</div>
-        <div>选择一个 LLM 提供商，填入 API Key</div>
+        <div>获取一个 API Key（没有？<a href="https://yuai-r.cn/keys/?from=hermes" target="_blank" rel="noopener" style="color:var(--accent)">去官网免费领取 →</a>）</div>
       </div>
       <div class="onboarding-step">
         <div class="step-num" id="step2">2</div>
-        <div>点击「测试连接」确认 Key 有效</div>
+        <div>选择一个 LLM 提供商，粘贴 API Key</div>
       </div>
       <div class="onboarding-step">
         <div class="step-num" id="step3">3</div>
-        <div>选择模型 → 保存 → 启动</div>
+        <div>点击「测试连接」确认有效 → 保存 → 启动</div>
       </div>
     </div>
     <p style="opacity:0.6">API Key 仅存储在本机 data/.env 中</p>
-    <button class="btn primary btn-launch" style="width:100%;margin-top:12px" onclick="dismissOnboarding()">
-      开始配置
+    <a class="btn primary btn-launch" style="width:100%;margin-top:12px;text-decoration:none;text-align:center;display:block" href="https://yuai-r.cn/keys/?from=hermes" target="_blank" rel="noopener">
+      🎁 没有 Key？去官网免费领取
+    </a>
+    <button class="btn" style="width:100%;margin-top:8px" onclick="dismissOnboarding()">
+      我已有 Key，直接配置
     </button>
   </div>
 </div>
@@ -1218,6 +1242,9 @@ select:focus-visible {
 
     <!-- TAB: Model -->
     <div id="tab-model" class="tab-panel active">
+      <a class="key-banner" href="https://yuai-r.cn/keys/?from=hermes" target="_blank" rel="noopener">
+        🎁 没有 API Key？<strong>去 yuai 官网免费领取</strong> → 复制后粘贴到下方对应厂商即可对话
+      </a>
       <div class="section-label">API 密钥</div>
       <div class="card">
         <div class="provider-toolbar">
