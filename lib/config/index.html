@@ -754,6 +754,13 @@
   .y-nav-link:hover::before { opacity: 0.1; }
 
   .y-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 60px 20px 44px; width: 100%; }
+  /* Split layout: title left, live-status terminal right (shrinks the
+     oversized hero on wide screens). Falls back to column on narrow ones. */
+  .y-hero-split { flex-direction: row; align-items: center; justify-content: space-between; text-align: left; gap: 40px; padding: 36px 24px; }
+  .y-hero-split .hero-title { display: flex; flex-direction: column; gap: 8px; }
+  .y-hero-split .y-display { font-size: 2.4rem; line-height: 1.1; }
+  .y-hero-split .y-sub { font-size: 0.95rem; margin: 0; }
+  .y-hero-split .y-term { margin: 0; flex: 0 0 auto; width: auto; }
   .y-term { width: 100%; max-width: 560px; border: 4px double var(--border); }
   .y-term-h { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
   .y-td { width: 10px; height: 10px; border-radius: 50%; }
@@ -785,6 +792,7 @@
     .y-display { font-size: 2.2rem; }
     .y-sub { font-size: 0.95rem; }
     .y-hero { padding: 40px 16px 28px; }
+    .y-hero-split { flex-direction: column; align-items: flex-start; gap: 24px; }
     .y-term-b { font-size: 0.72rem; padding: 14px 12px; }
   }
   @media (max-width: 640px) {
@@ -1207,10 +1215,12 @@ select:focus-visible {
 
 <div class="y-row">
   <div class="y-cell s6" style="border-right:none;padding:0">
-    <div class="y-hero">
-      <span class="y-label-xs y-op-7" style="letter-spacing:.15rem">hermes portable · config</span>
-      <h1 class="y-display">hermes</h1>
-      <p class="y-sub">成长型 AI 智能体 · 持久记忆 · 跨平台网关</p>
+    <div class="y-hero y-hero-split">
+      <div class="hero-title">
+        <span class="y-label-xs y-op-7" style="letter-spacing:.15rem">hermes portable · config</span>
+        <h1 class="y-display">hermes</h1>
+        <p class="y-sub">成长型 AI 智能体 · 持久记忆 · 跨平台网关</p>
+      </div>
       <div class="y-term" aria-hidden="true">
         <div class="y-term-h">
           <span class="y-td"></span><span class="y-td"></span><span class="y-td"></span>
