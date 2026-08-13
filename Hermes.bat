@@ -16,7 +16,8 @@ rem  Hermes Portable - Windows native launcher
 rem =======================================================
 
 rem -- Parse command line arguments ---------------------------
-set "LAUNCH_MODE=desktop"
+set "LAUNCH_MODE=cli"
+rem Default to CLI; desktop launches via config panel button (avoid first-run auto-launch agent issue)
 for %%a in (%*) do (
     if "%%a"=="--cli" set "LAUNCH_MODE=cli"
     if "%%a"=="--desktop" set "LAUNCH_MODE=desktop"

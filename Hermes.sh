@@ -10,7 +10,7 @@ set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 # ── Parse command line arguments ──────────────────────────────
-LAUNCH_MODE="desktop"  # 默认启动桌面版
+LAUNCH_MODE="cli"  # 默认 CLI；桌面版改由配置中心按钮点击启动（避免首次启动自动拉起桌面版/官方客户端导致的 agent 加载异常）
 for arg in "$@"; do
   case "$arg" in
     --cli)
