@@ -259,36 +259,38 @@ PROVIDERS = [
     # The lists below are last-known-good snapshots used when the network
     # is unavailable. Keep them roughly in sync with the upstream
     # manifest at https://hermes-agent.nousresearch.com/docs/api/model-catalog.json
-    {"id": "openrouter",  "name": "OpenRouter",     "env": "OPENROUTER_API_KEY", "models": [
-        "anthropic/claude-fable-5","anthropic/claude-opus-4.8","anthropic/claude-opus-4.8-fast","anthropic/claude-sonnet-5","anthropic/claude-haiku-4.5",
+    {"id": "openrouter",  "name": "OpenRouter",     "env": "OPENROUTER_API_KEY",   "models": [
+        "anthropic/claude-fable-5","anthropic/claude-opus-5","anthropic/claude-opus-5-fast","anthropic/claude-opus-4.8","anthropic/claude-opus-4.8-fast","anthropic/claude-sonnet-5","anthropic/claude-haiku-4.5",
         "openai/gpt-5.6-sol","openai/gpt-5.6-sol-pro","openai/gpt-5.6-terra","openai/gpt-5.6-terra-pro","openai/gpt-5.6-luna","openai/gpt-5.6-luna-pro",
         "openai/gpt-5.5","openai/gpt-5.5-pro","openai/gpt-5.4-mini","openai/gpt-5.4-nano","openai/gpt-5.3-codex",
-        "google/gemini-3.5-flash","google/gemini-3-pro-preview","google/gemini-3.1-pro-preview","google/gemini-3.1-flash-lite-preview","google/gemini-3-flash-preview","google/gemini-3-pro-image-preview",
-        "x-ai/grok-4.5","x-ai/grok-4.3","x-ai/grok-4.20",
-        "qwen/qwen3.7-max","qwen/qwen3.7-plus","qwen/qwen3.6-plus","qwen/qwen3.6-35b-a3b",
-        "deepseek/deepseek-v4-pro","deepseek/deepseek-v4-flash",
+        "google/gemini-3.6-flash","google/gemini-3.5-flash","google/gemini-3.1-pro-preview","google/gemini-3.1-flash-lite-preview","google/gemini-3-flash-preview","google/gemini-3-pro-image-preview",
+        "x-ai/grok-4.6","x-ai/grok-4.5","x-ai/grok-4.3","x-ai/grok-4.20",
+        "qwen/qwen3.8-max","qwen/qwen3.7-max","qwen/qwen3.7-plus","qwen/qwen3.6-plus","qwen/qwen3.6-35b-a3b",
+        "deepseek/deepseek-v4-pro","deepseek/deepseek-v4-flash","deepseek/deepseek-v4-flash-0731",
         "z-ai/glm-5.2","z-ai/glm-5.1",
         "minimax/minimax-m3","minimax/minimax-m2.7",
         "stepfun/step-3.7-flash","stepfun/step-3.5-flash",
+        "moonshotai/kimi-k3",
         "xiaomi/mimo-v2.5-pro",
         "tencent/hy3","tencent/hy3:free",
         "nvidia/nemotron-3-super-120b-a12b","nvidia/nemotron-3-super-120b-a12b:free","nvidia/nemotron-3-ultra-550b-a55b:free",
-        "openrouter/pareto-code","openrouter/elephant-alpha","openrouter/owl-alpha",
+        "openrouter/pareto-code","openrouter/elephant-alpha",
         "sakana/fugu-ultra",
         "poolside/laguna-m.1:free",
         "inclusionai/ring-2.6-1t:free",
     ]},
     {"id": "nous",        "name": "Nous Portal",    "env": "NOUS_API_KEY",       "models": [
-        "anthropic/claude-fable-5","anthropic/claude-opus-4.8","anthropic/claude-sonnet-5","anthropic/claude-haiku-4.5",
+        "anthropic/claude-fable-5","anthropic/claude-opus-5","anthropic/claude-opus-5-fast","anthropic/claude-sonnet-5","anthropic/claude-haiku-4.5",
         "openai/gpt-5.6-sol","openai/gpt-5.6-sol-pro","openai/gpt-5.6-terra","openai/gpt-5.6-terra-pro","openai/gpt-5.6-luna","openai/gpt-5.6-luna-pro",
         "openai/gpt-5.5","openai/gpt-5.5-pro","openai/gpt-5.4-mini","openai/gpt-5.4-nano","openai/gpt-5.3-codex",
-        "google/gemini-3.5-flash","google/gemini-3-pro-preview","google/gemini-3.1-pro-preview","google/gemini-3.1-flash-lite-preview","google/gemini-3-flash-preview",
-        "x-ai/grok-4.5","x-ai/grok-4.3",
-        "qwen/qwen3.7-max","qwen/qwen3.7-plus","qwen/qwen3.6-plus","qwen/qwen3.6-35b-a3b",
-        "deepseek/deepseek-v4-pro","deepseek/deepseek-v4-flash",
+        "google/gemini-3.6-flash","google/gemini-3.5-flash","google/gemini-3.1-pro-preview","google/gemini-3.1-flash-lite-preview","google/gemini-3-flash-preview",
+        "x-ai/grok-4.6","x-ai/grok-4.5","x-ai/grok-4.3",
+        "qwen/qwen3.8-max","qwen/qwen3.7-max","qwen/qwen3.7-plus","qwen/qwen3.6-plus","qwen/qwen3.6-35b-a3b",
+        "deepseek/deepseek-v4-pro","deepseek/deepseek-v4-flash","deepseek/deepseek-v4-flash-0731",
         "z-ai/glm-5.2","z-ai/glm-5.1",
         "minimax/minimax-m3","minimax/minimax-m2.7",
         "stepfun/step-3.7-flash","stepfun/step-3.5-flash",
+        "moonshotai/kimi-k3",
         "xiaomi/mimo-v2.5-pro",
         "tencent/hy3",
         "nvidia/nemotron-3-super-120b-a12b",
@@ -297,7 +299,7 @@ PROVIDERS = [
         "nousresearch/deephermes-3-mistral-24b",
     ]},
     {"id": "anthropic",   "name": "Anthropic",      "env": "ANTHROPIC_API_KEY",  "models": [
-        "claude-fable-5","claude-opus-4.8","claude-opus-4.8-fast","claude-sonnet-5","claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5",
+        "claude-fable-5","claude-opus-5","claude-opus-5-fast","claude-opus-4.8","claude-opus-4.8-fast","claude-sonnet-5","claude-opus-4-7","claude-opus-4-6","claude-sonnet-4-6","claude-haiku-4-5",
         "claude-haiku-4-5-20251001","claude-sonnet-4-20250514","claude-opus-4-20250514",
         "claude-3-7-sonnet-latest","claude-3-5-haiku-latest",
     ]},
@@ -308,18 +310,18 @@ PROVIDERS = [
         "o3","o3-mini","o4-mini","gpt-4.1","gpt-4.1-mini",
     ]},
     {"id": "deepseek",    "name": "DeepSeek",       "env": "DEEPSEEK_API_KEY",   "models": [
-        "deepseek-v4-pro","deepseek-v4-flash","deepseek-v3.2-speciale","deepseek-v3.2",
-        "deepseek-chat","deepseek-reasoner",
+        "deepseek-v4-pro","deepseek-v4-pro-0813","deepseek-v4-flash","deepseek-v4-flash-0731","deepseek-v3.2",
+        "deepseek-chat","deepseek-r1",
     ]},
     {"id": "google",      "name": "Google Gemini",  "env": "GOOGLE_API_KEY",     "models": [
-        "gemini-3.5-flash","gemini-3-pro-preview","gemini-3.1-pro-preview","gemini-3.1-flash-lite-preview",
-        "gemini-3-pro-preview","gemini-3-flash-preview","gemini-3-pro-image-preview",
+        "gemini-3.6-flash","gemini-3.5-flash","gemini-3.1-pro-preview","gemini-3.1-flash-lite-preview",
+        "gemini-3-flash-preview","gemini-3-pro-image-preview",
         "gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-2.5-flash-image-preview",
     ]},
     # ⚠ xAI 已于 2026-05-15 退役 grok-4 / grok-4-fast / grok-4-1-fast / grok-code-fast-1 / grok-3
     # 5月新发布 grok-4.20 (catalog confirms)
     {"id": "xai",         "name": "xAI Grok",       "env": "XAI_API_KEY",        "models": [
-        "grok-4.5","grok-4.3","grok-4.20",
+        "grok-4.6","grok-4.5","grok-4.3","grok-4.20",
     ]},
     {"id": "mistral",     "name": "Mistral AI",     "env": "MISTRAL_API_KEY",    "models": [
         "mistral-large-3","mistral-large-2411","mistral-medium-latest","mistral-small-latest",
@@ -342,7 +344,7 @@ PROVIDERS = [
         "MiniMax-M3","MiniMax-M2.7","MiniMax-M2.7-highspeed","MiniMax-M2.5","MiniMax-M2.5-highspeed","MiniMax-M2",
     ]},
     {"id": "xiaomi",      "name": "Xiaomi MiMo",    "env": "XIAOMI_API_KEY",     "models": [
-        "xiaomi/mimo-v2.5-pro","xiaomi/mimo-v2-pro","xiaomi/mimo-v2-flash",
+        "xiaomi/mimo-v2.5-pro","xiaomi/mimo-v2.5",
     ]},
     {"id": "doubao",      "name": "豆包 / 火山引擎", "env": "DOUBAO_API_KEY",     "models": [
         "doubao-seed-1.6","doubao-seed-1.6-thinking","doubao-1.5-pro-256k","doubao-1.5-pro-32k","doubao-1.5-lite-32k",
@@ -509,7 +511,7 @@ PROVIDERS = [
      "key_hint": "粘贴阿里云 API Key", "note": "阿里云代码计划",
      "tags": ["cn"]},
     {"id": "xiaomi-token-plan","name": "小米 Token 计划","env": "XIAOMI_TOKEN_API_KEY","models": [
-        "xiaomi/mimo-v2.5-pro","xiaomi/mimo-v2-pro","xiaomi/mimo-v2-flash",
+        "xiaomi/mimo-v2.5-pro","xiaomi/mimo-v2.5",
     ],
      "key_hint": "粘贴小米 API Key", "note": "小米 Token 计划",
      "tags": ["cn"]},
@@ -610,8 +612,8 @@ PROVIDERS = [
     {"id": "modelscope",    "name": "ModelScope",       "env": "MODELSCOPE_API_KEY",    "models": ["ZhipuAI/GLM-5.1"]},
     {"id": "bailian",       "name": "阿里百炼",         "env": "BAILIAN_API_KEY",       "models": ["qwen3-coder-plus","qwen3-max"]},
     {"id": "bailian_coding","name": "百炼代码版",        "env": "BAILIAN_CODING_API_KEY","models": ["qwen3-coder-plus","qwen3-max"]},
-    {"id": "cherryin",      "name": "CherryIN",         "env": "CHERRYIN_API_KEY",      "models": ["anthropic/claude-opus-4.8","anthropic/claude-sonnet-5"]},
-    {"id": "therouter",     "name": "TheRouter",        "env": "THEROUTER_API_KEY",     "models": ["openai/gpt-5.5","openai/gpt-5.4-mini","openai/gpt-5.4-nano"]},
+    {"id": "cherryin",      "name": "CherryIN",         "env": "CHERRYIN_API_KEY",      "models": ["anthropic/claude-opus-5","anthropic/claude-opus-5-fast","anthropic/claude-sonnet-5"]},
+    {"id": "therouter",     "name": "TheRouter",        "env": "THEROUTER_API_KEY",     "models": ["openai/gpt-5.6-sol","openai/gpt-5.6-sol-pro","openai/gpt-5.6-terra","openai/gpt-5.6-terra-pro","openai/gpt-5.6-luna","openai/gpt-5.6-luna-pro","openai/gpt-5.5","openai/gpt-5.4-mini","openai/gpt-5.4-nano"]},
 
 ]
 
