@@ -56,5 +56,5 @@ if [ -z "$PY" ]; then
   fi
 fi
 
-export HERMES_HOME="$HERE/data"
+export HERMES_HOME="$HERE"
 exec "$PY" "$SCRIPT_DIR/update.py" "${1:-status}"
