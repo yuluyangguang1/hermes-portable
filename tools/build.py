@@ -855,6 +855,15 @@ _STATIC_ASSETS = [
     "tools/mac-rebuild.sh",
 ]
 
+# Whole directories the config server serves at runtime (provider icons,
+# LXGW font subset, Tabler CSS). Without these the packaged UI shows no
+# provider icons and falls back to system fonts.
+_STATIC_ASSET_DIRS = [
+    "icons",
+    "fonts",
+    "tabler",
+]
+
 
 def step_launchers(ctx):
     ROOT = ctx["ROOT"]
@@ -871,7 +880,17 @@ def step_launchers(ctx):
         if fname.endswith((".sh", ".command")):
             try: dst.chmod(0o755)
             except Exception: pass
-    ok("Launchers + lib/ + tools/ copied from repo")
+    for dname in _STATIC_ASSET_DIRS:
+        src = repo / dname
+        if not src.is_dir():
+            warn(f"missing asset dir in repo: {dname}/")
+            continue
+        dst = ROOT / dname
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst)
+        info(f"  copied {dname}/ ({sum(1 for _ in dst.rglob(chr(42)) if _.is_file())} files)")
+    ok("Launchers + lib/ + tools/ + static assets copied from repo")
 
 
 def step_cleanup(ctx):
