@@ -47,3 +47,5 @@ favicon_*.png
 # Runtime config generated at launch (private)
 data/config.yaml
 data/SOUL.md
+data/
+.trash_audit/
