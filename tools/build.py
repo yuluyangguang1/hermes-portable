@@ -1125,8 +1125,22 @@ def _download_macos_desktop(url, runtime_dir):
                     info(f"  Extracted: {dst.relative_to(runtime_dir)}")
                     break
         finally:
-            # Unmount DMG
-            run(["hdiutil", "detach", str(mount_point), "-quiet"])
+            # Unmount DMG. hdiutil detach can fail (exit 16) when Spotlight
+            # or Finder briefly holds the mount — the .app is already
+            # copied at this point, so a failed unmount must not fail the
+            # whole build. Retry, then force-detach.
+            for attempt in range(3):
+                try:
+                    run(["hdiutil", "detach", str(mount_point), "-quiet"])
+                    break
+                except subprocess.CalledProcessError:
+                    if attempt == 2:
+                        try:
+                            run(["hdiutil", "detach", str(mount_point),
+                                 "-quiet", "-force"])
+                        except Exception:
+                            warn("could not unmount Hermes.dmg (ignoring)")
+
 
 
 def _download_windows_desktop(url, runtime_dir):
