@@ -1881,6 +1881,24 @@ class ConfigHandler(SimpleHTTPRequestHandler):
                 self._json_response({"success": True})
             except Exception as e:
                 self._json_response({"success": False, "error": str(e)})
+        elif self.path == "/api/models/refresh":
+            # POST — force-refresh the upstream model catalog and return the
+            # merged provider list so the UI can re-render without a reload.
+            # Mirrors get_live_catalog()'s own error handling: on network
+            # failure we keep serving the stale cache instead of erroring out.
+            catalog = get_live_catalog(force_refresh=True)
+            if not catalog:
+                self._json_response({
+                    "success": False,
+                    "error": "上游模型清单拉取失败，继续使用本地缓存数据",
+                })
+                return
+            self._json_response({
+                "success": True,
+                "catalog_updated_at": catalog.get("updated_at"),
+                "providers": _merge_catalog_into_providers(PROVIDERS, catalog),
+            })
+            return
         elif self.path == "/api/launch":
             self._json_response({"success": True})
             threading.Thread(target=self._launch_hermes, daemon=True).start()

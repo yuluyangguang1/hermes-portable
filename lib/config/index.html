@@ -753,14 +753,13 @@
   .y-nav-link::before { content: ""; position: absolute; inset: -12px; background: var(--fg); pointer-events: none; opacity: 0; transition: opacity 0.25s; z-index: -1; }
   .y-nav-link:hover::before { opacity: 0.1; }
 
-  .y-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 60px 20px 44px; width: 100%; }
-  /* Split layout: title left, live-status terminal right (shrinks the
-     oversized hero on wide screens). Falls back to column on narrow ones. */
-  .y-hero-split { flex-direction: row; align-items: center; justify-content: space-between; text-align: left; gap: 40px; padding: 36px 24px; }
-  .y-hero-split .hero-title { display: flex; flex-direction: column; gap: 8px; }
-  .y-hero-split .y-display { font-size: 2.4rem; line-height: 1.1; }
-  .y-hero-split .y-sub { font-size: 0.95rem; margin: 0; }
-  .y-hero-split .y-term { margin: 0; flex: 0 0 auto; width: auto; }
+    .y-hero { text-align: left; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 48px; padding: 60px 20px 44px; width: 100%; max-width: 860px; margin: 0 auto; }
+  /* Refined hero-text layout (ported from openclaw-portable v1.2.0):
+     title column flexes, terminal keeps a fixed-ish width and never wraps. */
+  .y-hero-text { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; flex: 1 1 auto; min-width: 0; }
+  .y-hero-text .y-display { font-size: 2.4rem; line-height: 1.1; margin: 0; }
+  .y-hero-text .y-sub { font-size: 0.95rem; margin: 0; }
+  .y-hero .y-term { flex: 0 1 480px; width: auto; min-width: 260px; margin: 0; }
   .y-term { width: 100%; max-width: 560px; border: 4px double var(--border); }
   .y-term-h { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
   .y-td { width: 10px; height: 10px; border-radius: 50%; }
@@ -791,8 +790,8 @@
   @media (max-width: 768px) {
     .y-display { font-size: 2.2rem; }
     .y-sub { font-size: 0.95rem; }
-    .y-hero { padding: 40px 16px 28px; }
-    .y-hero-split { flex-direction: column; align-items: flex-start; gap: 24px; }
+    .y-hero { padding: 40px 16px 28px; flex-direction: column; align-items: center; }
+    .y-hero-text { align-items: center; text-align: center; }
     .y-term-b { font-size: 0.72rem; padding: 14px 12px; }
   }
   @media (max-width: 640px) {
@@ -1215,8 +1214,8 @@ select:focus-visible {
 
 <div class="y-row">
   <div class="y-cell s6" style="border-right:none;padding:0">
-    <div class="y-hero y-hero-split">
-      <div class="hero-title">
+    <div class="y-hero">
+      <div class="y-hero-text">
         <span class="y-label-xs y-op-7" style="letter-spacing:.15rem">hermes portable · config</span>
         <h1 class="y-display">hermes</h1>
         <p class="y-sub">成长型 AI 智能体 · 持久记忆 · 跨平台网关</p>
@@ -1283,7 +1282,14 @@ select:focus-visible {
           <label for="modelSelect">默认模型</label>
           <span id="modelSelectHost"><select id="modelSelect"></select></span>
           <div class="model-preview" id="modelPreview">current: —</div>
-          <div id="catalogStatus" style="margin-top:4px;font-family:var(--font-mono);font-size:9px;color:var(--fg-muted,#9a968e);letter-spacing:0.04em;display:none"></div>
+          <div style="margin-top:4px;display:flex;align-items:center;gap:8px;">
+            <div id="catalogStatus" style="flex:1 1 auto;font-family:var(--font-mono);font-size:9px;color:var(--fg-muted,#9a968e);letter-spacing:0.04em;display:none"></div>
+            <button type="button" id="catalogRefreshBtn" onclick="refreshModelCatalog()" title="从上游拉取最新模型清单"
+              style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:10px;background:transparent;color:var(--fg-muted,#9a968e);border:1px solid var(--border,#3a3630);border-radius:6px;cursor:pointer;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              刷新模型
+            </button>
+          </div>
         </div>
         <div class="row" style="margin-top:10px">
           <div class="field">
@@ -1924,6 +1930,59 @@ function updateModelSelect() {
   if (searchBox) searchBox.value = '';
   sel.innerHTML = p.models.map(m => `<option value="${m}">${m}</option>`).join('');
   updateModelPreview(); sel.onchange = updateModelPreview;
+}
+
+// Force-refresh the upstream model catalog and re-render provider model
+// lists in place. Mirrors openclaw-portable's POST /api/models/refresh:
+// on failure we keep the current data and surface the stale reason.
+async function refreshModelCatalog() {
+  const btn = document.getElementById('catalogRefreshBtn');
+  const cs = document.getElementById('catalogStatus');
+  if (!btn || btn.disabled) return;
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.style.opacity = '0.55';
+  if (cs) { cs.style.display = 'block'; cs.textContent = '◌ 正在拉取上游模型清单…'; cs.style.color = 'var(--fg-muted,#9a968e)'; }
+  try {
+    const res = await fetch('/api/models/refresh', { method: 'POST' });
+    const data = await res.json();
+    if (data.success && Array.isArray(data.providers)) {
+      let merged = 0;
+      for (const fresh of data.providers) {
+        const p = PROVIDERS.find(x => x.id === fresh.id);
+        if (p && Array.isArray(fresh.models) && fresh.models.length) {
+          p.models = fresh.models; merged++;
+        }
+      }
+      updateModelSelect();
+      if (cs) {
+        cs.style.display = 'block';
+        if (data.catalog_updated_at) {
+          cs.textContent = '◉ 模型清单 · 上游同步于 ' + data.catalog_updated_at.slice(0,10);
+          cs.style.color = 'var(--emerald,#d4e600)';
+        } else {
+          cs.textContent = '◉ 模型清单 · 已刷新';
+          cs.style.color = 'var(--emerald,#d4e600)';
+        }
+      }
+    } else {
+      if (cs) {
+        cs.style.display = 'block';
+        cs.textContent = '◌ ' + (data.error || '刷新失败，继续使用本地数据');
+        cs.style.color = 'var(--amber,#e6a23c)';
+      }
+    }
+  } catch (e) {
+    if (cs) {
+      cs.style.display = 'block';
+      cs.textContent = '◌ 刷新失败：' + (e.message || e);
+      cs.style.color = 'var(--red,#c84a3e)';
+    }
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.innerHTML = orig;
+  }
 }
 
 // Filter the model <select> by a substring of the model name. Keeps the
