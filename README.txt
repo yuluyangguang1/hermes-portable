@@ -6,7 +6,6 @@ Hermes Portable
 How to run
 ----------
   macOS    →  double-click  Hermes.command
-  Linux    →  ./Hermes.sh   (from a terminal)
   Windows  →  double-click  Hermes.bat
 
 On first run a config panel opens at http://127.0.0.1:17520 for
@@ -14,12 +13,11 @@ you to paste an API key. After that, the launcher starts Hermes directly.
 
 Package layouts
 ---------------
-  Platform zip (HermesPortable-macOS.zip / Linux / Windows):
+  Platform zip (HermesPortable-macOS.zip / Windows):
       venv/, python/, node/             ← generic names, launcher finds them
 
   Universal zip (HermesPortable-Universal.zip):
       venv-macos-arm64/, python-macos-arm64/, node-macos-arm64/
-      venv-linux-x64/,   python-linux-x64/,   node-linux-x64/
       venv-windows-x64/, python-windows-x64/, node-windows-x64/
       → same launchers auto-pick the right set for the host
 
@@ -36,7 +34,6 @@ Windows notes
     you want POSIX-only features (e.g. dashboard's embedded /chat
     terminal pane, which needs a POSIX PTY) or if your machine
     blocks something the native path needs.
-    The Universal zip carries a Linux venv that WSL2 can use directly.
   • Prefer short install paths (e.g. C:\HP) — long paths can trip up
     older Python packages on Windows.
 
@@ -45,13 +42,6 @@ macOS notes
   • GitHub CI builds on macos-latest, which is ARM64 (Apple Silicon).
     Intel Mac users should either build from source (`python3 tools/build.py`)
     or use the Universal zip once both arch builds land in it.
-
-Linux notes
------------
-  • Requires glibc ≥ 2.28 (Ubuntu 20.04+, Debian 11+, RHEL 8+).
-    Node.js 24's prebuilt binaries won't run on older glibc.
-  • If `Hermes.sh` fails with `GLIBC_2.xx not found`, run
-    `bash tools/linux-rebuild.sh` on the target machine to rebuild the runtime.
 
 macOS notes
 -----------

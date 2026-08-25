@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-#  Hermes Portable — Unix launcher (macOS .command & Linux .sh)
+#  Hermes Portable — Unix launcher (macOS)
 # ═══════════════════════════════════════════════════════════════
 # Note: we intentionally do NOT use `set -e`. The cleanup trap needs
 # to run even if hermes exits non-zero, and `wait $CHILD` returning
@@ -35,15 +35,9 @@ case "$OS" in
       *)              PLATFORM="macos-$ARCH" ;;
     esac
     ;;
-  Linux)
-    case "$ARCH" in
-      x86_64|amd64)   PLATFORM="linux-x64" ;;
-      aarch64|arm64)  PLATFORM="linux-arm64" ;;
-      *)              PLATFORM="linux-$ARCH" ;;
-    esac
-    ;;
   *)
     echo "  Unsupported OS: $OS" >&2
+    echo "  Hermes Portable supports macOS (Apple Silicon / Intel) and Windows." >&2
     exit 1
     ;;
 esac
@@ -113,17 +107,6 @@ if [ -x "$ARCH_PROBE" ] && command -v file >/dev/null 2>&1; then
         echo "$BIN_INFO" | grep -q "x86_64" && MISMATCH="x86_64 (Intel)"
       fi
       ;;
-    Linux:x86_64|Linux:amd64)
-      # ELF 64-bit LSB ... x86-64 vs aarch64
-      if ! echo "$BIN_INFO" | grep -qE "x86-64|x86_64"; then
-        echo "$BIN_INFO" | grep -qE "aarch64|ARM aarch64" && MISMATCH="aarch64 (ARM64)"
-      fi
-      ;;
-    Linux:aarch64|Linux:arm64)
-      if ! echo "$BIN_INFO" | grep -qE "aarch64|ARM aarch64"; then
-        echo "$BIN_INFO" | grep -qE "x86-64|x86_64" && MISMATCH="x86_64 (Intel/AMD)"
-      fi
-      ;;
   esac
 fi
 if [ -n "$MISMATCH" ]; then
@@ -147,7 +130,6 @@ if [ -n "$MISMATCH" ]; then
   # space, so they fall back to the download path.
   case "$OS" in
     Darwin) REBUILD_HELPER="$HERE/tools/mac-rebuild.sh" ;;
-    Linux)  REBUILD_HELPER="$HERE/tools/linux-rebuild.sh" ;;
     *)      REBUILD_HELPER="" ;;
   esac
   if [ -n "$REBUILD_HELPER" ] && [ -f "$REBUILD_HELPER" ] && [ -f "$HERE/tools/build.py" ]; then
@@ -364,8 +346,6 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
     DESKTOP_APP="$HERE/runtime/desktop/dist/mac-arm64/Hermes.app"
   elif [ -d "$HERE/runtime/desktop/dist/mac/Hermes.app" ]; then
     DESKTOP_APP="$HERE/runtime/desktop/dist/mac/Hermes.app"
-  elif [ -x "$HERE/runtime/desktop/dist/linux-unpacked/Hermes" ]; then
-    DESKTOP_APP="$HERE/runtime/desktop/dist/linux-unpacked/Hermes"
   elif [ -x "$HERE/runtime/desktop/dist/Hermes.AppImage" ]; then
     DESKTOP_APP="$HERE/runtime/desktop/dist/Hermes.AppImage"
   fi

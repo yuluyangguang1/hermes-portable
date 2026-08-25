@@ -852,7 +852,6 @@ _STATIC_ASSETS = [
     # tools/ — rebuild helpers shipped so a user who carried a macOS-built
     # zip onto a Linux box can rebuild the runtime without re-downloading.
     "tools/build.py",
-    "tools/linux-rebuild.sh",
     "tools/mac-rebuild.sh",
 ]
 

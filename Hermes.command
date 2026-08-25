@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-#  Hermes Portable — Unix launcher (macOS .command & Linux .sh)
+#  Hermes Portable — macOS launcher (.command)
 # ═══════════════════════════════════════════════════════════════
 # Note: we intentionally do NOT use `set -e`. The cleanup trap needs
 # to run even if hermes exits non-zero, and `wait $CHILD` returning
@@ -33,13 +33,6 @@ case "$OS" in
       arm64)          PLATFORM="macos-arm64" ;;
       x86_64|amd64)   PLATFORM="macos-x64" ;;
       *)              PLATFORM="macos-$ARCH" ;;
-    esac
-    ;;
-  Linux)
-    case "$ARCH" in
-      x86_64|amd64)   PLATFORM="linux-x64" ;;
-      aarch64|arm64)  PLATFORM="linux-arm64" ;;
-      *)              PLATFORM="linux-$ARCH" ;;
     esac
     ;;
   *)
@@ -527,8 +520,6 @@ if [ "$LAUNCH_MODE" = "desktop" ]; then
     DESKTOP_APP="$HERE/runtime/desktop/dist/mac-arm64/Hermes.app"
   elif [ -d "$HERE/runtime/desktop/dist/mac/Hermes.app" ]; then
     DESKTOP_APP="$HERE/runtime/desktop/dist/mac/Hermes.app"
-  elif [ -x "$HERE/runtime/desktop/dist/linux-unpacked/Hermes" ]; then
-    DESKTOP_APP="$HERE/runtime/desktop/dist/linux-unpacked/Hermes"
   fi
 
   if [ -z "$DESKTOP_APP" ]; then
