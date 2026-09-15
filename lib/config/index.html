@@ -4,8 +4,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hermes Portable — 配置</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23041c1c'/%3E%3Cg fill='none' stroke='%23ffe6cb' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M 28 32 L 42 60 M 56 32 L 42 60 L 36 78'/%3E%3Cpath d='M 64 32 L 64 60 Q 64 72 76 72 L 76 32'/%3E%3C/g%3E%3C/svg%3E">
-<meta name="theme-color" content="#edff45" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#edff45" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#f2634e" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#bb3424" media="(prefers-color-scheme: light)">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/tabler/tabler-icons.min.css">
 <style>
@@ -16,7 +16,7 @@
     --bg-base: 23 13 2;
     --mid-base: 245 240 232;
     --dim-base: 170 166 158;
-    --accent-base: 237 255 69;
+    --accent-base: 242 99 78;
     --warn-base: 255 189 56;
     --danger-base: 255 138 107;
     
@@ -84,7 +84,7 @@
     --bg-base: 245 245 245;
     --mid-base: 23 13 2;
     --dim-base: 80 70 60;
-    --accent-base: 122 110 0;
+    --accent-base: 187 52 36;
     --border: rgb(var(--mid-base) / .18);
     --border-strong: rgb(var(--mid-base) / .3);
     --hover: rgb(var(--mid-base) / .06);
@@ -95,7 +95,7 @@
       --bg-base: 245 245 245;
       --mid-base: 23 13 2;
       --dim-base: 80 70 60;
-      --accent-base: 122 110 0;
+      --accent-base: 187 52 36;
       --border: rgb(var(--mid-base) / .18);
       --border-strong: rgb(var(--mid-base) / .3);
       --hover: rgb(var(--mid-base) / .04);
@@ -141,8 +141,10 @@
     -webkit-font-smoothing: antialiased;
     scrollbar-color: rgba(245, 245, 245, 0.2) transparent;
     position: relative;
+  }
+  .tab, .btn, .section-label, .y-label, .y-label-sm, .y-label-xs, .channel-status {
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
   }
 
   /* warm glow overlay (official style) */
@@ -545,28 +547,24 @@
     padding: 10px 16px;
     border: 1px solid var(--border-strong, var(--border));
     border-radius: var(--radius-md);
-    font-family: var(--font-sans);
+    font-family: var(--font-mono);
     font-size: 13px;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  }
-  .btn i { font-size: 15px; line-height: 1; }
-  .btn {
-    transition: transform 200ms ease-out, opacity 200ms ease-out;
+    transition: background 0.18s ease, transform 0.08s ease, color 0.18s ease, border-color 0.18s ease;
     text-align: center;
     font-weight: 600;
     background: var(--hover);
     color: var(--mid);
     min-height: 40px;
   }
+  .btn i { font-size: 15px; line-height: 1; }
   .btn:hover {
     border-color: var(--accent);
     color: var(--accent);
     background: var(--hover-strong, var(--hover));
-  }
-  .btn {
-    transition: background 0.18s ease, transform 0.08s ease, color 0.18s ease, border-color 0.18s ease;
   }
   .btn:active {
     transform: scale(0.97);
@@ -831,7 +829,7 @@
   .tab:hover { color: var(--fg); }
   .tab.active {
     color: var(--accent);
-    background: rgba(237,255,69,0.04);
+    background: rgba(242,99,78,0.04);
   }
 
   .tab-panel { padding: 24px 0; }
@@ -938,7 +936,7 @@
     background: rgba(245,240,232,0.04);
   }
   .provider-btn.active {
-    background: rgba(237,255,69,0.06);
+    background: rgba(242,99,78,0.06);
     color: var(--accent);
   }
 
