@@ -317,6 +317,108 @@
     gap: 4px;
     margin-bottom: 12px;
   }
+
+  /* Provider Card Grid (OpenClaw-style) */
+  .provider-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .provider-card {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
+    position: relative;
+  }
+  .provider-card:hover {
+    border-color: var(--accent);
+    background: rgba(var(--mid-base), 0.02);
+  }
+  .provider-card.selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .provider-card .provider-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .provider-card .provider-name {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--fg);
+  }
+  .provider-card .provider-desc {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    opacity: 0.55;
+  }
+  .provider-card .provider-saved {
+    color: var(--accent);
+    font-size: 0.85em;
+    margin-left: auto;
+  }
+  .provider-card .provider-expand {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .provider-card .provider-expand .input {
+    margin-bottom: 8px;
+  }
+  .provider-card .card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+  }
+  .provider-card .card-actions .spacer {
+    flex: 1;
+  }
+  .provider-card .btn-sm {
+    padding: 7px 14px;
+    font-size: 0.82em;
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 0;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+    transition: all var(--duration-fast) var(--ease-standard);
+  }
+  .provider-card .btn-sm:hover {
+    border-color: var(--fg);
+  }
+  .provider-card .btn-primary {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: transparent;
+  }
+  .provider-card .btn-primary:hover {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  .provider-card .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  @media (max-width: 640px) {
+    .provider-card-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .provider-btn {
     padding: 8px 4px;
     background: var(--bg);
@@ -1258,59 +1360,20 @@ select:focus-visible {
 
     <!-- TAB: Model -->
     <div id="tab-model" class="tab-panel active">
-      <a class="key-banner" href="https://yuai-r.cn/keys/?from=hermes" target="_blank" rel="noopener">
-        🎁 没有 API Key？<strong>去 yuai 官网免费领取</strong> → 复制后粘贴到下方对应厂商即可对话
+      <a class="key-banner" href="https://yuai-r.cn/key.html?from=hermes" target="_blank" rel="noopener">
+        🎁 没有 API Key？<strong>去 yuai 官网免费领取</strong> → 复制后粘贴到对应卡片即可
       </a>
-      <div class="section-label">API 密钥</div>
-      <div class="card">
-        <div class="provider-toolbar">
-          <input type="search" id="providerSearch" class="provider-search" placeholder="搜索模型厂商…" aria-label="搜索模型厂商" oninput="onProviderSearch(this.value)">
-          <div class="provider-filter" role="group" aria-label="按标签筛选">
-            <button type="button" class="pf-btn active" data-tag="" onclick="onProviderTag('')">全部</button>
-            <button type="button" class="pf-btn" data-tag="hot" onclick="onProviderTag('hot')">热门</button>
-            <button type="button" class="pf-btn" data-tag="cn" onclick="onProviderTag('cn')">国内</button>
-            <button type="button" class="pf-btn" data-tag="fast" onclick="onProviderTag('fast')">极速</button>
-          </div>
-        </div>
-        <div class="provider-grid" id="providerGrid"></div>
-        <div id="apiKeySection"></div>
-      </div>
-
-      <div class="section-label" style="margin-top:12px">模型</div>
-      <div class="card">
-        <div id="quickSwitch" style="margin-bottom:12px;display:none;">
-          <label for="quickModel" style="display:block;font-size:0.78em;color:var(--fg-muted);margin-bottom:6px;font-family:var(--font-mono);">快速切换模型</label>
-          <div style="display:flex;gap:8px;">
-            <select id="quickModel" style="flex:1;padding:9px 12px;background:var(--secondary);color:var(--fg);border:1px solid var(--border);border-radius:6px;font-family:var(--font-mono);font-size:0.85em;"></select>
-            <button onclick="quickSwitchModel()" style="padding:9px 16px;background:var(--accent);color:var(--bg);border:none;border-radius:6px;font-family:var(--font-mono);font-size:0.85em;cursor:pointer;">切换</button>
-          </div>
-        </div>
-        <div class="field">
-          <label for="modelSelect">默认模型</label>
-          <span id="modelSelectHost"><select id="modelSelect"></select></span>
-          <div class="model-preview" id="modelPreview">current: —</div>
-          <div style="margin-top:4px;display:flex;align-items:center;gap:8px;">
-            <div id="catalogStatus" style="flex:1 1 auto;font-family:var(--font-mono);font-size:9px;color:var(--fg-muted,#9a968e);letter-spacing:0.04em;display:none"></div>
-            <button type="button" id="catalogRefreshBtn" onclick="refreshModelCatalog()" title="从上游拉取最新模型清单"
-              style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:10px;background:transparent;color:var(--fg-muted,#9a968e);border:1px solid var(--border,#3a3630);border-radius:6px;cursor:pointer;">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              刷新模型
-            </button>
-          </div>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <div class="field">
-            <label for="maxTurns">最大轮数</label>
-            <input type="number" id="maxTurns" value="90" min="10" max="500">
-          </div>
-          <div class="field">
-            <label for="timeout">超时 (秒)</label>
-            <input type="number" id="timeout" value="180" min="30" max="600">
-          </div>
+      <div class="provider-toolbar">
+        <input type="search" id="providerSearch" class="provider-search" placeholder="搜索模型厂商…" aria-label="搜索模型厂商" oninput="onProviderSearch(this.value)">
+        <div class="provider-filter" role="group" aria-label="按标签筛选">
+          <button type="button" class="pf-btn active" data-tag="" onclick="onProviderTag('')">全部</button>
+          <button type="button" class="pf-btn" data-tag="hot" onclick="onProviderTag('hot')">热门</button>
+          <button type="button" class="pf-btn" data-tag="cn" onclick="onProviderTag('cn')">国内</button>
+          <button type="button" class="pf-btn" data-tag="fast" onclick="onProviderTag('fast')">极速</button>
         </div>
       </div>
+      <div id="providerGrid" class="provider-card-grid"></div>
     </div>
-
     <!-- TAB: Channels -->
     <div id="tab-channels" class="tab-panel">
       <div class="section-label">消息渠道</div>
@@ -1394,13 +1457,6 @@ select:focus-visible {
       </div>
     </div>
 
-    <div id="testResult" class="test-result" style="display:none"></div>
-    <div class="actions">
-      <button type="button" class="btn" id="testBtn" onclick="testConnection()"><i class="ti ti-plug"></i> 测试连接</button>
-      <button type="button" class="btn btn-save" id="saveBtn" onclick="saveConfig()"><i class="ti ti-device-floppy"></i> 保存</button>
-      <button type="button" class="btn primary btn-launch" id="launchBtn" onclick="launchHermes()"><i class="ti ti-rocket"></i> 启动</button>
-    </div>
-  </form>
 
   <div class="footer">Hermes Portable · 数据存储在 data/</div>
 </div>
@@ -1759,35 +1815,22 @@ function init() {
   renderProviders();
   renderChannels();
   restoreConfig();
-  // First run: show onboarding, disable launch
+  // First run: show onboarding
   if (isFirstRun) {
     showOnboarding();
-    document.getElementById('launchBtn').disabled = true;
   }
 }
 
 function renderProviders() {
-  // Most provider ids match an /icons/{id}.svg file directly. Only the few
-  // providers without their own icon fall back to a sibling brand.
   const iconMap = {'ark_agentplan':'doubao', 'byteplus':'doubao', 'doubao_seed':'doubao', 'bailing':'gemini', 'kat_coder':'gemini', 'bailian':'qwen', 'bailian_coding':'qwen', 'modelscope':'openrouter', 'cherryin':'openrouter', 'therouter':'openrouter', 'nous':'nousresearch', 'qwen-oauth':'qwen', 'custom':'openrouter', 'bedrock':'amazon', 'vertex':'google', 'upstage':'ai-gateway', 'azure-foundry':'azure'};
-  // Distinguishing tags for sibling entries of the same vendor so multi-entry
-  // providers (e.g. 直连 vs 中转, 北京 vs 海外) are easy to tell apart.
   const providerTags = {
-    'xiaomi-token-plan': '中转',
-    'bailian_coding': '代码',
-    'alibaba-coding-plan': '代码计划',
-    'ark_agentplan': '北京',
-    'byteplus': '海外',
-    'doubao_seed': 'Seed',
-    'minimax-cn': '中国版',
-    'kimi-coding': '代码',
-    'kimi-coding-cn': '中国代码',
-    'glm': '代码计划',
-    'tencent-tokenhub': 'TokenHub',
+    'xiaomi-token-plan': '中转', 'bailian_coding': '代码', 'alibaba-coding-plan': '代码计划',
+    'ark_agentplan': '北京', 'byteplus': '海外', 'doubao_seed': 'Seed',
+    'minimax-cn': '中国版', 'kimi-coding': '代码', 'kimi-coding-cn': '中国代码',
+    'glm': '代码计划', 'tencent-tokenhub': 'TokenHub',
   };
   const g = document.getElementById('providerGrid');
   const q = providerSearch.trim().toLowerCase();
-  // 先按搜索/tag 过滤
   let list = PROVIDERS.filter(p => {
     if (providerTag && !(p.tags || []).includes(providerTag)) return false;
     if (q && !(`${p.name} ${p.id} ${(p.tags||[]).join(' ')}`.toLowerCase().includes(q))) return false;
@@ -1797,7 +1840,6 @@ function renderProviders() {
     g.innerHTML = `<div class="provider-empty">没有匹配的模型厂商</div>`;
     return;
   }
-  // 按分组渲染,组间加小标题
   let html = '';
   for (const grp of PROVIDER_GROUPS) {
     const items = list.filter(p => (GROUP_OF[p.id] || 'other') === grp.key);
@@ -1807,7 +1849,41 @@ function renderProviders() {
       const iconName = iconMap[p.id] || p.id;
       const icon = `<img src="/icons/${iconName}.svg" width="16" height="16" alt="" loading="lazy" decoding="async" style="border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.style.display='none'">`;
       const tag = providerTags[p.id] ? `<span class="p-tag">${providerTags[p.id]}</span>` : '';
-      return `<button type="button" class="provider-btn ${p.id===activeProvider?'active':''}" onclick="selectProvider('${p.id}')">${icon}${p.name}${tag}</button>`;
+      const isActive = p.id === activeProvider;
+      const hasKey = currentEnv[p.env] && currentEnv[p.env].length > 0;
+      const expandStyle = isActive ? 'display:block' : 'display:none';
+      
+      // Build the expandable form content
+      let formHtml = '';
+      if (p.isLocal) {
+        const _port = ((String(p.base || '').match(/:(\d+)/)) || [])[1] || '';
+        formHtml = `<div class="provider-expand" style="${expandStyle}">` +
+          `<input type="text" class="input" placeholder="Port (default: ${_port})" data-field="port" value="${_port}">` +
+          `<input type="text" class="input" placeholder="Model Name" data-field="model">` +
+          `<div class="card-actions"><button class="btn btn-sm" onclick="event.stopPropagation(); testLocal('${p.id}')">检测连接</button><span class="spacer"></span><button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); saveCard('${p.id}')">保存并继续</button></div></div>`;
+      } else if (p.isCustom) {
+        formHtml = `<div class="provider-expand" style="${expandStyle}">` +
+          `<input type="url" class="input" placeholder="Base URL (https://...)" data-field="base">` +
+          `<input type="text" class="input" placeholder="Model Name" data-field="model">` +
+          `<input type="password" class="input" placeholder="API Key" data-field="apikey" id="key-${p.id}" autocomplete="off" spellcheck="false">` +
+          `<div class="card-actions"><span class="spacer"></span><button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); saveCard('${p.id}')">保存并继续</button></div></div>`;
+      } else {
+        const opts = p.models.map(m => `<option value="${m}">${m}</option>`).join('');
+        formHtml = `<div class="provider-expand" style="${expandStyle}">` +
+          `<select class="input" data-field="model"><option value="">-- 选择模型 --</option>${opts}</select>` +
+          `<input type="password" class="input" placeholder="API Key" data-field="apikey" id="key-${p.id}" autocomplete="off" spellcheck="false">` +
+          `<div class="card-actions">` +
+          `<a class="btn btn-sm" href="${p.link}" target="_blank" rel="noopener">获取 Key ↗</a>` +
+          `<button class="btn btn-sm" onclick="event.stopPropagation(); testKey('${p.id}')">测试 Key</button>` +
+          `<span id="keytest-${p.id}" style="font-size:0.78em;"></span>` +
+          `<span class="spacer"></span><button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); saveCard('${p.id}')">保存并继续</button></div></div>`;
+      }
+      
+      return `<div class="provider-card ${isActive?'selected':''}" data-id="${p.id}" onclick="toggleProvider(this,'${p.id}')">` +
+        `<div class="provider-header">${icon}<span class="provider-name">${p.name}</span>${tag}${hasKey?'<span class="provider-saved">✓</span>':''}</div>` +
+        `<div class="provider-desc">${p.desc}</div>` +
+        formHtml +
+        `</div>`;
     }).join('');
   }
   g.innerHTML = html;
@@ -1826,53 +1902,34 @@ function onProviderTag(tag) {
   renderProviders();
 }
 
-function selectProvider(id) { activeProvider = id; renderProviders(); renderApiKeySection(); updateModelSelect(); }
+function selectProvider(id) { 
+  if (activeProvider === id) {
+    activeProvider = '';
+  } else {
+    activeProvider = id;
+  }
+  renderProviders(); 
+}
 
-function renderApiKeySection() {
-  const s = document.getElementById('apiKeySection');
-  const p = PROVIDERS.find(x => x.id === activeProvider);
-  if (!p) return;
-  const hasKey = currentEnv[p.env] && currentEnv[p.env].length > 0;
-  // base_url / extra fields only for providers that declare them
-  const bue = p.base_url_env;
-  const baseVal = bue ? (currentEnv[bue] || '') : '';
-  let extraHtml = '';
-  if (bue) {
-    extraHtml += `<div class="field" style="margin-top:8px">
-      <label for="baseUrl_${bue}">Base URL (自定义端点)</label>
-      <input type="text" id="baseUrl_${bue}" placeholder="https://your-endpoint.example.com/v1"
-             value="${escapeHtml(baseVal)}"
-             oninput="currentEnv['${bue}']=this.value; if(!this.value) delete currentEnv['${bue}'];">
-    </div>`;
-    extraHtml += `<div class="field" style="margin-top:8px">
-      <label style="display:flex;align-items:center;gap:8px;font-weight:normal">
-        <input type="checkbox" id="allowLocalChk" onchange="onAllowLocalChange(this.checked)">
-        允许连接本地地址（127.0.0.1 / localhost，用于 llama.cpp / ollama 等本地模型）
-      </label>
-    </div>`;
+function toggleProvider(card, id) {
+  // Don't toggle if clicking on an input/button/select inside the card
+  var evt = window.event;
+  if (evt && evt.target) {
+    var tag = evt.target.tagName.toLowerCase();
+    if (tag === 'input' || tag === 'select' || tag === 'button' || tag === 'a' || tag === 'option') return;
+    if (evt.target.closest && evt.target.closest('.provider-expand')) return;
   }
-  for (const ef of (p.extra_fields || [])) {
-    const ev = currentEnv[ef.key] || '';
-    extraHtml += `<div class="field" style="margin-top:8px">
-    <label for="extra_${ef.key}">${ef.label}</label>
-    <input type="${ef.type || 'text'}" id="extra_${ef.key}" placeholder="${ef.placeholder || ''}"
-             value="${escapeHtml(ev)}"
-             oninput="currentEnv['${ef.key}']=this.value; if(!this.value) delete currentEnv['${ef.key}'];">
-    </div>`;
+  if (activeProvider === id) {
+    activeProvider = '';
+  } else {
+    activeProvider = id;
   }
-  s.innerHTML = (p.env ? `<div class="field">
-    <label for="apiKey_${p.env}">${p.name} API Key</label>
-    <div class="api-key-row">
-      <input type="password" id="apiKey_${p.env}" placeholder="粘贴你的 ${p.name} API Key"
-             value="${hasKey ? escapeHtml(currentEnv[p.env]) : ''}" oninput="updateKeyStatus(this,'${p.env}')">
-      <div class="api-status ${hasKey?'set':''}" id="status_${p.env}"></div>
-    </div></div>` : `<div class="field">
-    <label>${p.name} 凭证</label>
-    <div style="font-size:10px;color:var(--fg-muted,#9a968e);line-height:1.5">
-      该 provider 使用下方字段配置的凭证 / 端点，无需 API Key。
-    </div></div>`) + `
-    ${extraHtml}
-    <div style="margin-top:8px"></div>`;
+  renderProviders();
+}
+
+function saveCard(id) {
+  activeProvider = id;
+  saveConfig();
 }
 
 function updateKeyStatus(input, envKey) {
@@ -2120,10 +2177,6 @@ function updateChannelStatus(chId) {
 
 function restoreConfig() {
   fetch('/api/config').then(r => r.json()).then(async (data) => {
-    // #3: inject env/base_url_env/extra_fields from the backend PROVIDERS so the
-    // frontend never renders a "ghost" apiKey_undefined box (the frontend
-    // PROVIDERS list omits `env`). This keeps the two lists in sync without
-    // duplicating 79 entries by hand.
     if (Array.isArray(data.providers)) {
       const byId = {};
       for (const bp of data.providers) byId[bp.id] = bp;
@@ -2136,93 +2189,74 @@ function restoreConfig() {
         }
       }
     }
-    // Ensure there's an active provider so the API-key section renders even on
-    // first run (init() no longer does the initial render — it waits for this
-    // fetch to inject backend env fields first).
     if (!activeProvider && Array.isArray(data.providers) && data.providers.length) {
       activeProvider = data.providers[0].id;
     }
     if (!activeProvider) activeProvider = 'openrouter';
     const cfg = data.config || {};
-    if (cfg.agent) document.getElementById('maxTurns').value = cfg.agent.max_turns || 90;
-    if (cfg.terminal) document.getElementById('timeout').value = cfg.terminal.timeout || 180;
-    if (cfg.compression) document.getElementById('compression').checked = cfg.compression.enabled !== false;
+    if (cfg.agent) {
+      const mt = document.getElementById('maxTurns');
+      if (mt) mt.value = cfg.agent.max_turns || 90;
+    }
+    if (cfg.terminal) {
+      const to = document.getElementById('timeout');
+      if (to) to.value = cfg.terminal.timeout || 180;
+    }
+    if (cfg.compression) {
+      const cb = document.getElementById('compression');
+      if (cb) cb.checked = cfg.compression.enabled !== false;
+    }
     if (cfg.display) {
-      document.getElementById('showCost').checked = cfg.display.show_cost !== false;
-      document.getElementById('showToolProgress').checked = cfg.display.tool_progress !== false;
+      const sc = document.getElementById('showCost');
+      const tp = document.getElementById('showToolProgress');
+      if (sc) sc.checked = cfg.display.show_cost !== false;
+      if (tp) tp.checked = cfg.display.tool_progress !== false;
     }
-    if (cfg.memory) document.getElementById('memoryEnabled').checked = cfg.memory.memory_enabled !== false;
+    if (cfg.memory) {
+      const me = document.getElementById('memoryEnabled');
+      if (me) me.checked = cfg.memory.memory_enabled !== false;
+    }
+    // Set active provider from saved config
     if (cfg.model) {
-      const full = cfg.model.default || '';
       const provider = cfg.model.provider || 'openrouter';
-      selectProvider(provider);
-      const sel = document.getElementById('modelSelect');
-      if (sel && sel.tagName === 'SELECT' && sel.options) {
-        for (let opt of sel.options) {
-          if (opt.value === full || full.endsWith(opt.value)) { opt.selected = true; break; }
-        }
-      } else if (sel && sel.tagName === 'INPUT') {
-        // Provider without a static model list: the value is the full model id.
-        sel.value = (currentEnv['__model_' + provider] || full.split('/').slice(1).join('/') || full);
-      }
-      updateModelPreview();
+      activeProvider = provider;
     }
-    // If the active provider already has a saved key, allow launching without
-    // forcing another save (otherwise a returning user is wrongly blocked by
-    // the `!savedOnce` guard in launchHermes() on every page reload).
-    const _ap = PROVIDERS.find(x => x.id === activeProvider);
-    if (_ap && data.env && data.env[_ap.env]) { savedOnce = true; }
-    // Refill currentEnv from the server-side .env so any field the UI
-    // renders (API keys, channel tokens, per-provider base_url / AWS /
-    // GCP creds) is restored and survives a save round-trip instead of
-    // being clobbered by an empty in-browser mirror.
+    // Refill currentEnv
     if (data.env) {
       for (const k of Object.keys(data.env)) {
         if (data.env[k]) currentEnv[k] = data.env[k];
       }
     }
-    // Re-render the API-key / base_url section now that currentEnv has
-    // been repopulated from the server — otherwise the inputs stay blank
-    // (renderApiKeySection ran in init() before this fetch resolved) and a
-    // subsequent save would push empty values back and wipe data/.env.
-    renderApiKeySection();
+    const _ap = PROVIDERS.find(x => x.id === activeProvider);
+    if (_ap && data.env && data.env[_ap.env]) { savedOnce = true; }
+    // Re-render provider cards to show saved keys
+    renderProviders();
     if (cfg.gateway && cfg.gateway.platforms) {
       enabledChannels = Object.keys(cfg.gateway.platforms).filter(k => cfg.gateway.platforms[k].enabled);
       renderChannels();
     }
-    // Surface the upstream model catalog freshness so users know
-    // when the OpenRouter / Nous list was last updated. When the
-    // backend couldn't reach the catalog this just stays hidden.
+    // Update catalog status
     const cs = document.getElementById('catalogStatus');
     if (cs) {
       if (data.catalog_updated_at) {
         cs.style.display = 'block';
-        cs.textContent = '◉ 模型清单 · 上游同步于 ' + data.catalog_updated_at.slice(0,10);
-        cs.style.color = 'var(--accent,#d4e600)';
+        cs.textContent = '模型清单: 上游同步于 ' + data.catalog_updated_at.slice(0,10);
+        cs.style.color = 'var(--accent)';
       } else {
         cs.style.display = 'block';
-        cs.textContent = '◌ 模型清单 · 离线（使用内置快照）';
-        cs.style.color = 'var(--fg-muted,#9a968e)';
+        cs.textContent = '模型清单: 离线（使用内置快照）';
+        cs.style.color = 'var(--fg-muted)';
       }
     }
-    // Decide first-run state from the *actual* saved config rather than the
-    // hardcoded `isFirstRun = true`, so the onboarding overlay and launch
-    // lock don't re-appear on every page reload after the user has already
-    // configured the app.
     const _hasSaved = (data.env && Object.keys(data.env).some(k => data.env[k])) ||
                       (data.config && Object.keys(data.config).length > 0);
     if (_hasSaved) {
       isFirstRun = false;
       dismissOnboarding();
-      const lb = document.getElementById('launchBtn');
-      if (lb) lb.disabled = false;
     } else {
       isFirstRun = true;
       showOnboarding();
-      const lb = document.getElementById('launchBtn');
-      if (lb) lb.disabled = true;
     }
-    // Restore the "allow local hosts" switch state (for local llama.cpp / ollama).
     try {
       const sr = await fetch('/api/settings');
       if (sr.ok) {
@@ -2230,56 +2264,99 @@ function restoreConfig() {
         const chk = document.getElementById('allowLocalChk');
         if (chk && typeof sd.allow_local_hosts === 'boolean') chk.checked = sd.allow_local_hosts;
       }
-    } catch (e) { /* settings optional; ignore */ }
+    } catch (e) { /* settings optional */ }
   }).catch((err) => {
-    // #10: never silently swallow a failed load. If /api/config fails, currentEnv
-    // stays empty — saving now would wipe data/.env. Disable the save button and
-    // tell the user instead of letting a later save overwrite their config.
     console.error('restoreConfig failed:', err);
-    const sb = document.getElementById('saveBtn');
-    if (sb) { sb.disabled = true; sb.title = '加载配置失败，请刷新页面'; }
     toast('加载配置失败，请刷新页面', 'error');
-    // Still render the (empty) API-key section so the UI is usable after refresh.
-    renderApiKeySection();
+    renderProviders();
   });
 }
 
 function saveConfig() {
+  if (!activeProvider) { toast('请先选择模型', 'error'); return; }
   const p = PROVIDERS.find(x => x.id === activeProvider);
-  // Providers without an api-key env (bedrock / vertex use AWS / OAuth2
-  // creds instead) are allowed to save even without an API key; others
-  // still require one.
-  if (p && p.env && !currentEnv[p.env]) { toast('请填写 ' + p.name + ' API Key', 'error'); return; }
-  const sel = document.getElementById('modelSelect');
-  // #4: providers without a static model list use a free-text model name input;
-  // require a non-empty model name so we never write an invalid "provider/" config.
-  const modelName = (sel ? sel.value : '') || currentEnv['__model_' + activeProvider] || '';
-  if (!modelName.trim()) {
-    toast('请填写模型名（如 anthropic.claude-v1）', 'error');
-    return;
+  if (!p) return;
+  const card = document.querySelector('.provider-card[data-id="' + activeProvider + '"]');
+  if (!card) return;
+
+  // Read values from the card's inputs
+  let modelName = '';
+  let apiKey = '';
+  let baseUrl = '';
+  
+  if (p.isLocal) {
+    const portInput = card.querySelector('[data-field="port"]');
+    const port = portInput ? portInput.value : '11434';
+    baseUrl = 'http://127.0.0.1:' + port + '/v1';
+    const modelInput = card.querySelector('[data-field="model"]');
+    modelName = modelInput ? modelInput.value : '';
+  } else if (p.isCustom) {
+    const baseInput = card.querySelector('[data-field="base"]');
+    baseUrl = baseInput ? baseInput.value : '';
+    const modelInput = card.querySelector[data-field="model"]';
+    modelName = modelInput ? modelInput.value : '';
+    const keyInput = card.querySelector('[data-field="apikey"]';
+    apiKey = keyInput ? keyInput.value : '';
+  } else {
+    const modelSelect = card.querySelector('[data-field="model"]');
+    modelName = modelSelect ? modelSelect.value : '';
+    const keyInput = card.querySelector('[data-field="apikey"]');
+    apiKey = keyInput ? keyInput.value : '';
   }
+
+  if (!modelName) { toast('请选择或输入模型名', 'error'); return; }
+  if (!apiKey && !p.isLocal) { toast('请填写 API Key', 'error'); return; }
+
   const data = {
     env: currentEnv,
     model_provider: activeProvider,
     model_name: modelName,
-    max_turns: parseInt(document.getElementById('maxTurns').value),
-    timeout: parseInt(document.getElementById('timeout').value),
-    compression: document.getElementById('compression').checked,
-    compression_threshold: 0.50,
-    show_cost: document.getElementById('showCost').checked,
-    show_tool_progress: document.getElementById('showToolProgress').checked,
-    memory_enabled: document.getElementById('memoryEnabled').checked,
+    max_turns: parseInt(document.getElementById('maxTurns')?.value || '90'),
+    timeout: parseInt(document.getElementById('timeout')?.value || '180'),
+    compression: document.getElementById('compression')?.checked !== false,
+    show_cost: document.getElementById('showCost')?.checked !== false,
+    show_tool_progress: document.getElementById('showToolProgress')?.checked !== false,
+    memory_enabled: document.getElementById('memoryEnabled')?.checked !== false,
     enabled_channels: enabledChannels,
     skin: 'default',
   };
-  const btn = document.getElementById('saveBtn');
-  fetch('/api/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) })
-    .then(r => r.json()).then(res => {
-      if (res.success) {
-        toast('已保存', 'success'); savedOnce = true; if(isFirstRun) updateStep(3);
-        flash(btn, 'ok');
-      } else { toast(res.error || '错误', 'error'); flash(btn, 'err'); }
-    }).catch(() => { toast('网络错误', 'error'); flash(btn, 'err'); });
+  
+  // Update env with the key from the card
+  if (p.env && apiKey) {
+    currentEnv[p.env] = apiKey;
+  }
+  if (p.base_url_env && baseUrl) {
+    currentEnv[p.base_url_env] = baseUrl;
+  }
+  data.env = currentEnv;
+
+  const btn = document.querySelector('.provider-card[data-id="' + activeProvider + '"] .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+  
+  fetch('/api/save', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  }).then(r => r.json()).then(res => {
+    if (btn) { btn.disabled = false; btn.textContent = '保存并继续'; }
+    if (res.success) {
+      toast('已保存！', 'success');
+      savedOnce = true;
+      // Mark card as saved
+      const card = document.querySelector('.provider-card[data-id="' + activeProvider + '"]');
+      if (card) {
+        const header = card.querySelector('.provider-header');
+        if (header && !header.querySelector('.provider-saved')) {
+          header.innerHTML += '<span class="provider-saved">✓</span>';
+        }
+      }
+    } else {
+      toast(res.error || '保存失败', 'error');
+    }
+  }).catch(err => {
+    if (btn) { btn.disabled = false; btn.textContent = '保存并继续'; }
+    toast('网络错误: ' + err.message, 'error');
+  });
 }
 
 function launchHermes() {
@@ -2322,15 +2399,22 @@ function onAllowLocalChange(checked) {
 function testConnection() {
   const p = PROVIDERS.find(x => x.id === activeProvider);
   if (!p) return;
-  const keyInput = document.getElementById('apiKey_' + p.env);
-  const key = (keyInput ? keyInput.value : '').trim();
-  // A configured base_url (custom / bedrock / vertex / azure-foundry)
-  // is itself enough to attempt a test even without an api key.
+  const card = document.querySelector('.provider-card[data-id="' + activeProvider + '"]');
+  if (!card) return;
+  
+  // Get key from card
+  const keyInput = card.querySelector('[data-field="apikey"]');
+  const key = keyInput ? keyInput.value.trim() : '';
+  
+  // Get model from card
+  const modelSelect = card.querySelector('[data-field="model"]');
+  const modelName = modelSelect ? modelSelect.value : '';
+  
+  // Get base URL if applicable
   const bue = p.base_url_env;
   const baseInput = bue ? document.getElementById('baseUrl_' + bue) : null;
   let baseUrl = baseInput ? baseInput.value.trim() : '';
-  // #2/#12: reject schemes other than http(s) and require a host before
-  // sending anything to /api/test (which would otherwise connect anywhere).
+  
   if (baseUrl && !/^https?:\/\/[^/\s:]+(:\d+)?(\/.*)?$/i.test(baseUrl)) {
     toast('Base URL 需为 http(s):// 开头的有效地址', 'error');
     return;
@@ -2339,32 +2423,35 @@ function testConnection() {
     toast('请先填写 API Key 或 Base URL', 'error');
     return;
   }
-  const result = document.getElementById('testResult');
-  const tbtn = document.getElementById('testBtn');
-  if (tbtn) { tbtn.disabled = true; tbtn.dataset.label = tbtn.innerHTML; tbtn.innerHTML = '<i class="ti ti-loader-2 btn-spin"></i> 测试中...'; }
-  result.style.display = 'block';
-  result.innerHTML = '<span style="color:var(--warning)">正在测试...</span>';
-  const modelName = (document.getElementById('modelSelect') || {}).value || currentEnv['__model_' + activeProvider] || '';
-
+  
+  // Show result in card
+  const resultEl = document.getElementById('keytest-' + activeProvider);
+  const testBtn = card.querySelector('.btn-sm');
+  if (testBtn) { testBtn.disabled = true; testBtn.textContent = '测试中...'; }
+  if (resultEl) { resultEl.textContent = '正在测试...'; }
+  
   fetch('/api/test', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({provider: activeProvider, api_key: key, model: modelName, base: p.base || '', base_url: baseUrl, allow_local: document.getElementById('allowLocalChk') ? document.getElementById('allowLocalChk').checked : false})
+    body: JSON.stringify({
+      provider: activeProvider, 
+      api_key: key, 
+      model: modelName, 
+      base: p.base || '', 
+      base_url: baseUrl, 
+      allow_local: document.getElementById('allowLocalChk') ? document.getElementById('allowLocalChk').checked : false
+    })
   }).then(r => r.json()).then(data => {
     if (data.success) {
-      result.innerHTML = '<span style="color:var(--accent)"><i class="ti ti-circle-check"></i> ' + (data.message || '连接成功') + '</span>';
-      // Advance onboarding step
-      if (isFirstRun) {
-        updateStep(2);
-        document.getElementById('launchBtn').disabled = false;
-      }
+      if (resultEl) { resultEl.textContent = '✓ ' + (data.message || '连接成功'); resultEl.style.color = 'var(--accent)'; }
+      if (isFirstRun) { updateStep(2); }
     } else {
-      result.innerHTML = '<span style="color:var(--destructive)"><i class="ti ti-circle-x"></i> ' + (data.error || '连接失败') + '</span>';
+      if (resultEl) { resultEl.textContent = '✗ ' + (data.error || '连接失败'); resultEl.style.color = 'var(--destructive)'; }
     }
   }).catch(() => {
-    result.innerHTML = '<span style="color:var(--destructive)"><i class="ti ti-circle-x"></i> 网络错误</span>';
+    if (resultEl) { resultEl.textContent = '✗ 网络错误'; resultEl.style.color = 'var(--destructive)'; }
   }).finally(() => {
-    if (tbtn) { tbtn.disabled = false; tbtn.innerHTML = tbtn.dataset.label || '<i class="ti ti-plug"></i> 测试连接'; }
+    if (testBtn) { testBtn.disabled = false; testBtn.textContent = '测试 Key'; }
   });
 }
 
