@@ -1,4 +1,4 @@
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -38,8 +38,6 @@
     --secondary: var(--bg);
     --muted: var(--border);
     --accent: var(--accent);
-    --emerald: var(--accent);
-    --emerald-dim: var(--accent);
     --warning: var(--warn);
     --success: var(--accent);
     --destructive: var(--danger);
@@ -141,6 +139,10 @@
     -webkit-font-smoothing: antialiased;
     scrollbar-color: rgba(245, 245, 245, 0.2) transparent;
     position: relative;
+  }
+  .tab, .btn, .section-label, .y-label, .y-label-sm, .y-label-xs, .channel-status {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
   .tab, .btn, .section-label, .y-label, .y-label-sm, .y-label-xs, .channel-status {
     text-transform: uppercase;
@@ -344,8 +346,8 @@
   .provider-btn { text-transform: none; letter-spacing: 0; }
   .provider-btn:hover { border-color: var(--fg); color: var(--fg); }
   .provider-btn.active {
-    border-color: var(--emerald-dim);
-    color: var(--emerald);
+    border-color: var(--accent-dim);
+    color: var(--accent);
     background: rgb(var(--bg-base) / 0.6);
   }
   /* Distinguishing tag for sibling entries of the same vendor
@@ -362,7 +364,7 @@
     vertical-align: middle;
   }
   .provider-btn.active .p-tag {
-    color: var(--emerald);
+    color: var(--accent);
     background: rgb(var(--bg-base) / 0.7);
   }
 
@@ -406,7 +408,7 @@
     background: var(--border); flex-shrink: 0;
     transition: background 0.15s;
   }
-  .api-status.set { background: var(--emerald); }
+  .api-status.set { background: var(--accent); }
 
   /* Toggle switch */
   .toggle-row {
@@ -454,7 +456,7 @@
     border-radius: 50%;
     transition: 0.2s;
   }
-  .switch input:checked + .slider { background: var(--emerald-dim); border-color: var(--emerald); }
+  .switch input:checked + .slider { background: var(--accent-dim); border-color: var(--accent); }
   .switch input:checked + .slider:before { transform: translateX(18px); background: var(--fg); }
   /* Keyboard focus visibility (audit #8) */
   .switch input:focus-visible + .slider { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -470,7 +472,7 @@
     margin-bottom: 6px;
     transition: border-color 0.15s;
   }
-  .channel-card.enabled { border-color: var(--emerald-dim); }
+  .channel-card.enabled { border-color: var(--accent-dim); }
   .channel-header {
     display: flex;
     align-items: center;
@@ -504,7 +506,7 @@
     padding: 2px 8px;
     border-radius: var(--radius-sm);
   }
-  .channel-status.on { background: rgb(var(--accent-base) / 0.14); color: var(--emerald); }
+  .channel-status.on { background: rgb(var(--accent-base) / 0.14); color: var(--accent); }
   .channel-status.off { background: var(--muted); color: var(--fg-muted); }
   .channel-right { display: flex; align-items: center; gap: 8px; }
 
@@ -522,7 +524,7 @@
     border-radius: var(--radius-sm);
     font-family: var(--font-mono);
     font-size: 14px;
-    color: var(--emerald);
+    color: var(--accent);
     letter-spacing: 0.05em;
   }
 
@@ -574,8 +576,8 @@
      disabled state — the button stays usable, it just briefly signals
      success/failure so the click is perceptible). */
   .btn.flash-ok {
-    background: var(--emerald);
-    border-color: var(--emerald);
+    background: var(--accent);
+    border-color: var(--accent);
     color: var(--bg);
   }
   .btn.flash-err {
@@ -598,11 +600,11 @@
   }
   .btn-save:hover { background: rgb(var(--bg-base) / 0.6); }
   .btn-launch {
-    background: var(--emerald-dim);
+    background: var(--accent-dim);
     color: var(--bg);
-    border-color: var(--emerald);
+    border-color: var(--accent);
   }
-  .btn-launch:hover { background: var(--emerald); }
+  .btn-launch:hover { background: var(--accent); }
   .btn-launch:disabled {
     background: var(--muted);
     color: var(--fg-muted);
@@ -626,7 +628,7 @@
     border: 1px solid var(--border);
   }
   .toast.show { transform: translateX(0); }
-  .toast.success { background: var(--secondary); color: var(--emerald); border-color: var(--emerald); }
+  .toast.success { background: var(--secondary); color: var(--accent); border-color: var(--accent); }
   .toast.error { background: var(--secondary); color: var(--destructive); border-color: var(--destructive); }
 
   /* Footer */
@@ -706,16 +708,16 @@
     background: var(--secondary);
     border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
-    font-size: 14px; color: var(--emerald);
+    font-size: 14px; color: var(--accent);
     flex-shrink: 0;
     margin-top: -1px;
   }
   .step-num.active {
-    background: var(--emerald-dim);
-    border-color: var(--emerald);
+    background: var(--accent-dim);
+    border-color: var(--accent);
     color: var(--bg);
   }
-  .onboarding-card .btn { margin-top: var(--space-4); }
+  .onboarding-card .btn-launch { margin-top: var(--space-4); }
 
 
   
@@ -1136,8 +1138,8 @@ select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-</style>
-<style>
+
+
   /* LXGW WenKai — bundled local subset (offline-safe, no CDN) */
   @font-face {
     font-family: 'LXGW WenKai';
@@ -1161,7 +1163,9 @@ select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
 </style>
+
 </head>
 <body>
 <a href="#main" class="skip-link">跳到主要内容</a>
@@ -1361,7 +1365,7 @@ select:focus-visible {
             更新到最新版
           </button>
         </div>
-        <div id="updateLog" style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--emerald);display:none;white-space:pre-wrap;"></div>
+        <div id="updateLog" style="margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--accent);display:none;white-space:pre-wrap;"></div>
       </div>
 
       <div class="section-label" style="margin-top:12px">配置管理</div>
@@ -1957,10 +1961,10 @@ async function refreshModelCatalog() {
         cs.style.display = 'block';
         if (data.catalog_updated_at) {
           cs.textContent = '◉ 模型清单 · 上游同步于 ' + data.catalog_updated_at.slice(0,10);
-          cs.style.color = 'var(--emerald,#d4e600)';
+          cs.style.color = 'var(--accent,#d4e600)';
         } else {
           cs.textContent = '◉ 模型清单 · 已刷新';
-          cs.style.color = 'var(--emerald,#d4e600)';
+          cs.style.color = 'var(--accent,#d4e600)';
         }
       }
     } else {
@@ -2189,7 +2193,7 @@ function restoreConfig() {
       if (data.catalog_updated_at) {
         cs.style.display = 'block';
         cs.textContent = '◉ 模型清单 · 上游同步于 ' + data.catalog_updated_at.slice(0,10);
-        cs.style.color = 'var(--emerald,#d4e600)';
+        cs.style.color = 'var(--accent,#d4e600)';
       } else {
         cs.style.display = 'block';
         cs.textContent = '◌ 模型清单 · 离线（使用内置快照）';
@@ -2343,7 +2347,7 @@ function testConnection() {
     body: JSON.stringify({provider: activeProvider, api_key: key, model: modelName, base: p.base || '', base_url: baseUrl, allow_local: document.getElementById('allowLocalChk') ? document.getElementById('allowLocalChk').checked : false})
   }).then(r => r.json()).then(data => {
     if (data.success) {
-      result.innerHTML = '<span style="color:var(--emerald)"><i class="ti ti-circle-check"></i> ' + (data.message || '连接成功') + '</span>';
+      result.innerHTML = '<span style="color:var(--accent)"><i class="ti ti-circle-check"></i> ' + (data.message || '连接成功') + '</span>';
       // Advance onboarding step
       if (isFirstRun) {
         updateStep(2);
@@ -2366,7 +2370,7 @@ function checkUpdate() {
   action.style.display = 'none';
   fetch('/api/version').then(r => r.json()).then(data => {
     let html = '';
-    html += '<div style="color:var(--fg);margin-bottom:4px">当前: <span style="color:var(--emerald)">' + data.local + '</span></div>';
+    html += '<div style="color:var(--fg);margin-bottom:4px">当前: <span style="color:var(--accent)">' + data.local + '</span></div>';
     if (data.remote && data.remote.date) {
       html += '<div>远程: ' + data.remote.date + ' (' + data.remote.sha + ')</div>';
       html += '<div style="opacity:0.7;margin-top:2px">' + (data.remote.message || '') + '</div>';
@@ -2381,7 +2385,7 @@ function checkUpdate() {
       action.style.display = 'block';
     }
     if (data.portable_update && data.portable_update.tag) {
-      info.innerHTML += '<div style="margin-top:8px;color:var(--emerald)">Portable 更新: ' + data.portable_update.tag + '</div>';
+      info.innerHTML += '<div style="margin-top:8px;color:var(--accent)">Portable 更新: ' + data.portable_update.tag + '</div>';
     }
   }).catch(() => {
     info.innerHTML = '<span style="color:var(--destructive)">检查失败</span>';
