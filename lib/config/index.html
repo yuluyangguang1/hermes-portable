@@ -1812,12 +1812,18 @@ function updateStep(step) {
 }
 
 function init() {
-  renderProviders();
-  renderChannels();
-  restoreConfig();
-  // First run: show onboarding
-  if (isFirstRun) {
-    showOnboarding();
+  try {
+    console.log('init() started');
+    renderProviders();
+    console.log('renderProviders done');
+    renderChannels();
+    restoreConfig();
+    if (isFirstRun) {
+      showOnboarding();
+    }
+    console.log('init() completed');
+  } catch(e) {
+    console.error('init() ERROR:', e.message, e.stack);
   }
 }
 
@@ -1855,13 +1861,14 @@ function renderProviders() {
       
       // Build the expandable form content
       let formHtml = '';
-      if (p.isLocal) {
+      const isLocal = p.id === 'ollama' || p.id === 'lmstudio' || (p.base && p.base.includes('127.0.0.1'));
+      if (isLocal) {
         const _port = ((String(p.base || '').match(/:(\d+)/)) || [])[1] || '';
         formHtml = `<div class="provider-expand" style="${expandStyle}">` +
           `<input type="text" class="input" placeholder="Port (default: ${_port})" data-field="port" value="${_port}">` +
           `<input type="text" class="input" placeholder="Model Name" data-field="model">` +
           `<div class="card-actions"><button class="btn btn-sm" onclick="event.stopPropagation(); testLocal('${p.id}')">检测连接</button><span class="spacer"></span><button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); saveCard('${p.id}')">保存并继续</button></div></div>`;
-      } else if (p.isCustom) {
+      } else if (p.id === 'custom') {
         formHtml = `<div class="provider-expand" style="${expandStyle}">` +
           `<input type="url" class="input" placeholder="Base URL (https://...)" data-field="base">` +
           `<input type="text" class="input" placeholder="Model Name" data-field="model">` +
@@ -2283,19 +2290,19 @@ function saveConfig() {
   let modelName = '';
   let apiKey = '';
   let baseUrl = '';
-  
-  if (p.isLocal) {
+  const isLocal = p.id === 'ollama' || p.id === 'lmstudio' || (p.base && p.base.includes('127.0.0.1'));
+  if (isLocal) {
     const portInput = card.querySelector('[data-field="port"]');
     const port = portInput ? portInput.value : '11434';
     baseUrl = 'http://127.0.0.1:' + port + '/v1';
     const modelInput = card.querySelector('[data-field="model"]');
     modelName = modelInput ? modelInput.value : '';
-  } else if (p.isCustom) {
+  } else if (p.id === 'custom') {
     const baseInput = card.querySelector('[data-field="base"]');
     baseUrl = baseInput ? baseInput.value : '';
-    const modelInput = card.querySelector[data-field="model"]';
+    const modelInput = card.querySelector('[data-field="model"]');
     modelName = modelInput ? modelInput.value : '';
-    const keyInput = card.querySelector('[data-field="apikey"]';
+    const keyInput = card.querySelector('[data-field="apikey"]');
     apiKey = keyInput ? keyInput.value : '';
   } else {
     const modelSelect = card.querySelector('[data-field="model"]');
@@ -2305,7 +2312,7 @@ function saveConfig() {
   }
 
   if (!modelName) { toast('请选择或输入模型名', 'error'); return; }
-  if (!apiKey && !p.isLocal) { toast('请填写 API Key', 'error'); return; }
+  if (!apiKey && !isLocal) { toast('请填写 API Key', 'error'); return; }
 
   const data = {
     env: currentEnv,
