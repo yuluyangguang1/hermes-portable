@@ -227,7 +227,7 @@ if "%LAUNCH_MODE%"=="desktop" (
     rem Start hermes-web-ui (port 8648) if bundled Node present
     call :start_webui
 
-    rem Start config server detached (port 17520) — survives this cmd exit
+    rem Start config server detached (port 17520) - survives this cmd exit
     set "HERMES_BROWSER_OPENED=1"
     call :start_config_server
     
@@ -385,43 +385,46 @@ set "EXITCODE=%errorlevel%"
 goto :cleanup
 
 rem ============================================================
-rem  :start_webui — 启动 Hermes Web UI (:8648)，用包内 Node
-rem  Windows 上 Node 在 node/ 根目录 (node.exe)，全局包在
-rem  node/node_modules/hermes-web-ui；server 入口为
+rem  :start_webui - Start Hermes Web UI (:8648), using bundled Node
+rem  On Windows node lives at node/ root (node.exe); global packages at
+rem  node/node_modules/hermes-web-ui; server entry is
 rem  node/node_modules/hermes-web-ui/dist/server/index.js
 rem ============================================================
 :start_webui
-    if not defined NODE_DIR (
-        echo   [WARN] 未检测到内置 Node — Web UI 已禁用
-        goto :eof
-    )
+    if not defined NODE_DIR goto :webui_none
     set "NODE_EXE=%NODE_DIR%\node.exe"
     if not exist "!NODE_EXE!" set "NODE_EXE=%NODE_DIR%\bin\node.exe"
-    if not exist "!NODE_EXE!" (
-        echo   [WARN] 内置 Node 未找到 (%NODE_DIR%) — Web UI 已禁用
-        goto :eof
-    )
+    if not exist "!NODE_EXE!" goto :webui_nonode
     set "WEBUI_ENTRY=%NODE_DIR%\node_modules\hermes-web-ui\dist\server\index.js"
     if not exist "!WEBUI_ENTRY!" set "WEBUI_ENTRY=%NODE_DIR%\lib\node_modules\hermes-web-ui\dist\server\index.js"
-    if not exist "!WEBUI_ENTRY!" (
-        echo   [WARN] hermes-web-ui 未安装到包内 — Web UI 已禁用
-        goto :eof
-    )
+    if not exist "!WEBUI_ENTRY!" goto :webui_noentry
     echo   Starting Hermes Web UI on port 8648...
-    start "" /min cmd /c ""!NODE_EXE!" "!WEBUI_ENTRY!" start 8648"
+    start "Hermes Web UI" /min "!NODE_EXE!" "!WEBUI_ENTRY!" start 8648
     echo   Hermes Web UI: http://127.0.0.1:8648
     goto :eof
 
+:webui_none
+    echo   [WARN] Bundled Node not detected - Web UI disabled
+    goto :eof
+
+:webui_nonode
+    echo   [WARN] Bundled Node not found (%NODE_DIR%) - Web UI disabled
+    goto :eof
+
+:webui_noentry
+    echo   [WARN] hermes-web-ui not installed in bundle - Web UI disabled
+    goto :eof
+
 rem ============================================================
-rem  :start_config_server — 用 PowerShell Start-Process 真正脱离
-rem  当前控制台，使配置中心在关闭 cmd 后仍常驻 (:17520)
+rem  :start_config_server - use PowerShell Start-Process to detach
+rem  from the current console so the config center survives cmd exit (:17520)
 rem ============================================================
 :start_config_server
     for /f "delims=" %%P in ('powershell -NoProfile -Command "$p=Start-Process -FilePath '%VENV_DIR%\Scripts\pythonw.exe' -ArgumentList '%HERE%\lib\config_server.py' -WindowStyle Hidden -PassThru; $p.Id" 2^>nul') do set "CONFIG_PID=%%P"
     if defined CONFIG_PID (
-        echo   Config Server started (pid !CONFIG_PID!) — http://127.0.0.1:17520
+        echo   Config Server started (pid !CONFIG_PID!) - http://127.0.0.1:17520
     ) else (
-        echo   [WARN] 无法脱离启动配置中心，回退为前台模式
+        echo   [WARN] Cannot detach config server, falling back to foreground
         start "" /b "%VENV_DIR%\Scripts\python.exe" "%HERE%\lib\config_server.py"
     )
     goto :eof

@@ -390,14 +390,21 @@ def _fix_editable_paths(venv, system, src):
     new = "_HERMES_AGENT + '/"
     # Windows: uv writes the absolute path with backslashes, escaped as
     # double backslashes inside the Python finder source ('C:\\repo\\...').
-    # Match both the forward-slash (POSIX) and the backslash (Windows) forms.
+    # The finder is Python *source*, so every separator in it is an escaped
+    # pair — match the forward-slash (POSIX) form, the raw backslash form,
+    # and the escaped backslash form that actually lands in the file.
+    # Without the escaped variant `hit` is False on Windows, the rewrite is
+    # silently skipped, and the build machine's absolute paths ship to users
+    # (symptom: "No module named 'hermes_cli'" on every top-level package).
     bs = chr(92)  # backslash
     prefix_bs = src_abs.rstrip("/") + bs + bs
     prefix_bs_single = src_abs.rstrip("/") + bs
+    prefix_bs_escaped = src_abs.rstrip("/").replace(bs, bs + bs) + bs + bs
 
     for finder_file in finder_files:
         content = finder_file.read_text(encoding="utf-8")
-        hit = (prefix in content) or (prefix_bs in content) or (prefix_bs_single in content)
+        hit = (prefix in content) or (prefix_bs in content) \
+            or (prefix_bs_single in content) or (prefix_bs_escaped in content)
         if not hit:
             continue
         if "MAPPING:" in content:
@@ -407,13 +414,9 @@ def _fix_editable_paths(venv, system, src):
         new_content = content.replace("'" + prefix, new)
         new_content = new_content.replace("'" + prefix_bs, new)
         new_content = new_content.replace("'" + prefix_bs_single, new)
+        new_content = new_content.replace("'" + prefix_bs_escaped, new)
         new_content = new_content.replace(inject + inject, inject)
         finder_file.write_text(new_content, encoding="utf-8")
-        ok(f"Fixed editable paths in {finder_file.name}")
-        new_content = new_content.replace("'" + prefix_bs_single, new)
-        new_content = new_content.replace(inject + inject, inject)
-        finder_file.write_text(new_content, encoding="utf-8")
-        ok(f"Fixed editable paths in {finder_file.name}")
         ok(f"Fixed editable paths in {finder_file.name}")
 
 

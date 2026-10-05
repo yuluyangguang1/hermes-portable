@@ -74,6 +74,7 @@ Idempotent: re-running is a no-op once paths already match.
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -464,6 +465,107 @@ def fix_pyvenv_cfg(venv: Path, python: Path) -> bool:
     return changed
 
 
+# ─── editable-install finder repair ───────────────────────────────────
+def fix_editable_finder(here: Path, venv: Path) -> int:
+    """Repoint uv editable-install finders at this machine's source tree.
+
+    ``uv pip install -e`` writes ``__editable__*_finder.py`` into
+    site-packages: a small meta-path finder whose MAPPING / NAMESPACES
+    dicts hold the *absolute* path of the source tree the package was
+    installed from. On the CI build that is the runner's tree::
+
+        D:\\a\\hermes-portable\\...\\HermesPortable\\hermes-agent\\hermes_cli
+
+    Nothing lives there on a user's machine, so every top-level package
+    in the mapping fails to import and the agent dies with::
+
+        ModuleNotFoundError: No module named 'hermes_cli'
+
+    Same root cause as the trampoline bug above, different carrier: the
+    path is plain text here, not a PE resource, so
+    ``fix_windows_trampoline`` never saw it.
+
+    We rewrite the baked-in directory prefix to ``here/hermes-agent``
+    (the source tree shipped inside this portable). Idempotent: once the
+    prefix already points here there is nothing left to replace.
+
+    Returns the number of finder files rewritten.
+    """
+    project_root = here / "hermes-agent"
+    if not project_root.is_dir():
+        return 0
+
+    candidates: list[Path] = []
+    candidates += sorted(
+        (venv / "Lib" / "site-packages").glob("__editable__*_finder.py")
+    )
+    candidates += sorted(venv.glob("lib/python*/site-packages/__editable__*_finder.py"))
+
+    root = str(project_root)
+    fixed = 0
+    for finder in candidates:
+        try:
+            text = finder.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        # Recover the baked-in prefix without importing the module.
+        # Anchoring on `hermes_cli` (a key the mapping always has) and
+        # requiring a drive letter or slash to open, plus a separator to
+        # close, keeps both the bare dict key `'hermes_cli'` and a
+        # separator-less prefix from matching.
+        match = re.search(r"'((?:[A-Za-z]:|[\\/])[^']*?[\\/])hermes_cli'", text)
+        if match is None:
+            continue
+
+        # The capture ends *with* the path separator that precedes
+        # `hermes_cli`, in its escaped source form (`\\` on Windows, `/`
+        # on Unix). Keep that trailing run verbatim, or the rewritten
+        # path comes out as `...\hermes-agenthermes_cli`, and a single
+        # backslash there is an invalid `\a` escape in the .py source.
+        old_prefix = match.group(1)
+        sep_text = old_prefix[len(old_prefix.rstrip("\\/")):]
+        new_root = root.replace("\\", "/") if "/" in sep_text else root.replace("\\", "\\\\")
+        new_prefix = new_root + sep_text
+        if old_prefix == new_prefix or old_prefix not in text:
+            continue
+
+        fresh = text.replace(old_prefix, new_prefix)
+        # Sanity check: the anchor must now point at a real local tree.
+        if f"'{new_prefix}hermes_cli'" not in fresh:
+            continue
+        # Never leave an unimportable file behind — a bad rewrite here
+        # would turn a working venv into a hard SyntaxError.
+        try:
+            compile(fresh, str(finder), "exec")
+        except SyntaxError:
+            continue
+
+        try:
+            tmp = finder.with_name(finder.name + ".tmp")
+            tmp.write_text(fresh, encoding="utf-8")
+            os.replace(tmp, finder)
+        except OSError:
+            continue
+
+        # Drop stale bytecode so the new mapping actually takes effect.
+        try:
+            for pyc in (finder.parent / "__pycache__").glob(
+                "__editable__*_finder*.pyc"
+            ):
+                pyc.unlink()
+        except OSError:
+            pass
+
+        print(
+            f"[fix_shims] repointed editable finder -> {project_root}",
+            file=sys.stderr,
+        )
+        fixed += 1
+
+    return fixed
+
+
 # ─── entry ────────────────────────────────────────────────────────────
 def main() -> int:
     here = Path(__file__).resolve().parent
@@ -477,6 +579,15 @@ def main() -> int:
         # Nothing sensible to do — launcher itself will report a clearer
         # layout error. Exit 0 so we don't block the launcher.
         return 0
+
+    # The editable-install finder carries its own copy of the CI source
+    # path (as text, not a PE resource) — repair it unconditionally,
+    # independent of whether any trampoline needed rewriting.
+    try:
+        fix_editable_finder(here, venv)
+    except Exception:
+        # Defense in depth — never let shim repair crash the launcher.
+        pass
 
     is_windows = sys.platform == "win32" and (venv / "Scripts").exists()
     scripts = venv / ("Scripts" if is_windows else "bin")
